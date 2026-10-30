@@ -5,8 +5,8 @@
 (function () {
   'use strict';
   try {
-    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v50') {
-      localStorage.setItem('de_app_ver', 'v50');
+    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v60') {
+      localStorage.setItem('de_app_ver', 'v60');
       if (window.caches && caches.keys) {
         caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
       }
@@ -515,7 +515,7 @@
     if (!m) return null;
     var expectedPw = ('DI' + m[3] + m[2] + m[1]).toUpperCase();
     var cleanPw = String(pw || '').trim().toUpperCase();
-    if (/^\d{8}$/.test(cleanPw)) cleanPw = 'DI' + cleanPw;
+    if (!/^DI\d{8}$/.test(cleanPw)) return null;
     if (cleanPw === expectedPw) return st;
     return null;
   }
@@ -554,9 +554,10 @@
           var rawInput = DE.clean($('#email').value, 254);
           var em = resolveParentLoginEmail(rawInput);
           var pw = String($('#password').value || '').trim();
-          if (/^\d{8}$/.test(pw)) pw = 'DI' + pw;
           if (!em || (!DE.isEmail(em) && em.indexOf('@parents.darelihsan.invalid') === -1)) return setMsg($('#lErr'), t('enterCredsErr'));
           if (!pw || pw.length > 72) return setMsg($('#lErr'), t('enterCredsErr'));
+          if (!/^DI/i.test(pw)) return setMsg($('#lErr'), 'لا يمكن الدخول بدون كتابة رمز DI في بداية كلمة المرور (مثال: DI01081981).');
+          pw = 'DI' + pw.slice(2);
 
           var signedInOk = false;
           var signErr = null;
@@ -2398,8 +2399,29 @@
       allDomainDetailTables
     );
 
-    // تم إزالة أزرار الطباعة والتحميل من فضاء الأولياء وفق التوجيهات الرسمية
-    var topActionsBar = null;
+    var topActionsBar = h('div', { class: 'oep-action-bar no-print', style: 'display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;padding:10px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;' },
+      h('button', {
+        type: 'button',
+        class: 'btn gold',
+        text: 'تحميل الاستمارة بصيغة PDF',
+        onclick: async function () {
+          try {
+            toast('جارٍ تجهيز وتحميل الاستمارة بصيغة PDF...', 'ok');
+            var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd);
+            DE_PDF.downloadPdf(pdfBytes, 'استمارة_تقييم_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
+            toast('تم تنزيل ملف PDF بنجاح!', 'ok');
+          } catch (e) {
+            toast('تعذر تنزيل PDF: ' + e.message, 'err');
+          }
+        }
+      }),
+      h('button', {
+        type: 'button',
+        class: 'btn',
+        text: 'طباعة الورقة الرسمية (A4)',
+        onclick: function () { window.print(); }
+      })
+    );
 
     var compactSkillsBox = h('div', { class: 'eval-compact-box' },
       skillsSectionBanner,
@@ -2408,6 +2430,7 @@
     );
 
     return h('div', { class: 'official-eval-paper' },
+      topActionsBar,
       header,
       termBanner,
       infoTable,

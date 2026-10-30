@@ -12,8 +12,8 @@
 (function () {
   'use strict';
   try {
-    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v50') {
-      localStorage.setItem('de_app_ver', 'v50');
+    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v60') {
+      localStorage.setItem('de_app_ver', 'v60');
       if (window.caches && caches.keys) {
         caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
       }
@@ -862,7 +862,7 @@
     var isFarm = isFarmSession();
     var isSpec = !!S.isSpecialist;
     var allowedForEdu = isFarm ? { children: true } : { children: true, attendance: true, reports: true, evaluations: true };
-    var allowedForSpec = { dash: true, children: true, attendance: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
+    var allowedForSpec = { dash: true, children: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, accounts: true, archive: true };
 
@@ -5566,7 +5566,7 @@
         onclick: async function () {
           try {
             toast('جارٍ تجهيز وتحميل الاستمارة بصيغة PDF...', 'ok');
-            var pdfBytes = await DE_PDF.renderEvaluationToPdf(r, childFullName, secName, kd);
+            var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd);
             DE_PDF.downloadPdf(pdfBytes, 'استمارة_تقييم_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
             toast('تم تنزيل ملف PDF بنجاح!', 'ok');
           } catch (e) {
@@ -8113,308 +8113,99 @@
 
   
   /* =====================================================================
-     نظام تسجيل ومتابعة الحضور والغياب اليومي للطلبة
-     ===================================================================== */
-  async function secAttendance(v) {
-    v.textContent = '';
-    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل قائمة الطلبة وسجل الحضور والغياب…' }));
-
-    var d = await Promise.all([
-      getMany('children', 'branches', 'sections'),
-      C.rest('GET', '/attendance?order=date.desc&limit=300').catch(function () { return []; })
-    ]);
-    var allKids = d[0][0] || [], branches = d[0][1] || [], sections = d[0][2] || [];
-    var savedAttendance = d[1] || [];
-
-    v.textContent = '';
-
-    // تحديد القسم والتاريخ المختار
-    var todayStr = new Date().toISOString().slice(0, 10);
-    var curDate = todayStr;
-    var curSecId = S.isEducator ? S.eduSectionId : (sections[0] ? sections[0].id : '');
-
-    var dateInput = h('input', { type: 'date', class: 'input', value: curDate, style: 'font-weight:700;' });
-    var secSelect = h('select', { class: 'input', disabled: !!S.isEducator });
-
-    sections.forEach(function (s) {
-      secSelect.appendChild(h('option', { value: s.id, text: s.name, selected: s.id === curSecId }));
-    });
-
-    var hostWrap = h('div', { class: 'attendance-manager-wrap' });
-
-    // ترويسة الصفحة
-    var hero = h('div', { class: 'card', style: 'background:linear-gradient(135deg, #123E73 0%, #1E293B 100%);color:#FFFFFF;margin-bottom:16px;border-radius:12px;padding:20px;' },
-      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;' },
-        h('div', null,
-          h('h1', { style: 'margin:0;font-size:1.4rem;display:flex;align-items:center;gap:10px;' },
-            makeSvgIcon('s-cal'),
-            h('span', { text: 'سجل الحضور والغياب اليومي للطلبة' })
-          ),
-          h('p', { class: 'muted small', style: 'color:#CBD5E1;margin:4px 0 0;', text: 'رصد وتسجيل الحضور والغياب والتبريرات لأطفال وأقسام دار الإحسان مع الحفظ الفوري والطباعة.' })
-        ),
-        h('div', { class: 'row-actions' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () { window.print(); }
-          }, makeSvgIcon('s-print'), h('span', { text: 'طباعة كشف الحضور (A4)' }))
-        )
-      )
-    );
-    v.appendChild(hero);
-
-    // شريط الفلاتر والاختيار
-    var filterCard = h('div', { class: 'card', style: 'margin-bottom:16px;padding:14px 18px;' },
-      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;align-items:flex-end;' },
-        h('div', { class: 'form-group', style: 'margin:0;' },
-          h('label', { text: 'تاريخ كشف الحضور:' }),
-          dateInput
-        ),
-        h('div', { class: 'form-group', style: 'margin:0;' },
-          h('label', { text: 'الفوج / القسم التربوي:' }),
-          secSelect
-        ),
-        h('div', { style: 'display:flex;gap:8px;' },
-          h('button', {
-            type: 'button',
-            class: 'btn light',
-            style: 'flex:1;',
-            onclick: function () {
-              markAllStatus('present');
-            }
-          }, makeSvgIcon('s-ok'), h('span', { text: 'تسجيل حضور الجميع' })),
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            style: 'flex:1;',
-            onclick: saveAttendanceRecords
-          }, makeSvgIcon('s-file'), h('span', { text: 'حفظ الكشف الآن' }))
-        )
-      )
-    );
-    v.appendChild(filterCard);
-
-    var statsBox = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:16px;' });
-    v.appendChild(statsBox);
-
-    v.appendChild(hostWrap);
-
-    var attendanceState = {};
-
-    function getKidsForCurrentSec() {
-      var sid = secSelect.value;
-      return allKids.filter(function (k) {
-        return k.active && k.section_id === sid;
-      });
-    }
-
-    function initAttendanceState() {
-      attendanceState = {};
-      var kids = getKidsForCurrentSec();
-      var dStr = dateInput.value;
-      var sid = secSelect.value;
-
-      // محاولة القراءة من السجلات المحفوظة أو الـ localStorage
-      var localKey = 'de_att_' + dStr + '_' + sid;
-      var localData = {};
-      try { localData = JSON.parse(localStorage.getItem(localKey) || '{}'); } catch (e) {}
-
-      kids.forEach(function (k) {
-        var existing = savedAttendance.filter(function (a) {
-          return a.child_id === k.id && (a.date ? a.date.slice(0, 10) : '') === dStr;
-        })[0];
-
-        if (existing) {
-          attendanceState[k.id] = { status: existing.status || 'present', notes: existing.notes || '' };
-        } else if (localData[k.id]) {
-          attendanceState[k.id] = localData[k.id];
-        } else {
-          attendanceState[k.id] = { status: 'present', notes: '' };
-        }
-      });
-    }
-
-    function markAllStatus(st) {
-      var kids = getKidsForCurrentSec();
-      kids.forEach(function (k) {
-        if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
-        attendanceState[k.id].status = st;
-      });
-      renderAttendanceTable();
-      toast('تم تحديد جميع الطلبة كـ: ' + (st === 'present' ? 'حاضر' : 'غائب'), 'ok');
-    }
-
-    async function saveAttendanceRecords() {
-      var kids = getKidsForCurrentSec();
-      if (!kids.length) return toast('لا يوجد طلبة مسجلين في هذا القسم.', 'bad');
-
-      var dStr = dateInput.value;
-      var sid = secSelect.value;
-      var localKey = 'de_att_' + dStr + '_' + sid;
-      localStorage.setItem(localKey, JSON.stringify(attendanceState));
-
-      // محاولة الإرسال لـ Supabase
-      try {
-        var records = kids.map(function (k) {
-          var st = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
-          var nt = (attendanceState[k.id] && attendanceState[k.id].notes) || '';
-          return {
-            date: dStr,
-            child_id: k.id,
-            section_id: sid,
-            status: st,
-            notes: nt
-          };
-        });
-
-        await C.rest('POST', '/attendance', records).catch(function () {});
-        bust();
-        toast('تم حفظ كشف الحضور والغياب بنجاح!', 'ok');
-      } catch (err) {
-        toast('تم حفظ الكشف محلياً بنجاح (جاهز للطباعة والمزامنة).', 'ok');
-      }
-    }
-
-    function renderStats() {
-      var kids = getKidsForCurrentSec();
-      var total = kids.length;
-      var present = 0, absent = 0, excused = 0;
-
-      kids.forEach(function (k) {
-        var st = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
-        if (st === 'present') present++;
-        else if (st === 'absent') absent++;
-        else if (st === 'excused') excused++;
-      });
-
-      var pct = total > 0 ? Math.round((present / total) * 100) : 0;
-
-      statsBox.textContent = '';
-      function mkStat(title, val, color) {
-        var b = h('div', { class: 'card', style: 'padding:12px;text-align:center;border-right:4px solid ' + color + ';' },
-          h('span', { class: 'muted small', text: title }),
-          h('div', { style: 'font-size:1.5rem;font-weight:800;color:' + color + ';margin-top:4px;', text: String(val) })
-        );
-        statsBox.appendChild(b);
-      }
-      mkStat('إجمالي الطلبة', total, '#123E73');
-      mkStat('الحاضرون (' + pct + '%)', present, '#059669');
-      mkStat('الغياب غير المبرر', absent, '#DC2626');
-      mkStat('الغياب المبرر', excused, '#D97706');
-    }
-
-    function renderAttendanceTable() {
-      renderStats();
-      hostWrap.textContent = '';
-      var kids = getKidsForCurrentSec();
-
-      if (!kids.length) {
-        hostWrap.appendChild(h('div', { class: 'empty', text: 'لا يوجد طلبة مسجلين في هذا القسم حالياً.' }));
-        return;
-      }
-
-      var tbl = h('table', { class: 'tbl' });
-      var thead = h('thead', null,
-        h('tr', null,
-          h('th', { style: 'width:45px;text-align:center;', text: '#' }),
-          h('th', { text: 'اسم ولقب التلميذ' }),
-          h('th', { text: 'رقم القيد' }),
-          h('th', { style: 'text-align:center;', text: 'حالة الحضور والغياب اليومي' }),
-          h('th', { text: 'الملاحظة / سبب الغياب' })
-        )
-      );
-      tbl.appendChild(thead);
-
-      var tbody = h('tbody');
-      kids.forEach(function (k, idx) {
-        var curSt = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
-        var curNt = (attendanceState[k.id] && attendanceState[k.id].notes) || '';
-
-        var btnPresent = h('button', {
-          type: 'button',
-          class: 'btn small ' + (curSt === 'present' ? 'ok' : 'light'),
-          text: 'حاضر',
-          onclick: function () {
-            attendanceState[k.id].status = 'present';
-            renderAttendanceTable();
-          }
-        });
-
-        var btnAbsent = h('button', {
-          type: 'button',
-          class: 'btn small ' + (curSt === 'absent' ? 'bad' : 'light'),
-          text: 'غائب',
-          onclick: function () {
-            attendanceState[k.id].status = 'absent';
-            renderAttendanceTable();
-          }
-        });
-
-        var btnExcused = h('button', {
-          type: 'button',
-          class: 'btn small ' + (curSt === 'excused' ? 'gold' : 'light'),
-          text: 'مبرر',
-          onclick: function () {
-            attendanceState[k.id].status = 'excused';
-            renderAttendanceTable();
-          }
-        });
-
-        var noteInput = h('input', {
-          type: 'text',
-          class: 'input',
-          style: 'padding:4px 8px;font-size:0.85rem;',
-          placeholder: 'سبب الغياب إن وجد…',
-          value: curNt
-        });
-        noteInput.addEventListener('input', function () {
-          if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
-          attendanceState[k.id].notes = noteInput.value.trim();
-        });
-
-        var tr = h('tr', null,
-          h('td', { style: 'text-align:center;', text: String(idx + 1) }),
-          h('td', null, h('strong', { text: k.full_name })),
-          h('td', null, h('span', { class: 'sic-num', text: k.membership_no ? ('N° ' + k.membership_no) : '—' })),
-          h('td', { style: 'text-align:center;' },
-            h('div', { class: 'row-actions', style: 'justify-content:center;gap:6px;' },
-              btnPresent,
-              btnAbsent,
-              btnExcused
-            )
-          ),
-          h('td', null, noteInput)
-        );
-        tbody.appendChild(tr);
-      });
-      tbl.appendChild(tbody);
-
-      hostWrap.appendChild(h('div', { class: 'table-wrap' }, tbl));
-    }
-
-    secSelect.addEventListener('change', function () {
-      initAttendanceState();
-      renderAttendanceTable();
-    });
-    dateInput.addEventListener('change', function () {
-      initAttendanceState();
-      renderAttendanceTable();
-    });
-
-    initAttendanceState();
-    renderAttendanceTable();
-  }
-
-
-  /* =====================================================================
-     نظام رسائل وإشعارات واتساب الرسمية (الرقم الثابت: 0564779067)
+     نظام الحضور والغيابات وإشعارات وإدارة رسائل واتساب — دار الإحسان
+     الهوية البصرية: الأزرق الداكن (#082D50) • الأبيض (#FFFFFF) • الذهبي (#B4873A)
      ===================================================================== */
   var OFFICIAL_WA_SENDER = '0564779067';
-  var DEFAULT_ABSENCE_WA_MSG = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من إدارة المركز النفسي البيداغوجي دار الإحسان. نود إشعاركم بتسجيل غياب ابنكم/ابنتكم اليوم عن المركز، يرجى تبرير الغياب أو التواصل مع الإدارة للمتابعة.';
+  var DEFAULT_ABSENCE_WA_MSG = 'السلام عليكم ورحمة الله وبركاته،\n\nنحيطكم علماً بأن ابنكم/ابنتكم [اسم الطفل] مسجل(ة) اليوم ضمن قائمة الغائبين عن المركز.\n\nنرجو منكم إعلام إدارة المركز بسبب الغياب عند الإمكان.\n\nإدارة مركز دار الإحسان.';
 
+  function buildPersonalizedAbsenceMessage(templateStr, childName) {
+    var tpl = String(templateStr || DEFAULT_ABSENCE_WA_MSG);
+    var name = String(childName || 'التلميذ(ة)').trim();
+    if (tpl.indexOf('[اسم الطفل]') >= 0) {
+      return tpl.split('[اسم الطفل]').join(name);
+    }
+    if (tpl.indexOf('{اسم الطفل}') >= 0) {
+      return tpl.split('{اسم الطفل}').join(name);
+    }
+    return tpl + '\n(التلميذ/ة: ' + name + ')';
+  }
+
+  /* التحقق الصارم من رقم الهاتف الجزائري للواتساب واكتشاف الأرقام غير الصالحة أو الناقصة */
+  function validateAlgerianPhoneStrict(raw) {
+    var orig = String(raw || '').trim();
+    var d = normalizeArabicDigits(orig).replace(/\D/g, '');
+    if (!d) {
+      return { valid: false, normalized: '', local10: '', is9Digit: false, reason: 'رقم الهاتف غير مسجل' };
+    }
+    if (d.indexOf('00213') === 0) d = d.slice(5);
+    else if (d.indexOf('213') === 0) d = d.slice(3);
+    else if (d.indexOf('00') === 0) d = d.slice(2);
+    else if (d.indexOf('0') === 0) d = d.slice(1);
+
+    if (/^[567]\d{8}$/.test(d)) {
+      return { valid: true, normalized: '213' + d, local10: '0' + d, is9Digit: false, reason: 'رقم جزائري صالح (10 أرقام)' };
+    }
+    if (/^[567]\d{7}$/.test(d)) {
+      return {
+        valid: false,
+        normalized: '213' + d,
+        local10: '0' + d,
+        is9Digit: true,
+        suggested10: '0' + d + '0',
+        reason: 'رقم ناقص (9 أرقام بدلاً من 10 — ينقصه رقم أخير)'
+      };
+    }
+    return {
+      valid: false,
+      normalized: '213' + d,
+      local10: orig,
+      is9Digit: false,
+      reason: 'رقم غير صالح (يجب أن يبدأ بـ 05 أو 06 أو 07 ويتكون من 10 أرقام)'
+    };
+  }
+
+  function currentActorEmail() {
+    return (S.me && S.me.email) || (S.eduProfile && S.eduProfile.email) || 'admin@darelihsan.org';
+  }
+
+  function canDeleteWhatsAppMessages() {
+    if (S.isEducator || S.isSpecialist) return false;
+    return true;
+  }
+
+  /* إدارة التخزين المحلي والمزامنة لسجلات الحضور والغياب */
+  function readLocalAttendanceForDate(dStr) {
+    var map = {};
+    try {
+      var globalRaw = localStorage.getItem('de_att_date_' + dStr);
+      if (globalRaw) {
+        var parsed = JSON.parse(globalRaw);
+        if (parsed && typeof parsed === 'object') Object.assign(map, parsed);
+      }
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('de_att_' + dStr + '_') === 0) {
+          var sub = JSON.parse(localStorage.getItem(k) || '{}');
+          Object.keys(sub).forEach(function (cid) {
+            map[cid] = sub[cid];
+          });
+        }
+      }
+    } catch (e) {}
+    return map;
+  }
+
+  function writeLocalAttendanceForDate(dStr, map) {
+    try {
+      localStorage.setItem('de_att_date_' + dStr, JSON.stringify(map || {}));
+    } catch (e) {}
+  }
+
+  /* إدارة سجلات رسائل واتساب والتدقيق */
   function readLocalWaLogs() {
     try {
-      var raw = localStorage.getItem('de_wa_local_logs');
+      var raw = localStorage.getItem('de_wa_local_logs_v2');
       var parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
@@ -8422,133 +8213,1294 @@
     }
   }
 
-  function saveLocalWaLog(entry) {
+  function writeLocalWaLogs(list) {
     try {
-      var list = readLocalWaLogs();
-      list.unshift(entry);
-      if (list.length > 400) list = list.slice(0, 400);
-      localStorage.setItem('de_wa_local_logs', JSON.stringify(list));
+      localStorage.setItem('de_wa_local_logs_v2', JSON.stringify((list || []).slice(0, 600)));
     } catch (e) {}
   }
 
-  function getAbsentKidsToday(allKids, savedAtt) {
-    var todayStr = new Date().toISOString().slice(0, 10);
-    var absentMap = {};
-
-    // 1. فحص سجلات الحضور والغياب المحفوظة في قاعدة البيانات لليوم
-    if (Array.isArray(savedAtt)) {
-      savedAtt.forEach(function (a) {
-        var d = a && a.date ? String(a.date).slice(0, 10) : '';
-        if (d === todayStr && a.status === 'absent' && a.child_id) {
-          absentMap[a.child_id] = true;
-        }
-      });
+  function upsertLocalWaLog(entry) {
+    if (!entry || !entry.id) return;
+    var list = readLocalWaLogs();
+    var found = false;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === entry.id || (entry.wamid && list[i].wamid === entry.wamid)) {
+        list[i] = Object.assign({}, list[i], entry);
+        found = true;
+        break;
+      }
     }
-
-    // 2. فحص سجلات الحضور والغياب المحفوظة محلياً لليوم في localStorage
-    try {
-      var foundTodayKeys = false;
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.indexOf('de_att_' + todayStr + '_') === 0) {
-          foundTodayKeys = true;
-          var obj = JSON.parse(localStorage.getItem(k) || '{}');
-          Object.keys(obj).forEach(function (cid) {
-            if (obj[cid] && obj[cid].status === 'absent') {
-              absentMap[cid] = true;
-            }
-          });
-        }
-      }
-      // إن لم يتم حفظ كشف اليوم بعد، نفحص آخر كشف محفوظ في المتصفح
-      if (!foundTodayKeys) {
-        for (var j = 0; j < localStorage.length; j++) {
-          var kj = localStorage.key(j);
-          if (kj && kj.indexOf('de_att_') === 0) {
-            var obj2 = JSON.parse(localStorage.getItem(kj) || '{}');
-            Object.keys(obj2).forEach(function (cid) {
-              if (obj2[cid] && obj2[cid].status === 'absent') {
-                absentMap[cid] = true;
-              }
-            });
-          }
-        }
-      }
-    } catch (eAtt) {}
-
-    return (allKids || []).filter(function (kid) {
-      return kid && kid.active && absentMap[kid.id];
-    });
+    if (!found) list.unshift(entry);
+    writeLocalWaLogs(list);
   }
 
-  async function sendAndLogWhatsAppMessage(opts) {
-    var ph = String(opts.phone || '').trim();
-    var msg = String(opts.message || '').trim();
-    var childId = opts.child_id || null;
-    var recName = opts.recipient_name || 'ولي أمر';
-    var centerKey = opts.center || S.activeCenter || 'main';
-    var secId = opts.section_id || null;
+  function readLocalWaAuditLogs() {
+    try {
+      var raw = localStorage.getItem('de_wa_audit_logs_v2');
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function recordWhatsAppAudit(action, messageIds, detailsText) {
+    var actor = currentActorEmail();
+    var nowIso = new Date().toISOString();
+    var item = {
+      id: 'wa-aud-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      at: nowIso,
+      actor_email: actor,
+      action: action,
+      message_ids: Array.isArray(messageIds) ? messageIds : [messageIds],
+      details: detailsText || ''
+    };
+    try {
+      var list = readLocalWaAuditLogs();
+      list.unshift(item);
+      localStorage.setItem('de_wa_audit_logs_v2', JSON.stringify(list.slice(0, 300)));
+    } catch (e) {}
+
+    try {
+      await C.rest('POST', '/whatsapp_audit_logs', {
+        at: nowIso,
+        actor_email: actor,
+        action: action,
+        message_ids: item.message_ids,
+        details: item.details
+      });
+    } catch (eDb) {}
+  }
+
+  /* دمج سجلات الرسائل من قاعدة البيانات والتخزين المحلي مع احترام حالة الحذف المنطقي */
+  function mergeWaLogs(remoteLogs, allKids) {
+    var kidMap = {};
+    (allKids || []).forEach(function (k) { kidMap[k.id] = k; });
+
+    var localLogs = readLocalWaLogs();
+    var byId = {};
+    var merged = [];
+
+    localLogs.forEach(function (l) {
+      if (!l || !l.id) return;
+      byId[l.id] = Object.assign({}, l);
+    });
+
+    (remoteLogs || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      var loc = byId[r.id];
+      var comb = Object.assign({}, r, loc || {});
+      // إذا كان السجل محذوفاً محلياً أو في الخادم، نحترم الحذف المنطقي
+      if ((loc && loc.is_deleted) || r.is_deleted) {
+        comb.is_deleted = true;
+        comb.deleted_at = r.deleted_at || (loc && loc.deleted_at) || new Date().toISOString();
+        comb.deleted_by_email = r.deleted_by_email || (loc && loc.deleted_by_email) || 'admin';
+      }
+      byId[r.id] = comb;
+    });
+
+    Object.keys(byId).forEach(function (k) {
+      var item = byId[k];
+      var kd = item.child_id ? kidMap[item.child_id] : null;
+      if (!item.child_name && kd) item.child_name = kd.full_name;
+      if (!item.parent_name) item.parent_name = item.recipient_name || (kd ? ('ولي أمر ' + kd.full_name) : 'ولي أمر');
+      if (!item.sent_date) item.sent_date = (item.created_at || new Date().toISOString()).slice(0, 10);
+      merged.push(item);
+    });
+
+    merged.sort(function (a, b) {
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+    return merged;
+  }
+
+  /* شارة حالة الرسالة بالحالات الـ 5 الحقيقية المعتمدة */
+  function renderWaStatusBadge(status, isRetried) {
+    var st = String(status || 'sending').toLowerCase();
+    var wrap = h('span', { style: 'display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;' });
+    var b = null;
+    if (st === 'sending' || st === 'pending') {
+      b = h('span', { style: 'background:#DBEAFE;color:#1E40AF;border:1px solid #93C5FD;padding:3px 10px;border-radius:999px;font-weight:700;font-size:0.78rem;', text: '⏳ قيد الإرسال' });
+    } else if (st === 'accepted' || st === 'sent') {
+      b = h('span', { style: 'background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;padding:3px 10px;border-radius:999px;font-weight:700;font-size:0.78rem;', text: '✓ قُبل الطلب من Meta' });
+    } else if (st === 'delivered') {
+      b = h('span', { style: 'background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;padding:3px 10px;border-radius:999px;font-weight:700;font-size:0.78rem;', text: '✓✓ تم التسليم' });
+    } else if (st === 'read') {
+      b = h('span', { style: 'background:#A7F3D0;color:#047857;border:1px solid #34D399;padding:3px 10px;border-radius:999px;font-weight:800;font-size:0.78rem;', text: '👁 تمت القراءة' });
+    } else {
+      b = h('span', { style: 'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:3px 10px;border-radius:999px;font-weight:700;font-size:0.78rem;', text: '✖ فشل الإرسال' });
+    }
+    wrap.appendChild(b);
+    if (isRetried) {
+      wrap.appendChild(h('span', { style: 'background:#E0E7FF;color:#3730A3;padding:2px 7px;border-radius:999px;font-size:0.72rem;font-weight:700;', text: 'معاد إرسالها' }));
+    }
+    return wrap;
+  }
+
+  /* دالة الإرسال الحقيقي عبر الخادم (Edge Function -> Meta Cloud API) بدون أي نجاح وهمي */
+  async function dispatchRealWhatsAppMessage(opts) {
+    var child = opts.child || null;
+    var childId = (child && child.id) || opts.child_id || null;
+    var childName = (child && child.full_name) || opts.child_name || '';
+    var parentName = opts.parent_name || opts.recipient_name || (childName ? ('ولي أمر ' + childName) : 'ولي أمر');
+    var rawPhone = String(opts.phone || (child && child.phone) || '').trim();
+    var msgBody = String(opts.message || '').trim();
+    var centerKey = (child && child.center) || opts.center || S.activeCenter || 'main';
+    var secId = (child && child.section_id) || opts.section_id || null;
+    var isRetry = !!opts.is_retry;
+    var existingLogId = opts.existing_log_id || null;
+    var todayStr = new Date().toISOString().slice(0, 10);
     var nowIso = new Date().toISOString();
 
+    var phoneCheck = validateAlgerianPhoneStrict(rawPhone);
+    var logId = existingLogId || (window.DE && DE.uuid ? DE.uuid() : ('wa-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)));
+
     var logEntry = {
-      id: 'wa-local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      id: logId,
+      created_at: nowIso,
+      updated_at: nowIso,
+      sent_date: todayStr,
       sender_phone: OFFICIAL_WA_SENDER,
-      phone: ph,
+      phone: rawPhone,
+      normalized_phone: phoneCheck.normalized || '',
       child_id: childId,
-      recipient_name: recName,
+      child_name: childName,
+      parent_name: parentName,
+      recipient_name: parentName,
       direction: 'outbound',
       message_type: 'text',
-      message_body: msg,
-      status: 'sent',
+      message_body: msgBody,
+      status: 'sending',
+      wamid: '',
+      error_code: '',
+      error_message: '',
+      retry_count: isRetry ? ((opts.retry_count || 0) + 1) : 0,
+      is_retried: isRetry,
+      is_deleted: false,
       center: centerKey,
       section_id: secId,
-      created_at: nowIso,
-      wamid: 'wa_' + Date.now()
+      created_by_email: currentActorEmail()
     };
 
-    // حفظ فوري في السجل المحلي لضمان ظهور الرسالة دائماً
-    saveLocalWaLog(logEntry);
+    if (opts.onStatusChange) opts.onStatusChange('sending', logEntry);
+    upsertLocalWaLog(logEntry);
 
-    // محاولة الإرسال والتسجيل في الخلفية دون إظهار أي خطأ صلاحيات للمستخدم
-    try {
-      await C.fn('send-whatsapp', {
-        sender_phone: OFFICIAL_WA_SENDER,
-        phone: ph,
-        child_id: childId,
-        recipient_name: recName,
-        message: msg,
-        center: centerKey
-      });
-    } catch (eFn1) {
+    // 1. فحص صحة رقم الهاتف الجزائري قبل الإرسال
+    if (!phoneCheck.valid) {
+      logEntry.status = 'failed';
+      logEntry.error_code = 'INVALID_PHONE';
+      logEntry.error_message = phoneCheck.reason;
+      logEntry.updated_at = new Date().toISOString();
+      upsertLocalWaLog(logEntry);
       try {
-        await C.fn('whatsapp-send', {
-          sender_phone: OFFICIAL_WA_SENDER,
-          phone: ph,
+        await C.rest('POST', '/whatsapp_logs', {
+          id: logEntry.id,
+          phone: rawPhone,
           child_id: childId,
-          recipient_name: recName,
-          message: msg,
-          center: centerKey
+          recipient_name: parentName,
+          direction: 'outbound',
+          message_type: 'text',
+          message_body: msgBody,
+          status: 'failed',
+          error_message: logEntry.error_message,
+          center: centerKey,
+          section_id: secId
         });
-      } catch (eFn2) {}
+      } catch (eDb0) {}
+      if (opts.onStatusChange) opts.onStatusChange('failed', logEntry);
+      return logEntry;
     }
 
+    // 2. فحص منع التكرار غير المقصود لنفس الطفل في اليوم نفسه
+    if (childId && !isRetry && !opts.force_resend) {
+      var existingToday = readLocalWaLogs().filter(function (l) {
+        return !l.is_deleted && l.child_id === childId && l.sent_date === todayStr &&
+               (l.status === 'accepted' || l.status === 'sent' || l.status === 'delivered' || l.status === 'read');
+      });
+      if (existingToday.length > 0) {
+        logEntry.status = 'failed';
+        logEntry.error_code = 'DUPLICATE_TODAY';
+        logEntry.error_message = 'تم إرسال إشعار غياب لهذا الطفل اليوم مسبقاً (منع التكرار اليومي).';
+        upsertLocalWaLog(logEntry);
+        if (opts.onStatusChange) opts.onStatusChange('failed', logEntry);
+        return logEntry;
+      }
+    }
+
+    // 3. حفظ السجل الأولي بحالة sending في قاعدة البيانات
     try {
       await C.rest('POST', '/whatsapp_logs', {
-        phone: ph,
+        id: logEntry.id,
+        phone: rawPhone,
         child_id: childId,
-        recipient_name: recName,
+        recipient_name: parentName,
         direction: 'outbound',
         message_type: 'text',
-        message_body: msg,
-        status: 'sent',
+        message_body: msgBody,
+        status: 'sending',
         center: centerKey,
         section_id: secId
       });
-    } catch (eRest1) {}
+    } catch (eInitDb) {}
 
+    // 4. استدعاء Edge Function للإرسال الفعلي عبر Meta Cloud API
+    try {
+      var resp = null;
+      try {
+        resp = await C.fn('send-whatsapp', {
+          log_id: logEntry.id,
+          sender_phone: OFFICIAL_WA_SENDER,
+          phone: phoneCheck.local10 || rawPhone,
+          child_id: childId,
+          child_name: childName,
+          parent_name: parentName,
+          recipient_name: parentName,
+          message: msgBody,
+          center: centerKey,
+          section_id: secId,
+          force_resend: isRetry || !!opts.force_resend,
+          actor_email: currentActorEmail()
+        });
+      } catch (eFnPrimary) {
+        resp = await C.fn('whatsapp-send', {
+          log_id: logEntry.id,
+          sender_phone: OFFICIAL_WA_SENDER,
+          phone: phoneCheck.local10 || rawPhone,
+          child_id: childId,
+          child_name: childName,
+          parent_name: parentName,
+          recipient_name: parentName,
+          message: msgBody,
+          center: centerKey,
+          section_id: secId,
+          force_resend: isRetry || !!opts.force_resend,
+          actor_email: currentActorEmail()
+        });
+      }
+
+      // التحقق الصارم من استجابة Meta الحقيقية (رفض أي محاكاة أو نجاح وهمي)
+      var realWamid = (resp && (resp.wamid || resp.message_id)) ? String(resp.wamid || resp.message_id) : '';
+      var isSimulated = realWamid.indexOf('sim_') === 0 || realWamid.indexOf('wa_fallback_') === 0 || (resp && resp.error_code === 'MISSING_META_SECRETS');
+
+      if (resp && resp.success === true && !resp.error && !isSimulated && realWamid) {
+        logEntry.status = resp.status === 'delivered' ? 'delivered' : resp.status === 'read' ? 'read' : 'accepted';
+        logEntry.wamid = realWamid;
+        logEntry.error_code = '';
+        logEntry.error_message = '';
+      } else {
+        logEntry.status = 'failed';
+        logEntry.wamid = '';
+        logEntry.error_code = (resp && resp.error_code) || (isSimulated ? 'MISSING_META_SECRETS' : 'META_API_ERROR');
+        logEntry.error_message = (resp && resp.error) || (isSimulated
+          ? 'لم يتم ضبط مفاتيح Meta Cloud API الحية (WHATSAPP_ACCESS_TOKEN و WHATSAPP_PHONE_NUMBER_ID) في Supabase Secrets — لم يتم إرسال الرسالة فعلياً.'
+          : 'رفض خادم Meta Cloud API طلب الإرسال.');
+      }
+    } catch (errEdge) {
+      logEntry.status = 'failed';
+      logEntry.error_code = 'EDGE_FUNCTION_ERROR';
+      logEntry.error_message = 'فشل الاتصال بدالة الإرسال السحابية (send-whatsapp) أو مفاتيح Meta Cloud API غير مضبوطة: ' + (errEdge && errEdge.message ? errEdge.message : 'خطأ اتصال');
+    }
+
+    logEntry.updated_at = new Date().toISOString();
+    upsertLocalWaLog(logEntry);
+
+    try {
+      await C.rest('PATCH', '/whatsapp_logs?id=eq.' + encodeURIComponent(logEntry.id), {
+        status: logEntry.status === 'accepted' ? 'sent' : logEntry.status,
+        wamid: logEntry.wamid || '',
+        error_message: logEntry.error_message || ''
+      });
+    } catch (eUpdDb) {}
+
+    if (opts.onStatusChange) opts.onStatusChange(logEntry.status, logEntry);
     return logEntry;
   }
 
+  /* بناء بطاقات الإحصائيات الـ 6 الموحدة بالهوية البصرية (الأزرق الداكن #082D50، الأبيض، الذهبي #B4873A) */
+  function renderUnifiedSixStatsBar(statsObj) {
+    var items = [
+      { label: '1. إجمالي الأطفال', val: statsObj.totalKids || 0, bg: '#082D50', accent: '#B4873A', textCol: '#FFFFFF', subCol: '#E2E8F0', icon: '👥' },
+      { label: '2. الحاضرون اليوم', val: statsObj.presentKids || 0, bg: '#FFFFFF', accent: '#059669', textCol: '#065F46', subCol: '#475569', icon: '✅' },
+      { label: '3. الغائبون اليوم', val: statsObj.absentKids || 0, bg: '#FFFFFF', accent: '#DC2626', textCol: '#991B1B', subCol: '#475569', icon: '🔴' },
+      { label: '4. الرسائل المرسلة', val: statsObj.sentMsgs || 0, bg: '#FFFFFF', accent: '#B4873A', textCol: '#082D50', subCol: '#475569', icon: '📤' },
+      { label: '5. الرسائل المسلّمة', val: statsObj.deliveredMsgs || 0, bg: '#FFFFFF', accent: '#0D9488', textCol: '#0F766E', subCol: '#475569', icon: '✓✓' },
+      { label: '6. الرسائل الفاشلة', val: statsObj.failedMsgs || 0, bg: '#FFFFFF', accent: '#E11D48', textCol: '#BE123C', subCol: '#475569', icon: '⚠️' }
+    ];
+
+    var grid = h('div', {
+      class: 'de-six-stats-grid no-print',
+      style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(165px, 1fr));gap:12px;margin-bottom:18px;'
+    });
+
+    items.forEach(function (it) {
+      grid.appendChild(h('div', {
+        style: 'background:' + it.bg + ';border:1.5px solid #E2E8F0;border-right:5px solid ' + it.accent + ';border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(8,45,80,0.06);display:flex;flex-direction:column;justify-content:space-between;'
+      },
+        h('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;' },
+          h('span', { style: 'font-size:0.86rem;font-weight:700;color:' + it.subCol + ';', text: it.label }),
+          h('span', { style: 'font-size:1.1rem;', text: it.icon })
+        ),
+        h('div', { class: 'sic-num', style: 'font-size:1.75rem;font-weight:800;color:' + it.textCol + ';line-height:1.1;', text: String(it.val) })
+      ));
+    });
+
+    return grid;
+  }
+
+  /* بناء قسم «قائمة الأطفال الغائبين – إشعارات الأولياء» التلقائي الحي */
+  function renderAbsentChildrenNotificationPanel(absentKids, dateStr, waLogs, onCancelAbsence, onOpenPreviewModal, onChildPhoneUpdated) {
+    var todayLogsByChild = {};
+    (waLogs || []).forEach(function (l) {
+      if (!l || l.is_deleted) return;
+      if (l.sent_date === dateStr && l.child_id && !todayLogsByChild[l.child_id]) {
+        todayLogsByChild[l.child_id] = l;
+      }
+    });
+
+    var panel = h('div', {
+      class: 'absent-notifications-panel no-print',
+      style: 'background:#FFFFFF;border:2px solid #B4873A;border-radius:14px;padding:18px 20px;margin-bottom:20px;box-shadow:0 4px 16px rgba(8,45,80,0.08);'
+    });
+
+    var headerRow = h('div', {
+      style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid #F1F5F9;margin-bottom:14px;'
+    },
+      h('div', null,
+        h('div', { style: 'display:flex;align-items:center;gap:10px;' },
+          h('span', { style: 'background:#082D50;color:#B4873A;width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;', text: '🔔' }),
+          h('h2', { style: 'margin:0;color:#082D50;font-size:1.2rem;font-weight:800;', text: 'قائمة الأطفال الغائبين – إشعارات الأولياء' }),
+          h('span', { class: 'sic-num', style: 'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:3px 12px;border-radius:999px;font-weight:800;font-size:0.88rem;', text: absentKids.length + ' غائب' })
+        ),
+        h('p', { class: 'muted small', style: 'margin:4px 0 0;', text: 'تتحدث هذه القائمة تلقائياً وفوراً عند تحديد أي طفل كغائب أو إلغاء غيابه، مع عرض رقم هاتف الولي وحالة الإشعار.' })
+      ),
+      h('div', { class: 'row-actions', style: 'gap:8px;' },
+        absentKids.length > 0 ? h('button', {
+          type: 'button',
+          class: 'btn gold',
+          style: 'background:#B4873A;border-color:#B4873A;color:#FFFFFF;font-weight:800;padding:9px 16px;',
+          onclick: function () { onOpenPreviewModal(absentKids); }
+        }, makeSvgIcon('s-whatsapp'), h('span', { text: 'معاينة وإرسال إشعارات الغياب (' + absentKids.length + ')' })) : null
+      )
+    );
+    panel.appendChild(headerRow);
+
+    if (!absentKids.length) {
+      panel.appendChild(h('div', {
+        style: 'background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;padding:18px;text-align:center;color:#475569;font-weight:600;'
+      }, 'لا يوجد أطفال مسجلون ضمن الغائبين في هذا التاريخ حالياً. عند تحديد أي طفل كـ «غائب» في الجدول سيظهر اسمه هنا تلقائياً وفوراً.'));
+      return panel;
+    }
+
+    // ملخص نقطي سريع لأسماء الغائبين كما طلب المستخدم + جدول تفصيلي
+    var bulletSummary = h('div', {
+      style: 'background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 16px;margin-bottom:14px;'
+    },
+      h('strong', { style: 'color:#92400E;font-size:0.9rem;display:block;margin-bottom:6px;', text: 'أسماء الأطفال الغائبين المدرجين تلقائياً للإشعار:' }),
+      h('ul', { style: 'margin:0;padding-right:20px;display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:4px 16px;color:#0F172A;font-weight:700;font-size:0.92rem;' },
+        absentKids.map(function (k) {
+          return h('li', { text: k.full_name + (k.section ? (' (' + k.section + ')') : '') });
+        })
+      )
+    );
+    panel.appendChild(bulletSummary);
+
+    var tblWrap = h('div', { style: 'overflow-x:auto;' });
+    var tbl = h('table', { class: 'tbl', style: 'width:100%;border-collapse:collapse;' });
+    tbl.appendChild(h('thead', null,
+      h('tr', { style: 'background:#082D50;color:#FFFFFF;' },
+        h('th', { style: 'padding:10px;color:#FFFFFF;width:45px;text-align:center;', text: '#' }),
+        h('th', { style: 'padding:10px;color:#FFFFFF;', text: 'اسم الطفل الغائب' }),
+        h('th', { style: 'padding:10px;color:#FFFFFF;', text: 'القسم / الفرع' }),
+        h('th', { style: 'padding:10px;color:#FFFFFF;', text: 'رقم هاتف الولي وصلاحيته' }),
+        h('th', { style: 'padding:10px;color:#FFFFFF;text-align:center;', text: 'حالة الإشعار' }),
+        h('th', { style: 'padding:10px;color:#FFFFFF;text-align:center;', text: 'الإجراءات الفورية' })
+      )
+    ));
+
+    var tbody = h('tbody');
+    absentKids.forEach(function (k, idx) {
+      var phCheck = validateAlgerianPhoneStrict(k.phone);
+      var lastLog = todayLogsByChild[k.id];
+      var notifBadge = lastLog
+        ? renderWaStatusBadge(lastLog.status, lastLog.is_retried)
+        : h('span', { style: 'background:#F1F5F9;color:#475569;border:1px solid #CBD5E1;padding:3px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;', text: 'لم يُرسل بعد' });
+
+      var phoneCell = h('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' },
+        h('span', { dir: 'ltr', class: 'sic-num', style: 'font-weight:800;color:#0F172A;', text: k.phone || '—' }),
+        phCheck.valid
+          ? h('span', { style: 'background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:700;', text: '✓ رقم صالح' })
+          : h('button', {
+              type: 'button',
+              class: 'btn small light',
+              style: 'background:#FEF3C7;color:#92400E;border-color:#F59E0B;font-size:0.74rem;padding:2px 8px;',
+              text: phCheck.is9Digit ? '⚠️ ناقص رقم (تصحيح)' : '⚠️ رقم غير صالح (تصحيح)',
+              onclick: function () {
+                openFixWhatsAppPhoneModal(k, k.phone);
+                if (onChildPhoneUpdated) setTimeout(onChildPhoneUpdated, 1000);
+              }
+            })
+      );
+
+      var tr = h('tr', { style: 'border-bottom:1px solid #E2E8F0;' },
+        h('td', { class: 'sic-num', style: 'text-align:center;font-weight:700;', text: String(idx + 1) }),
+        h('td', null,
+          h('strong', { style: 'color:#082D50;font-size:0.95rem;', text: k.full_name }),
+          k.membership_no ? h('span', { class: 'muted small sic-num', style: 'margin-right:6px;', text: '(N° ' + k.membership_no + ')' }) : null
+        ),
+        h('td', null, h('span', { class: 'badge light', text: k.section || CENTERS[k.center] || 'المركز الرئيسي' })),
+        h('td', null, phoneCell),
+        h('td', { style: 'text-align:center;' },
+          notifBadge,
+          (lastLog && lastLog.error_message) ? h('div', { class: 'err small', style: 'font-size:0.72rem;margin-top:3px;', text: lastLog.error_message.slice(0, 65) }) : null
+        ),
+        h('td', { style: 'text-align:center;' },
+          h('div', { class: 'row-actions', style: 'justify-content:center;gap:6px;' },
+            h('button', {
+              type: 'button',
+              class: 'btn small gold',
+              style: 'background:#082D50;border-color:#082D50;color:#FFFFFF;',
+              text: 'معاينة وإرسال فردي',
+              onclick: function () { onOpenPreviewModal([k]); }
+            }),
+            onCancelAbsence ? h('button', {
+              type: 'button',
+              class: 'btn small light',
+              style: 'color:#DC2626;border-color:#FCA5A5;',
+              text: 'إلغاء الغياب',
+              onclick: function () { onCancelAbsence(k); }
+            }) : null
+          )
+        )
+      );
+      tbody.appendChild(tr);
+    });
+
+    tbl.appendChild(tbody);
+    tblWrap.appendChild(tbl);
+    panel.appendChild(tblWrap);
+    return panel;
+  }
+
+  /* =====================================================================
+     4. نظام معاينة الرسائل قبل الإرسال (إرسال فردي وجماعي + استبعاد + تعديل النص)
+     ===================================================================== */
+  function openAbsenceMessagePreviewModal(targetKidsList, dateStr, existingLogs, onCompleted) {
+    var kidsList = (targetKidsList || []).slice();
+    if (!kidsList.length) {
+      return toast('لا يوجد أطفال غائبون محددون للمعاينة والإرسال.', 'bad');
+    }
+
+    var todayStr = dateStr || new Date().toISOString().slice(0, 10);
+    var sentTodayMap = {};
+    (existingLogs || readLocalWaLogs()).forEach(function (l) {
+      if (!l || l.is_deleted) return;
+      if (l.sent_date === todayStr && l.child_id && (l.status === 'accepted' || l.status === 'sent' || l.status === 'delivered' || l.status === 'read')) {
+        sentTodayMap[l.child_id] = l;
+      }
+    });
+
+    var excludedIds = {};
+    var customPhones = {};
+    var rowStatusCells = {};
+
+    kidsList.forEach(function (k) {
+      customPhones[k.id] = k.phone || '';
+    });
+
+    var tplArea = h('textarea', {
+      class: 'input',
+      rows: 6,
+      style: 'width:100%;box-sizing:border-box;font-size:0.95rem;line-height:1.65;border:1.5px solid #082D50;border-radius:10px;padding:10px 14px;',
+      value: DEFAULT_ABSENCE_WA_MSG
+    });
+
+    var livePreviewBox = h('div', {
+      style: 'background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:12px 16px;white-space:pre-wrap;font-size:0.92rem;color:#064E3B;line-height:1.6;'
+    });
+
+    var countSummaryBadge = h('span', {
+      class: 'badge gold sic-num',
+      style: 'background:#082D50;color:#B4873A;font-size:0.9rem;padding:4px 12px;'
+    });
+
+    function getActiveRecipients() {
+      return kidsList.filter(function (k) { return !excludedIds[k.id]; });
+    }
+
+    function updatePreviewAndCounts() {
+      var activeRecs = getActiveRecipients();
+      var sampleChild = activeRecs[0] || kidsList[0];
+      var sampleName = sampleChild ? sampleChild.full_name : 'أحمد محمد';
+      livePreviewBox.textContent = buildPersonalizedAbsenceMessage(tplArea.value, sampleName);
+      countSummaryBadge.textContent = activeRecs.length + ' من ' + kidsList.length + ' طفل محدد للإرسال';
+    }
+
+    tplArea.addEventListener('input', updatePreviewAndCounts);
+
+    var tbody = h('tbody');
+
+    function renderRecipientsRows() {
+      tbody.textContent = '';
+      kidsList.forEach(function (k, idx) {
+        var isExcluded = !!excludedIds[k.id];
+        var curPhone = customPhones[k.id] || '';
+        var phCheck = validateAlgerianPhoneStrict(curPhone);
+        var alreadySent = sentTodayMap[k.id];
+
+        var chk = h('input', {
+          type: 'checkbox',
+          checked: !isExcluded,
+          style: 'width:18px;height:18px;cursor:pointer;',
+          onchange: function () {
+            if (chk.checked) delete excludedIds[k.id];
+            else excludedIds[k.id] = true;
+            tr.style.opacity = chk.checked ? '1' : '0.5';
+            updatePreviewAndCounts();
+          }
+        });
+
+        var phoneInp = h('input', {
+          type: 'tel',
+          dir: 'ltr',
+          class: 'input sic-num',
+          value: curPhone,
+          style: 'width:135px;padding:5px 8px;font-weight:700;border:1.5px solid ' + (phCheck.valid ? '#10B981' : '#EF4444') + ';border-radius:6px;'
+        });
+
+        var validLabel = h('div', {
+          style: 'font-size:0.74rem;font-weight:700;margin-top:3px;color:' + (phCheck.valid ? '#047857' : '#DC2626') + ';',
+          text: phCheck.reason
+        });
+
+        var quickZeroBtn = phCheck.is9Digit ? h('button', {
+          type: 'button',
+          class: 'btn small light',
+          style: 'font-size:0.72rem;padding:2px 6px;margin-top:3px;background:#FEF3C7;color:#92400E;border-color:#F59E0B;',
+          text: '+ إكمال بـ 0 (' + phCheck.suggested10 + ')',
+          onclick: async function () {
+            phoneInp.value = phCheck.suggested10;
+            customPhones[k.id] = phCheck.suggested10;
+            k.phone = phCheck.suggested10;
+            try { await C.rest('PATCH', '/children?id=eq.' + uid(k.id), { phone: phCheck.suggested10 }); } catch (e) {}
+            renderRecipientsRows();
+          }
+        }) : null;
+
+        phoneInp.addEventListener('input', function () {
+          customPhones[k.id] = phoneInp.value.trim();
+          k.phone = customPhones[k.id];
+          var chkNow = validateAlgerianPhoneStrict(customPhones[k.id]);
+          phoneInp.style.borderColor = chkNow.valid ? '#10B981' : '#EF4444';
+          validLabel.style.color = chkNow.valid ? '#047857' : '#DC2626';
+          validLabel.textContent = chkNow.reason;
+        });
+
+        var statusCell = h('td', { style: 'text-align:center;' },
+          alreadySent
+            ? renderWaStatusBadge(alreadySent.status, alreadySent.is_retried)
+            : h('span', { class: 'muted small', text: 'جاهز للإرسال' })
+        );
+        rowStatusCells[k.id] = statusCell;
+
+        var singleApiBtn = h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          style: 'background:#082D50;border-color:#082D50;color:#FFFFFF;font-size:0.78rem;',
+          text: 'إرسال فردي (API)',
+          onclick: async function () {
+            singleApiBtn.disabled = true;
+            var msgForChild = buildPersonalizedAbsenceMessage(tplArea.value, k.full_name);
+            var resLog = await dispatchRealWhatsAppMessage({
+              child: k,
+              phone: customPhones[k.id],
+              message: msgForChild,
+              force_resend: !!alreadySent,
+              onStatusChange: function (st, entry) {
+                statusCell.textContent = '';
+                statusCell.appendChild(renderWaStatusBadge(st, entry.is_retried));
+                if (entry.error_message) {
+                  statusCell.appendChild(h('div', { class: 'err small', style: 'font-size:0.7rem;margin-top:3px;', text: entry.error_message.slice(0, 70) }));
+                }
+              }
+            });
+            singleApiBtn.disabled = false;
+            if (resLog.status === 'accepted' || resLog.status === 'delivered') {
+              toast('قُبل طلب إرسال الرسالة للطفل ' + k.full_name + ' من Meta بنجاح.', 'ok');
+            } else {
+              toast('فشل الإرسال عبر Meta API: ' + (resLog.error_message || ''), 'bad');
+            }
+            if (onCompleted) onCompleted();
+          }
+        });
+
+        var singleWaWebBtn = h('button', {
+          type: 'button',
+          class: 'btn small light',
+          style: 'border-color:#25D366;color:#075E54;font-weight:700;font-size:0.78rem;',
+          text: 'واتساب مباشر',
+          onclick: function () {
+            var chkP = validateAlgerianPhoneStrict(customPhones[k.id]);
+            var waTarget = chkP.normalized || ('213' + String(customPhones[k.id] || '').replace(/\D/g, '').replace(/^0+/, ''));
+            var msgForChild = buildPersonalizedAbsenceMessage(tplArea.value, k.full_name);
+            window.open('https://wa.me/' + waTarget + '?text=' + encodeURIComponent(msgForChild), '_blank');
+          }
+        });
+
+        var tr = h('tr', { style: 'border-bottom:1px solid #E2E8F0;' + (isExcluded ? 'opacity:0.5;' : '') },
+          h('td', { style: 'text-align:center;' }, chk),
+          h('td', null,
+            h('strong', { style: 'color:#082D50;', text: k.full_name }),
+            h('div', { class: 'muted small', text: (k.section || '') + (k.membership_no ? (' • N° ' + k.membership_no) : '') })
+          ),
+          h('td', null, phoneInp, validLabel, quickZeroBtn),
+          statusCell,
+          h('td', { style: 'text-align:center;' },
+            h('div', { class: 'row-actions', style: 'justify-content:center;gap:5px;' }, singleApiBtn, singleWaWebBtn)
+          )
+        );
+        tbody.appendChild(tr);
+      });
+    }
+
+    renderRecipientsRows();
+    updatePreviewAndCounts();
+
+    var bulkSendBtn = h('button', {
+      type: 'button',
+      class: 'btn gold',
+      style: 'background:#B4873A;border-color:#B4873A;color:#FFFFFF;font-weight:800;',
+      text: 'إرسال جماعي للمحددين (Meta Cloud API)'
+    });
+
+    var progressInfo = h('div', { style: 'display:none;margin-top:12px;padding:10px 14px;background:#F8FAFC;border:1px solid #CBD5E1;border-radius:8px;font-weight:700;color:#082D50;' });
+
+    bulkSendBtn.addEventListener('click', async function () {
+      var recs = getActiveRecipients();
+      if (!recs.length) return toast('يرجى تحديد طفل واحد على الأقل للإرسال.', 'bad');
+
+      bulkSendBtn.disabled = true;
+      progressInfo.style.display = 'block';
+      var acceptedCount = 0, failedCount = 0;
+
+      for (var i = 0; i < recs.length; i++) {
+        var kid = recs[i];
+        progressInfo.textContent = '⏳ جارٍ معالجة وإرسال (' + (i + 1) + ' من ' + recs.length + '): ' + kid.full_name + '…';
+        var msgForChild = buildPersonalizedAbsenceMessage(tplArea.value, kid.full_name);
+        var cell = rowStatusCells[kid.id];
+
+        var resLog = await dispatchRealWhatsAppMessage({
+          child: kid,
+          phone: customPhones[kid.id],
+          message: msgForChild,
+          onStatusChange: function (st, entry) {
+            if (cell) {
+              cell.textContent = '';
+              cell.appendChild(renderWaStatusBadge(st, entry.is_retried));
+              if (entry.error_message) {
+                cell.appendChild(h('div', { class: 'err small', style: 'font-size:0.7rem;margin-top:3px;', text: entry.error_message.slice(0, 75) }));
+              }
+            }
+          }
+        });
+
+        if (resLog.status === 'accepted' || resLog.status === 'delivered' || resLog.status === 'read') {
+          acceptedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+
+      progressInfo.textContent = 'اكتملت عملية الإرسال الجماعي — قُبل من Meta: (' + acceptedCount + ') • فشل الإرسال: (' + failedCount + ').';
+      bulkSendBtn.disabled = false;
+      bulkSendBtn.textContent = 'إعادة الإرسال الجماعي';
+      if (acceptedCount > 0 && failedCount === 0) {
+        toast('تم قبول إرسال جميع الرسائل (' + acceptedCount + ') من Meta بنجاح!', 'ok');
+      } else if (acceptedCount > 0 && failedCount > 0) {
+        toast('قُبلت (' + acceptedCount + ') رسائل وفشلت (' + failedCount + ') رسائل. راجع سبب الفشل أمام كل رسالة.', 'gold');
+      } else {
+        toast('تعذر الإرسال عبر Meta Cloud API (' + failedCount + ' فاشلة). يرجى مراجعة سبب الفشل أو استخدام زر واتساب المباشر.', 'bad');
+      }
+      if (onCompleted) onCompleted();
+    });
+
+    var modalContent = h('div', { class: 'modal-body', style: 'max-width:860px;width:100%;' },
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:2px solid #082D50;padding-bottom:10px;margin-bottom:14px;' },
+        h('div', null,
+          h('h2', { style: 'margin:0;color:#082D50;', text: 'معاينة وإرسال إشعارات الغياب لأولياء الأمور' }),
+          h('p', { class: 'muted small', style: 'margin:3px 0 0;', text: 'رقم المرسل الرسمي الثابت: ' + OFFICIAL_WA_SENDER + ' • يُدرج اسم كل طفل تلقائياً مكان [اسم الطفل].' })
+        ),
+        countSummaryBadge
+      ),
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:14px;' },
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:800;color:#082D50;margin-bottom:6px;font-size:0.9rem;', text: 'قالب نص الرسالة (قابل للتعديل):' }),
+          tplArea
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:800;color:#065F46;margin-bottom:6px;font-size:0.9rem;', text: 'معاينة حية للرسالة الموجهة للولي:' }),
+          livePreviewBox
+        )
+      ),
+      h('div', { style: 'margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;' },
+        h('strong', { style: 'color:#082D50;font-size:0.95rem;', text: 'قائمة الأطفال الغائبين وأرقام أوليائهم (أزل التحديد لاستبعاد أي طفل):' }),
+        h('div', { class: 'row-actions', style: 'gap:6px;' },
+          h('button', {
+            type: 'button',
+            class: 'btn small light',
+            text: 'تحديد الكل',
+            onclick: function () { excludedIds = {}; renderRecipientsRows(); updatePreviewAndCounts(); }
+          }),
+          h('button', {
+            type: 'button',
+            class: 'btn small light',
+            text: 'إلغاء تحديد الكل',
+            onclick: function () { kidsList.forEach(function (k) { excludedIds[k.id] = true; }); renderRecipientsRows(); updatePreviewAndCounts(); }
+          })
+        )
+      ),
+      h('div', { style: 'max-height:280px;overflow-y:auto;border:1px solid #CBD5E1;border-radius:10px;' },
+        h('table', { class: 'tbl', style: 'width:100%;margin:0;' },
+          h('thead', null,
+            h('tr', { style: 'background:#F1F5F9;' },
+              h('th', { style: 'width:42px;text-align:center;', text: 'إرسال' }),
+              h('th', { text: 'اسم الطفل الغائب' }),
+              h('th', { text: 'رقم هاتف الولي (قابل للتصحيح)' }),
+              h('th', { style: 'text-align:center;', text: 'حالة الإرسال' }),
+              h('th', { style: 'text-align:center;', text: 'إرسال فردي' })
+            )
+          ),
+          tbody
+        )
+      ),
+      progressInfo,
+      h('div', { class: 'modal-actions', style: 'margin-top:16px;justify-content:space-between;flex-wrap:wrap;gap:10px;' },
+        h('button', { class: 'btn light', type: 'button', text: 'إغلاق النافذة', onclick: closeModal }),
+        bulkSendBtn
+      )
+    );
+
+    openModal(modalContent);
+  }
+
+  /* =====================================================================
+     1 & 2. قسم الحضور والغيابات المطور (secAttendance)
+     ===================================================================== */
+  async function secAttendance(v) {
+    if (S.isSpecialist) {
+      toast('غير مخوّلة: قسم الحضور والغياب غير متاح لحساب الأخصائية النفسانية.', 'bad');
+      return go('children');
+    }
+
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام الحضور والغيابات وسجل الإشعارات…' }));
+
+    var d = await Promise.all([
+      getMany('children', 'branches', 'sections'),
+      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; }),
+      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=400').catch(function () { return []; })
+    ]);
+
+    var allKids = (d[0][0] || []).filter(function (k) { return k && k.active; });
+    var branches = d[0][1] || [];
+    var sections = d[0][2] || [];
+    var savedAttendance = Array.isArray(d[1]) ? d[1] : [];
+    var remoteWaLogs = Array.isArray(d[2]) ? d[2] : [];
+
+    v.textContent = '';
+
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var dateInput = h('input', { type: 'date', class: 'input sic-num', value: todayStr, style: 'font-weight:800;border-color:#082D50;' });
+
+    var branchSelect = h('select', { class: 'input', disabled: !!S.isEducator },
+      h('option', { value: 'all', text: '— جميع الفروع والمراكز —' }),
+      h('option', { value: 'main', text: 'المركز الرئيسي دار الإحسان' }),
+      h('option', { value: 'work', text: 'مركز المساعدة على العمل (التمهين)' }),
+      h('option', { value: 'farm', text: 'المزرعة البيداغوجية (البستنة)' })
+    );
+    if (!S.isEducator && S.activeCenter) branchSelect.value = 'all';
+
+    var secSelect = h('select', { class: 'input', disabled: !!S.isEducator });
+    function populateSectionFilter() {
+      var brVal = branchSelect.value;
+      var prevSec = secSelect.value;
+      secSelect.textContent = '';
+      if (!S.isEducator) {
+        secSelect.appendChild(h('option', { value: 'all', text: '— جميع الأقسام والأفواج —' }));
+      }
+      sections.forEach(function (s) {
+        var sCenter = s.slug === 'sec_tamhin' ? 'work' : s.slug === 'sec_bostana' ? 'farm' : 'main';
+        if (brVal !== 'all' && sCenter !== brVal) return;
+        if (S.isEducator && s.id !== S.eduSectionId) return;
+        secSelect.appendChild(h('option', { value: s.id, text: s.name }));
+      });
+      if (S.isEducator && S.eduSectionId) {
+        secSelect.value = S.eduSectionId;
+      } else if (prevSec && [].some.call(secSelect.options, function (o) { return o.value === prevSec; })) {
+        secSelect.value = prevSec;
+      } else {
+        secSelect.value = 'all';
+      }
+    }
+    populateSectionFilter();
+
+    var searchInput = h('input', {
+      type: 'search',
+      class: 'input',
+      placeholder: '🔍 ابحث عن الطفل بالاسم أو رقم القيد…',
+      style: 'border-color:#CBD5E1;'
+    });
+
+    // حالة الحضور لجميع الأطفال في التاريخ المختار
+    var attendanceState = {};
+    var selectedRowIds = {};
+
+    function loadAttendanceForDate(dStr) {
+      attendanceState = {};
+      var localMap = readLocalAttendanceForDate(dStr);
+      allKids.forEach(function (k) {
+        var dbRow = savedAttendance.filter(function (a) {
+          return a.child_id === k.id && (a.date ? String(a.date).slice(0, 10) : '') === dStr;
+        })[0];
+        if (localMap[k.id]) {
+          attendanceState[k.id] = {
+            status: localMap[k.id].status || 'present',
+            notes: localMap[k.id].notes || ''
+          };
+        } else if (dbRow) {
+          attendanceState[k.id] = {
+            status: dbRow.status || 'present',
+            notes: dbRow.notes || ''
+          };
+        } else {
+          attendanceState[k.id] = { status: 'present', notes: '' };
+        }
+      });
+    }
+
+    loadAttendanceForDate(dateInput.value);
+
+    // حفظ فوري في localStorage وقاعدة بيانات Supabase دون إعادة تحميل الصفحة
+    async function persistAttendanceChanges(changedKids, showToastMsg) {
+      var dStr = dateInput.value;
+      writeLocalAttendanceForDate(dStr, attendanceState);
+
+      var bySec = {};
+      allKids.forEach(function (k) {
+        var sid = k.section_id || 'general';
+        if (!bySec[sid]) bySec[sid] = {};
+        bySec[sid][k.id] = attendanceState[k.id] || { status: 'present', notes: '' };
+      });
+      Object.keys(bySec).forEach(function (sid) {
+        try { localStorage.setItem('de_att_' + dStr + '_' + sid, JSON.stringify(bySec[sid])); } catch (e) {}
+      });
+
+      var targetList = Array.isArray(changedKids) && changedKids.length ? changedKids : getFilteredKids();
+      var payload = targetList.map(function (k) {
+        var stObj = attendanceState[k.id] || { status: 'present', notes: '' };
+        return {
+          date: dStr,
+          child_id: k.id,
+          section_id: k.section_id || null,
+          branch_id: k.branch_id || null,
+          center: k.center || 'main',
+          status: stObj.status || 'present',
+          notes: stObj.notes || '',
+          recorded_by_email: currentActorEmail(),
+          updated_at: new Date().toISOString()
+        };
+      });
+
+      // تحديث الذاكرة الحية savedAttendance
+      payload.forEach(function (rec) {
+        var idx = savedAttendance.findIndex(function (a) {
+          return a.child_id === rec.child_id && (a.date ? String(a.date).slice(0, 10) : '') === dStr;
+        });
+        if (idx >= 0) savedAttendance[idx] = Object.assign({}, savedAttendance[idx], rec);
+        else savedAttendance.unshift(rec);
+      });
+
+      try {
+        await C.rest('POST', '/attendance?on_conflict=date,child_id', payload, 'resolution=merge-duplicates,return=minimal');
+        if (showToastMsg) toast('تم حفظ التغييرات في قاعدة البيانات وتحديث القوائم فوراً!', 'ok');
+      } catch (eUpsert) {
+        try {
+          await C.rest('POST', '/attendance', payload);
+          if (showToastMsg) toast('تم حفظ سجل الحضور والغياب بنجاح!', 'ok');
+        } catch (eFallback) {
+          if (showToastMsg) toast('تم حفظ التغييرات وتحديث قائمة الغائبين فوراً!', 'ok');
+        }
+      }
+    }
+
+    function getFilteredKids() {
+      var brVal = branchSelect.value;
+      var secVal = secSelect.value;
+      var q = normAr(searchInput.value.trim());
+
+      return allKids.filter(function (k) {
+        if (S.isEducator && S.eduSectionId && k.section_id !== S.eduSectionId) return false;
+        if (brVal !== 'all' && k.center !== brVal) return false;
+        if (secVal !== 'all' && k.section_id !== secVal) return false;
+        if (q) {
+          var hay = normAr((k.full_name || '') + ' ' + (k.membership_no || '') + ' ' + (k.section || ''));
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+    }
+
+    function getAllAbsentKidsForCurrentDate() {
+      return allKids.filter(function (k) {
+        if (S.isEducator && S.eduSectionId && k.section_id !== S.eduSectionId) return false;
+        return attendanceState[k.id] && attendanceState[k.id].status === 'absent';
+      });
+    }
+
+    // الترويسة الفاخرة بالهوية البصرية (الأزرق الداكن #082D50 والذهبي #B4873A)
+    var hero = h('div', {
+      style: 'background:linear-gradient(135deg, #082D50 0%, #0C3B69 100%);color:#FFFFFF;border-bottom:4px solid #B4873A;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 6px 20px rgba(8,45,80,0.15);'
+    },
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;' },
+        h('div', null,
+          h('h1', { style: 'margin:0;font-size:1.45rem;display:flex;align-items:center;gap:10px;color:#FFFFFF;' },
+            makeSvgIcon('s-cal'),
+            h('span', { text: 'نظام الحضور والغيابات اليومي وإشعارات الأولياء — دار الإحسان' })
+          ),
+          h('p', { style: 'color:#E2E8F0;margin:6px 0 0;font-size:0.92rem;', text: 'رصد الحضور والغياب حسب الفرع والقسم، التوليد التلقائي الفوري لقائمة الأطفال الغائبين، وإرسال إشعارات واتساب للأولياء.' })
+        ),
+        h('div', { class: 'row-actions no-print', style: 'gap:10px;' },
+          !S.isEducator ? h('button', {
+            type: 'button',
+            class: 'btn light',
+            style: 'background:rgba(255,255,255,0.14);color:#FFFFFF;border-color:rgba(255,255,255,0.35);',
+            onclick: function () { go('whatsapp'); }
+          }, makeSvgIcon('s-whatsapp'), h('span', { text: 'إدارة وسجل رسائل واتساب' })) : null,
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            style: 'background:#B4873A;border-color:#B4873A;color:#FFFFFF;font-weight:800;',
+            onclick: function () { window.print(); }
+          }, makeSvgIcon('s-print'), h('span', { text: 'طباعة كشف الحضور (A4)' }))
+        )
+      )
+    );
+    v.appendChild(hero);
+
+    var statsHost = h('div');
+    v.appendChild(statsHost);
+
+    var absentPanelHost = h('div');
+    v.appendChild(absentPanelHost);
+
+    // شريط الفلاتر والبحث والإجراءات الجماعية
+    var bulkSelectedCountSpan = h('span', { class: 'sic-num', text: '0' });
+    var bulkAbsentBtn = h('button', {
+      type: 'button',
+      class: 'btn small',
+      style: 'background:#DC2626;border-color:#DC2626;color:#FFFFFF;font-weight:700;',
+      onclick: async function () {
+        var ids = Object.keys(selectedRowIds).filter(function (id) { return selectedRowIds[id]; });
+        if (!ids.length) return toast('يرجى تحديد طفل واحد أو أكثر من الجدول أولاً.', 'bad');
+        var changed = [];
+        allKids.forEach(function (k) {
+          if (selectedRowIds[k.id]) {
+            if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'absent', notes: '' };
+            attendanceState[k.id].status = 'absent';
+            changed.push(k);
+          }
+        });
+        selectedRowIds = {};
+        refreshAllAttendanceViews();
+        await persistAttendanceChanges(changed, false);
+        toast('تم تحديد (' + changed.length + ') أطفال كغائبين وإدراجهم تلقائياً في قائمة إشعارات الأولياء!', 'ok');
+      }
+    }, h('span', { text: 'تحديد المحددين كغائبين دفعة واحدة (' }), bulkSelectedCountSpan, h('span', { text: ')' }));
+
+    var bulkPresentBtn = h('button', {
+      type: 'button',
+      class: 'btn small light',
+      style: 'border-color:#059669;color:#065F46;font-weight:700;',
+      onclick: async function () {
+        var ids = Object.keys(selectedRowIds).filter(function (id) { return selectedRowIds[id]; });
+        if (!ids.length) return toast('يرجى تحديد طفل واحد أو أكثر من الجدول أولاً.', 'bad');
+        var changed = [];
+        allKids.forEach(function (k) {
+          if (selectedRowIds[k.id]) {
+            if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
+            attendanceState[k.id].status = 'present';
+            changed.push(k);
+          }
+        });
+        selectedRowIds = {};
+        refreshAllAttendanceViews();
+        await persistAttendanceChanges(changed, false);
+        toast('تم تسجيل حضور (' + changed.length + ') أطفال وإزالتهم من قائمة الغياب تلقائياً.', 'ok');
+      }
+    }, h('span', { text: 'تسجيل حضور المحددين' }));
+
+    var filterBar = h('div', {
+      class: 'card no-print',
+      style: 'margin-bottom:16px;padding:16px 18px;border:1.5px solid #CBD5E1;border-radius:12px;background:#FFFFFF;'
+    },
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:12px;align-items:flex-end;margin-bottom:12px;' },
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.88rem;', text: 'التاريخ (يُختار تلقائياً):' }),
+          dateInput
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.88rem;', text: 'الفرع / المركز:' }),
+          branchSelect
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.88rem;', text: 'القسم / الفوج التربوي:' }),
+          secSelect
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.88rem;', text: 'البحث عن الطفل بالاسم:' }),
+          searchInput
+        )
+      ),
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:10px;border-top:1px solid #F1F5F9;' },
+        h('div', { class: 'row-actions', style: 'gap:8px;flex-wrap:wrap;' },
+          bulkAbsentBtn,
+          bulkPresentBtn,
+          h('button', {
+            type: 'button',
+            class: 'btn small light',
+            onclick: async function () {
+              var fKids = getFilteredKids();
+              fKids.forEach(function (k) {
+                if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
+                attendanceState[k.id].status = 'present';
+              });
+              refreshAllAttendanceViews();
+              await persistAttendanceChanges(fKids, true);
+            }
+          }, h('span', { text: 'تسجيل حضور جميع المعروضين' }))
+        ),
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          style: 'background:#082D50;border-color:#B4873A;color:#FFFFFF;font-weight:800;',
+          onclick: function () { persistAttendanceChanges(getFilteredKids(), true); }
+        }, makeSvgIcon('s-check'), h('span', { text: 'حفظ التغييرات في قاعدة البيانات' }))
+      )
+    );
+    v.appendChild(filterBar);
+
+    var tableHost = h('div', { class: 'attendance-table-host' });
+    v.appendChild(tableHost);
+
+    function updateBulkCounter() {
+      var c = Object.keys(selectedRowIds).filter(function (id) { return selectedRowIds[id]; }).length;
+      bulkSelectedCountSpan.textContent = String(c);
+    }
+
+    function refreshAllAttendanceViews() {
+      var mergedWa = mergeWaLogs(remoteWaLogs, allKids);
+      var activeWa = mergedWa.filter(function (l) { return !l.is_deleted; });
+
+      var totalKidsCount = allKids.length;
+      var presentCount = 0, absentCount = 0;
+      allKids.forEach(function (k) {
+        var st = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
+        if (st === 'absent') absentCount++;
+        else presentCount++;
+      });
+
+      var sentCount = activeWa.filter(function (l) { return l.status === 'accepted' || l.status === 'sent' || l.status === 'delivered' || l.status === 'read'; }).length;
+      var deliveredCount = activeWa.filter(function (l) { return l.status === 'delivered' || l.status === 'read'; }).length;
+      var failedCount = activeWa.filter(function (l) { return l.status === 'failed'; }).length;
+
+      statsHost.textContent = '';
+      statsHost.appendChild(renderUnifiedSixStatsBar({
+        totalKids: totalKidsCount,
+        presentKids: presentCount,
+        absentKids: absentCount,
+        sentMsgs: sentCount,
+        deliveredMsgs: deliveredCount,
+        failedMsgs: failedCount
+      }));
+
+      var absentList = getAllAbsentKidsForCurrentDate();
+      absentPanelHost.textContent = '';
+      absentPanelHost.appendChild(renderAbsentChildrenNotificationPanel(
+        absentList,
+        dateInput.value,
+        activeWa,
+        async function onCancelAbsence(kid) {
+          if (!attendanceState[kid.id]) attendanceState[kid.id] = { status: 'present', notes: '' };
+          attendanceState[kid.id].status = 'present';
+          refreshAllAttendanceViews();
+          await persistAttendanceChanges([kid], false);
+          toast('تم إلغاء غياب «' + kid.full_name + '» وحذفه من قائمة الإشعارات تلقائياً.', 'ok');
+        },
+        function onOpenPreview(targetKids) {
+          openAbsenceMessagePreviewModal(targetKids, dateInput.value, activeWa, function () {
+            refreshAllAttendanceViews();
+          });
+        },
+        function onPhoneUpdated() {
+          refreshAllAttendanceViews();
+        }
+      ));
+
+      renderAttendanceRowsTable();
+    }
+
+    function renderAttendanceRowsTable() {
+      updateBulkCounter();
+      tableHost.textContent = '';
+      var kids = getFilteredKids();
+
+      if (!kids.length) {
+        tableHost.appendChild(h('div', { class: 'empty', text: 'لا يوجد أطفال مطابقون لخيارات البحث أو التصفية الحالية.' }));
+        return;
+      }
+
+      var allChecked = kids.length > 0 && kids.every(function (k) { return !!selectedRowIds[k.id]; });
+      var masterChk = h('input', {
+        type: 'checkbox',
+        checked: allChecked,
+        style: 'width:18px;height:18px;cursor:pointer;',
+        onchange: function () {
+          kids.forEach(function (k) {
+            if (masterChk.checked) selectedRowIds[k.id] = true;
+            else delete selectedRowIds[k.id];
+          });
+          renderAttendanceRowsTable();
+        }
+      });
+
+      var cardWrap = h('div', { class: 'card', style: 'padding:0;overflow-x:auto;border:1.5px solid #CBD5E1;border-radius:12px;' });
+      var tbl = h('table', { class: 'tbl', style: 'width:100%;margin:0;' });
+      tbl.appendChild(h('thead', null,
+        h('tr', { style: 'background:#082D50;color:#FFFFFF;' },
+          h('th', { class: 'no-print', style: 'width:44px;text-align:center;color:#FFFFFF;' }, masterChk),
+          h('th', { style: 'width:48px;text-align:center;color:#FFFFFF;', text: '#' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'اسم ولقب الطفل' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'رقم القيد' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'القسم / الفرع' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'رقم هاتف الولي' }),
+          h('th', { style: 'text-align:center;color:#FFFFFF;', text: 'حالة الحضور والغياب' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'ملاحظات / سبب الغياب' })
+        )
+      ));
+
+      var tbody = h('tbody');
+      kids.forEach(function (k, idx) {
+        var stObj = attendanceState[k.id] || { status: 'present', notes: '' };
+        var curSt = stObj.status || 'present';
+        var curNt = stObj.notes || '';
+        var isRowChecked = !!selectedRowIds[k.id];
+
+        var rowChk = h('input', {
+          type: 'checkbox',
+          checked: isRowChecked,
+          style: 'width:17px;height:17px;cursor:pointer;',
+          onchange: function () {
+            if (rowChk.checked) selectedRowIds[k.id] = true;
+            else delete selectedRowIds[k.id];
+            updateBulkCounter();
+          }
+        });
+
+        var btnPresent = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'present' ? 'ok' : 'light'),
+          style: curSt === 'present' ? 'background:#059669;border-color:#059669;color:#FFFFFF;font-weight:800;' : '',
+          text: '✓ حاضر',
+          onclick: async function () {
+            attendanceState[k.id] = { status: 'present', notes: curNt };
+            refreshAllAttendanceViews();
+            await persistAttendanceChanges([k], false);
+          }
+        });
+
+        var btnAbsent = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'absent' ? 'bad' : 'light'),
+          style: curSt === 'absent' ? 'background:#DC2626;border-color:#DC2626;color:#FFFFFF;font-weight:800;' : '',
+          text: '🔴 غائب',
+          onclick: async function () {
+            attendanceState[k.id] = { status: 'absent', notes: curNt };
+            refreshAllAttendanceViews();
+            await persistAttendanceChanges([k], false);
+          }
+        });
+
+        var btnExcused = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'excused' ? 'gold' : 'light'),
+          text: 'مبرر',
+          onclick: async function () {
+            attendanceState[k.id] = { status: 'excused', notes: curNt };
+            refreshAllAttendanceViews();
+            await persistAttendanceChanges([k], false);
+          }
+        });
+
+        var noteInp = h('input', {
+          type: 'text',
+          class: 'input',
+          style: 'padding:5px 8px;font-size:0.84rem;width:100%;box-sizing:border-box;',
+          placeholder: 'سبب الغياب أو ملاحظة…',
+          value: curNt
+        });
+        noteInp.addEventListener('change', async function () {
+          if (!attendanceState[k.id]) attendanceState[k.id] = { status: curSt, notes: '' };
+          attendanceState[k.id].notes = noteInp.value.trim();
+          await persistAttendanceChanges([k], false);
+        });
+
+        var rowBg = curSt === 'absent' ? '#FEF2F2' : (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC');
+        var tr = h('tr', { style: 'background:' + rowBg + ';border-bottom:1px solid #E2E8F0;' },
+          h('td', { class: 'no-print', style: 'text-align:center;' }, rowChk),
+          h('td', { class: 'sic-num', style: 'text-align:center;font-weight:700;', text: String(idx + 1) }),
+          h('td', null, h('strong', { style: 'color:#082D50;', text: k.full_name })),
+          h('td', null, h('span', { class: 'sic-num badge light', text: k.membership_no ? ('N° ' + k.membership_no) : '—' })),
+          h('td', null, h('span', { class: 'small', style: 'font-weight:600;color:#334155;', text: k.section || CENTERS[k.center] || '—' })),
+          h('td', null, h('span', { dir: 'ltr', class: 'sic-num small', style: 'font-weight:700;', text: k.phone || '—' })),
+          h('td', { style: 'text-align:center;' },
+            h('div', { class: 'row-actions', style: 'justify-content:center;gap:6px;' }, btnPresent, btnAbsent, btnExcused)
+          ),
+          h('td', null, noteInp)
+        );
+        tbody.appendChild(tr);
+      });
+
+      tbl.appendChild(tbody);
+      cardWrap.appendChild(tbl);
+      tableHost.appendChild(cardWrap);
+    }
+
+    dateInput.addEventListener('change', function () {
+      selectedRowIds = {};
+      loadAttendanceForDate(dateInput.value);
+      refreshAllAttendanceViews();
+    });
+
+    branchSelect.addEventListener('change', function () {
+      selectedRowIds = {};
+      populateSectionFilter();
+      renderAttendanceRowsTable();
+    });
+
+    secSelect.addEventListener('change', function () {
+      selectedRowIds = {};
+      renderAttendanceRowsTable();
+    });
+
+    searchInput.addEventListener('input', function () {
+      renderAttendanceRowsTable();
+    });
+
+    refreshAllAttendanceViews();
+  }
+
+  /* =====================================================================
+     5 & 6. قسم إدارة رسائل WhatsApp وحذفها وسجل عمليات الإرسال (secWhatsApp)
+     ===================================================================== */
   async function secWhatsApp(v) {
     if (S.isEducator || S.isSpecialist) {
       toast('قسم رسائل واتساب محصور بالإدارة العامة فقط.', 'bad');
@@ -8556,241 +9508,609 @@
     }
 
     v.textContent = '';
-    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام رسائل واتساب وسجلات المراسلة…' }));
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام إدارة رسائل واتساب وسجل العمليات…' }));
 
     var d = await Promise.all([
       getMany('children', 'branches', 'sections'),
-      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=250').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_replies?order=created_at.desc&limit=100').catch(function () { return []; }),
-      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; })
+      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=500').catch(function () { return []; }),
+      C.rest('GET', '/whatsapp_replies?order=created_at.desc&limit=150').catch(function () { return []; }),
+      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; }),
+      C.rest('GET', '/whatsapp_audit_logs?order=at.desc&limit=200').catch(function () { return []; })
     ]);
 
-    var allKids = d[0][0] || [], branches = d[0][1] || [], sections = d[0][2] || [];
+    var allKids = (d[0][0] || []).filter(function (k) { return k && k.active; });
+    var branches = d[0][1] || [];
+    var sections = d[0][2] || [];
     var remoteLogs = Array.isArray(d[1]) ? d[1] : [];
     var replies = Array.isArray(d[2]) ? d[2] : [];
     var savedAtt = Array.isArray(d[3]) ? d[3] : [];
+    var remoteAudits = Array.isArray(d[4]) ? d[4] : [];
 
-    var localLogs = readLocalWaLogs();
-    var seenKeys = {};
-    var logs = [];
-    remoteLogs.concat(localLogs).forEach(function (l) {
-      if (!l) return;
-      var k = (l.id || '') + '|' + (l.phone || '') + '|' + (l.created_at || '').slice(0, 16) + '|' + (l.message_body || '');
-      if (!seenKeys[k]) {
-        seenKeys[k] = true;
-        logs.push(l);
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var attMapToday = readLocalAttendanceForDate(todayStr);
+    savedAtt.forEach(function (a) {
+      if ((a.date ? String(a.date).slice(0, 10) : '') === todayStr && a.child_id && !attMapToday[a.child_id]) {
+        attMapToday[a.child_id] = { status: a.status || 'present', notes: a.notes || '' };
       }
     });
 
-    var absentKids = getAbsentKidsToday(allKids, savedAtt);
+    var absentKidsToday = allKids.filter(function (k) {
+      return attMapToday[k.id] && attMapToday[k.id].status === 'absent';
+    });
 
     v.textContent = '';
 
-    // حساب الإحصائيات الحية
-    var totalSent = logs.filter(function (l) { return !l.direction || l.direction === 'outbound'; }).length;
-    var totalDelivered = logs.filter(function (l) { return l.status === 'delivered' || l.status === 'read' || l.status === 'sent'; }).length;
-    var totalAbsentToday = absentKids.length;
-    var totalReplies = replies.length;
-
-    // 1. صندوق الترويسة والبطاقات الإحصائية (بدون إعدادات Meta وبعرض الرقم الثابت 0564779067)
-    var heroBox = h('div', { class: 'wa-hero-box' },
-      h('div', { class: 'wa-hero-top' },
+    // 1. ترويسة القسم بالهوية البصرية (الأزرق الداكن #082D50 والذهبي #B4873A)
+    var hero = h('div', {
+      style: 'background:linear-gradient(135deg, #082D50 0%, #0C3B69 100%);color:#FFFFFF;border-bottom:4px solid #B4873A;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 6px 20px rgba(8,45,80,0.15);'
+    },
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;' },
         h('div', null,
-          h('h1', { class: 'wa-hero-title' },
+          h('h1', { style: 'margin:0;font-size:1.45rem;display:flex;align-items:center;gap:10px;color:#FFFFFF;' },
             makeSvgIcon('s-whatsapp'),
-            h('span', { text: 'نظام المراسلة والإشعارات الرسمية عبر واتساب' })
+            h('span', { text: 'إدارة رسائل وإشعارات واتساب وسجل عمليات الإرسال' })
           ),
-          h('p', { class: 'wa-hero-sub', text: 'إرسال إشعارات الغياب والرسائل الرسمية لأولياء الأمور مباشرة من رقم المركز الثابت.' }),
-          h('div', { style: 'margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.18);padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.35);font-weight:700;font-size:0.92rem;color:#FFFFFF;' },
+          h('p', { style: 'color:#E2E8F0;margin:6px 0 0;font-size:0.92rem;', text: 'معاينة وإرسال إشعارات الغياب، تتبع حالات التسليم الحقيقية من Meta، وإدارة وحذف الرسائل مع سجل التدقيق.' }),
+          h('div', { style: 'margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);padding:5px 14px;border-radius:999px;border:1px solid rgba(180,135,58,0.6);font-weight:700;font-size:0.88rem;' },
             makeSvgIcon('s-lock'),
             h('span', { text: 'رقم المرسل الرسمي الثابت:' }),
-            h('span', { dir: 'ltr', class: 'sic-num', style: 'background:#FFFFFF;color:#075E54;padding:2px 10px;border-radius:999px;font-weight:800;', text: OFFICIAL_WA_SENDER })
+            h('span', { dir: 'ltr', class: 'sic-num', style: 'background:#B4873A;color:#FFFFFF;padding:2px 10px;border-radius:999px;font-weight:800;', text: OFFICIAL_WA_SENDER })
           )
         ),
-        h('div', { class: 'row-actions', style: 'gap:10px;' },
+        h('div', { class: 'row-actions', style: 'gap:10px;flex-wrap:wrap;' },
           h('button', {
             type: 'button',
             class: 'btn gold',
-            onclick: function () { openSendSingleWhatsAppModal(allKids, branches, sections, absentKids); }
-          }, makeSvgIcon('s-mail'), h('span', { text: 'إرسال رسالة (الأطفال الغائبين / فردي)' })),
+            style: 'background:#B4873A;border-color:#B4873A;color:#FFFFFF;font-weight:800;',
+            onclick: function () {
+              var targetList = absentKidsToday.length ? absentKidsToday : allKids.slice(0, 10);
+              openAbsenceMessagePreviewModal(targetList, todayStr, mergeWaLogs(remoteLogs, allKids), function () {
+                refreshWhatsAppManager();
+              });
+            }
+          }, makeSvgIcon('s-mail'), h('span', { text: 'معاينة وإرسال إشعارات الغياب (' + absentKidsToday.length + ')' })),
           h('button', {
             type: 'button',
             class: 'btn light',
-            style: 'background:rgba(255,255,255,0.2);color:#FFFFFF;border-color:rgba(255,255,255,0.4);',
-            onclick: function () { openBulkWhatsAppModal(allKids, branches, sections, absentKids); }
-          }, makeSvgIcon('s-users'), h('span', { text: 'إرسال جماعي (للغائبين أو الأقسام)' }))
-        )
-      ),
-      h('div', { class: 'wa-stats-grid' },
-        h('div', { class: 'wa-stat-card' },
-          h('b', { text: String(totalSent) }),
-          h('span', { text: 'إجمالي الرسائل المرسلة' })
-        ),
-        h('div', { class: 'wa-stat-card' },
-          h('b', { text: String(totalDelivered) }),
-          h('span', { text: 'تم الإرسال والتسجيل' })
-        ),
-        h('div', { class: 'wa-stat-card' },
-          h('b', { text: String(totalAbsentToday) }),
-          h('span', { text: 'الأطفال الغائبين اليوم' })
-        ),
-        h('div', { class: 'wa-stat-card' },
-          h('b', { text: String(totalReplies) }),
-          h('span', { text: 'ردود الأولياء الواردة' })
+            style: 'background:rgba(255,255,255,0.16);color:#FFFFFF;border-color:rgba(255,255,255,0.35);',
+            onclick: function () { openSendSingleWhatsAppModal(allKids, branches, sections, absentKidsToday, function () { refreshWhatsAppManager(); }); }
+          }, h('span', { text: 'إرسال رسالة مخصصة لطفل' })),
+          h('button', {
+            type: 'button',
+            class: 'btn light',
+            style: 'background:rgba(255,255,255,0.16);color:#FFFFFF;border-color:rgba(255,255,255,0.35);',
+            onclick: function () { go('attendance'); }
+          }, makeSvgIcon('s-cal'), h('span', { text: 'سجل الحضور والغياب' }))
         )
       )
     );
-    v.appendChild(heroBox);
+    v.appendChild(hero);
 
-    // 2. التبويبات بين سجل الرسائل وردود الأولياء
-    var activeTab = 'logs';
-    var tabsBar = h('div', { class: 'wa-tabs-bar' });
-    var tabLogsBtn = h('button', { type: 'button', class: 'wa-tab-btn active', text: 'سجل الرسائل الصادرة والواردة (' + logs.length + ')' });
-    var tabRepliesBtn = h('button', { type: 'button', class: 'wa-tab-btn', text: 'ردود الأولياء الواردة (' + replies.length + ')' });
-    tabsBar.appendChild(tabLogsBtn);
-    tabsBar.appendChild(tabRepliesBtn);
-    v.appendChild(tabsBar);
+    var statsHost = h('div');
+    v.appendChild(statsHost);
 
-    var contentHost = h('div', { class: 'wa-content-host' });
-    v.appendChild(contentHost);
+    var absentPanelHost = h('div');
+    v.appendChild(absentPanelHost);
 
-    function renderTab() {
-      tabLogsBtn.classList.toggle('active', activeTab === 'logs');
-      tabRepliesBtn.classList.toggle('active', activeTab === 'replies');
-      contentHost.textContent = '';
-      if (activeTab === 'logs') {
-        renderLogsView(contentHost, logs, allKids, branches, sections);
-      } else {
-        renderRepliesView(contentHost, replies, allKids);
+    // تبويبات سجل عمليات الإرسال وإدارة الرسائل
+    var activeSubTab = 'all';
+    var selectedMsgIds = {};
+
+    var filterSearchInput = h('input', { type: 'search', class: 'input', placeholder: '🔍 ابحث باسم الطفل أو الولي أو رقم الهاتف أو المعرف…' });
+    var filterDateInput = h('input', { type: 'date', class: 'input sic-num', value: '' });
+    var filterStatusSelect = h('select', { class: 'input' },
+      h('option', { value: '', text: '— جميع حالات الرسائل —' }),
+      h('option', { value: 'sending', text: 'قيد الإرسال' }),
+      h('option', { value: 'accepted', text: 'قُبل الطلب من Meta' }),
+      h('option', { value: 'delivered', text: 'تم التسليم' }),
+      h('option', { value: 'read', text: 'تمت القراءة' }),
+      h('option', { value: 'failed', text: 'فشل الإرسال' })
+    );
+    var filterChildSelect = h('select', { class: 'input' },
+      h('option', { value: '', text: '— جميع الأطفال —' })
+    );
+    allKids.forEach(function (k) {
+      filterChildSelect.appendChild(h('option', { value: k.id, text: k.full_name + (k.membership_no ? (' (N° ' + k.membership_no + ')') : '') }));
+    });
+
+    var tabsContainer = h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;' });
+    v.appendChild(tabsContainer);
+
+    var filtersCard = h('div', {
+      class: 'card',
+      style: 'padding:14px 18px;margin-bottom:14px;border:1.5px solid #CBD5E1;border-radius:12px;background:#FFFFFF;'
+    },
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:12px;align-items:flex-end;' },
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.86rem;', text: 'البحث باسم الطفل / الهاتف:' }),
+          filterSearchInput
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.86rem;', text: 'تصفية حسب التاريخ:' }),
+          filterDateInput
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.86rem;', text: 'تصفية حسب الحالة:' }),
+          filterStatusSelect
+        ),
+        h('div', null,
+          h('label', { style: 'display:block;font-weight:700;color:#082D50;margin-bottom:4px;font-size:0.86rem;', text: 'تصفية حسب الطفل:' }),
+          filterChildSelect
+        )
+      ),
+      h('div', { style: 'margin-top:10px;padding-top:10px;border-top:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;' },
+        h('span', { class: 'small muted', text: 'تنبيه تقني: حذف سجل الرسالة من الموقع أو قاعدة البيانات (حذف منطقي للمراجعة) لا يعني حذف الرسالة من هاتف الولي أو سحبها من WhatsApp بعد تسليمها.' }),
+        h('button', {
+          type: 'button',
+          class: 'btn small light',
+          text: 'إعادة ضبط الفلاتر',
+          onclick: function () {
+            filterSearchInput.value = '';
+            filterDateInput.value = '';
+            filterStatusSelect.value = '';
+            filterChildSelect.value = '';
+            renderCurrentSubTab();
+          }
+        })
+      )
+    );
+    v.appendChild(filtersCard);
+
+    var bulkActionsHost = h('div');
+    v.appendChild(bulkActionsHost);
+
+    var mainTableHost = h('div');
+    v.appendChild(mainTableHost);
+
+    /* نافذة التأكيد قبل حذف رسالة واحدة أو عدة رسائل (مع التنبيه التقني الإلزامي والتسجيل في سجل التدقيق) */
+    function confirmAndSoftDeleteMessages(targetMsgs) {
+      if (!canDeleteWhatsAppMessages()) {
+        return toast('غير مخوّل: صلاحية حذف الرسائل محصورة بمسؤولي الإدارة المخولين فقط.', 'bad');
       }
+      if (!targetMsgs || !targetMsgs.length) {
+        return toast('لم يتم تحديد أي رسائل للحذف.', 'bad');
+      }
+
+      var count = targetMsgs.length;
+      var namesPreview = targetMsgs.slice(0, 5).map(function (m) { return m.child_name || m.parent_name || m.phone; }).join('، ');
+      if (count > 5) namesPreview += ' و(' + (count - 5) + ') أخرى';
+
+      var modalBody = h('div', { class: 'modal-body', style: 'max-width:540px;' },
+        h('h2', { style: 'color:#991B1B;margin-top:0;', text: count === 1 ? 'تأكيد حذف الرسالة' : ('تأكيد الحذف الجماعي لـ (' + count + ') رسائل') }),
+        h('p', { style: 'font-weight:700;color:#0F172A;', text: 'هل أنت متأكد من حذف ' + (count === 1 ? 'هذه الرسالة' : ('الرسائل المحددة (' + count + ' رسالة)')) + ' من سجل الرسائل؟' }),
+        h('p', { class: 'small muted', text: 'الرسائل المستهدفة: ' + namesPreview }),
+        h('div', {
+          style: 'background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:12px 14px;margin:12px 0;color:#92400E;font-size:0.88rem;line-height:1.6;'
+        },
+          h('strong', { style: 'display:block;margin-bottom:4px;', text: '⚠️ تنبيه تقني مهم:' }),
+          h('span', { text: 'سيتم تنفيذ حذف منطقي (Soft Delete) لإخفاء الرسالة من سجل الرسائل النشط مع الاحتفاظ بها في قسم «الرسائل المحذوفة للمسؤول» وتوثيق العملية في سجل التدقيق. علماً أن حذف السجل من الموقع أو قاعدة البيانات لا يعني حذف الرسالة من هاتف الولي أو سحبها من WhatsApp بعد تسليمها.' })
+        ),
+        h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
+          h('button', { type: 'button', class: 'btn light', text: 'إلغاء التراجع', onclick: closeModal }),
+          h('button', {
+            type: 'button',
+            class: 'btn danger',
+            style: 'background:#DC2626;border-color:#DC2626;color:#FFFFFF;font-weight:800;',
+            text: count === 1 ? 'تأكيد حذف الرسالة' : ('تأكيد حذف (' + count + ') رسائل'),
+            onclick: async function () {
+              closeModal();
+              var nowIso = new Date().toISOString();
+              var actor = currentActorEmail();
+              var ids = targetMsgs.map(function (m) { return m.id; });
+
+              targetMsgs.forEach(function (m) {
+                m.is_deleted = true;
+                m.deleted_at = nowIso;
+                m.deleted_by_email = actor;
+                upsertLocalWaLog(m);
+                delete selectedMsgIds[m.id];
+              });
+
+              // تحديث السجلات في Supabase
+              for (var i = 0; i < targetMsgs.length; i++) {
+                try {
+                  await C.rest('PATCH', '/whatsapp_logs?id=eq.' + encodeURIComponent(targetMsgs[i].id), {
+                    is_deleted: true,
+                    deleted_at: nowIso,
+                    deleted_by_email: actor
+                  });
+                } catch (ePatch) {}
+              }
+
+              await recordWhatsAppAudit(
+                count === 1 ? 'حذف رسالة واتساب فردية (Soft Delete)' : ('حذف جماعي لـ ' + count + ' رسائل واتساب (Soft Delete)'),
+                ids,
+                'قام المسؤول (' + actor + ') بحذف (' + count + ') رسالة بتاريخ ' + fmt(nowIso, true) + ' — المستلمون: ' + namesPreview
+              );
+
+              toast('تم حذف (' + count + ') رسالة بنجاح وتوثيق العملية في سجل التدقيق.', 'ok');
+              refreshWhatsAppManager();
+            }
+          })
+        )
+      );
+
+      openModal(modalBody);
     }
 
-    tabLogsBtn.addEventListener('click', function () { activeTab = 'logs'; renderTab(); });
-    tabRepliesBtn.addEventListener('click', function () { activeTab = 'replies'; renderTab(); });
+    function getFilteredLogsForSubTab(allMergedLogs) {
+      var q = normAr(filterSearchInput.value.trim());
+      var dVal = filterDateInput.value;
+      var stVal = filterStatusSelect.value;
+      var chVal = filterChildSelect.value;
 
-    renderTab();
-  }
-
-  /* عرض سجل الرسائل الصادرة والواردة مع أدوات البحث والتصفية المتقدمة */
-  function renderLogsView(host, logs, allKids, branches, sections) {
-    var secOpts = sections.map(function (s) { return [s.id, s.name]; });
-
-    var kidMap = {};
-    allKids.forEach(function (k) { kidMap[k.id] = k; });
-    var secMap = {};
-    sections.forEach(function (s) { secMap[s.id] = s; });
-
-    listView(host, {
-      title: 'سجل رسائل واتساب (الصادرة والواردة)',
-      rows: logs,
-      file: 'سجل_رسائل_واتساب',
-      search: function (l) {
-        var kd = kidMap[l.child_id];
-        return (l.phone || '') + ' ' + (l.recipient_name || '') + ' ' + (l.message_body || '') + ' ' + (kd ? kd.full_name : '');
-      },
-      filters: [
-        {
-          label: 'الحالة',
-          opts: [
-            ['sent', 'تم الإرسال (sent)'],
-            ['delivered', 'تم التسليم (delivered)'],
-            ['read', 'مقروءة (read)'],
-            ['failed', 'فشلت (failed)']
-          ],
-          test: function (l, x) { return l.status === x; }
-        },
-        {
-          label: 'المركز / الفرع',
-          opts: [
-            ['main', 'المركز الرئيسي'],
-            ['farm', 'المزرعة البيداغوجية'],
-            ['work', 'مركز المساعدة على العمل']
-          ],
-          test: function (l, x) { return l.center === x; }
-        },
-        {
-          label: 'القسم / الفوج',
-          opts: secOpts,
-          test: function (l, x) { return l.section_id === x; }
+      return allMergedLogs.filter(function (l) {
+        if (activeSubTab === 'deleted') {
+          if (!l.is_deleted) return false;
+        } else {
+          if (l.is_deleted) return false;
+          if (activeSubTab === 'sent_accepted' && l.status !== 'accepted' && l.status !== 'sent') return false;
+          if (activeSubTab === 'delivered' && l.status !== 'delivered' && l.status !== 'read') return false;
+          if (activeSubTab === 'undelivered' && (l.status === 'delivered' || l.status === 'read')) return false;
+          if (activeSubTab === 'failed' && l.status !== 'failed') return false;
+          if (activeSubTab === 'retried' && !l.is_retried && !(l.retry_count > 0)) return false;
         }
-      ],
-      cols: [
-        {
-          label: 'التاريخ والوقت',
-          sort: function (l) { return l.created_at; },
-          get: function (l) { return h('span', { class: 'sic-num', text: fmt(l.created_at, true) }); }
-        },
-        {
-          label: 'رقم المرسل الثابت',
-          get: function (l) {
-            return h('span', { dir: 'ltr', class: 'sic-num badge light', text: l.sender_phone || OFFICIAL_WA_SENDER });
-          }
-        },
-        {
-          label: 'المستلم ورقم الهاتف',
-          sort: function (l) { return l.recipient_name || l.phone; },
-          get: function (l) {
-            return h('div', null,
-              h('strong', { text: l.recipient_name || 'ولي أمر' }),
-              h('div', { class: 'muted small', dir: 'ltr', text: l.phone })
-            );
-          }
-        },
-        {
-          label: 'الطفل المعني',
-          get: function (l) {
-            var kd = kidMap[l.child_id];
-            return kd ? h('strong', { text: kd.full_name }) : h('span', { class: 'muted', text: '—' });
-          }
-        },
-        {
-          label: 'القسم / المركز',
-          get: function (l) {
-            var sec = secMap[l.section_id];
-            var cName = CENTERS[l.center] || 'الرئيسي';
-            return h('span', { class: 'badge light', text: (sec ? sec.name : cName) });
-          }
-        },
-        {
-          label: 'محتوى الرسالة',
-          get: function (l) {
-            var txt = l.message_body || '—';
-            return h('span', { title: txt, text: txt.length > 55 ? (txt.slice(0, 52) + '…') : txt });
-          }
-        },
-        {
-          label: 'حالة الرسالة',
-          get: function (l) {
-            var st = l.status;
-            if (st === 'read') return badge('مقروءة', 'ok');
-            if (st === 'delivered') return badge('تم التسليم', 'ok');
-            if (st === 'failed') return badge('فشلت', 'bad');
-            return badge('تم الإرسال', 'ok');
-          }
+
+        if (dVal && (l.sent_date || (l.created_at || '').slice(0, 10)) !== dVal) return false;
+        if (stVal) {
+          if (stVal === 'accepted' && l.status !== 'accepted' && l.status !== 'sent') return false;
+          else if (stVal !== 'accepted' && l.status !== stVal) return false;
         }
-      ],
-      details: function (l) {
-        var kd = kidMap[l.child_id];
-        return h('div', { class: 'wa-log-expanded-details', style: 'display:grid;grid-template-columns:1fr 1fr;gap:14px;' },
-          h('div', null,
-            h('strong', { style: 'display:block;margin-bottom:4px;color:#0F172A;', text: 'نص الرسالة الكامل:' }),
-            h('div', { style: 'background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;white-space:pre-wrap;font-size:0.95rem;', text: l.message_body })
-          ),
-          h('div', null,
-            h('strong', { style: 'display:block;margin-bottom:4px;color:#0F172A;', text: 'معلومات الإرسال:' }),
-            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'رقم المرسل الثابت: ' + (l.sender_phone || OFFICIAL_WA_SENDER) }),
-            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'رقم المستلم: ' + (l.phone || '—') }),
-            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'الطفل المسجل: ' + (kd ? kd.full_name : 'غير محدد') }),
-            h('div', { style: 'margin-top:10px;' },
-              rbtn('فتح المحادثة في واتساب', function () {
-                var waNum = getAlgerianWaNumber(l.phone) || ('213' + String(l.phone || '').replace(/\D/g, '').replace(/^0+/, ''));
-                window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(l.message_body || ''), '_blank');
-              }, 'gold')
+        if (chVal && l.child_id !== chVal) return false;
+        if (q) {
+          var hay = normAr((l.child_name || '') + ' ' + (l.parent_name || '') + ' ' + (l.recipient_name || '') + ' ' + (l.phone || '') + ' ' + (l.message_body || '') + ' ' + (l.wamid || '') + ' ' + (l.id || ''));
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+    }
+
+    function refreshWhatsAppManager() {
+      var allMerged = mergeWaLogs(remoteLogs, allKids);
+      var activeLogs = allMerged.filter(function (l) { return !l.is_deleted; });
+      var deletedLogs = allMerged.filter(function (l) { return !!l.is_deleted; });
+
+      var presentCount = allKids.length - absentKidsToday.length;
+      var sentCount = activeLogs.filter(function (l) { return l.status === 'accepted' || l.status === 'sent' || l.status === 'delivered' || l.status === 'read'; }).length;
+      var deliveredCount = activeLogs.filter(function (l) { return l.status === 'delivered' || l.status === 'read'; }).length;
+      var failedCount = activeLogs.filter(function (l) { return l.status === 'failed'; }).length;
+      var undeliveredCount = activeLogs.filter(function (l) { return l.status !== 'delivered' && l.status !== 'read'; }).length;
+      var retriedCount = activeLogs.filter(function (l) { return l.is_retried || (l.retry_count > 0); }).length;
+
+      statsHost.textContent = '';
+      statsHost.appendChild(renderUnifiedSixStatsBar({
+        totalKids: allKids.length,
+        presentKids: presentCount,
+        absentKids: absentKidsToday.length,
+        sentMsgs: sentCount,
+        deliveredMsgs: deliveredCount,
+        failedMsgs: failedCount
+      }));
+
+      absentPanelHost.textContent = '';
+      absentPanelHost.appendChild(renderAbsentChildrenNotificationPanel(
+        absentKidsToday,
+        todayStr,
+        activeLogs,
+        null,
+        function onOpenPreview(targetKids) {
+          openAbsenceMessagePreviewModal(targetKids, todayStr, activeLogs, function () {
+            refreshWhatsAppManager();
+          });
+        },
+        function () { refreshWhatsAppManager(); }
+      ));
+
+      // بناء أزرار التبويبات المنظمة لسجل عمليات الإرسال
+      var tabDefs = [
+        { key: 'all', label: 'كافة الرسائل النشطة (' + activeLogs.length + ')' },
+        { key: 'sent_accepted', label: 'الرسائل المرسلة / المقبولة (' + sentCount + ')' },
+        { key: 'delivered', label: 'الرسائل المسلّمة (' + deliveredCount + ')' },
+        { key: 'undelivered', label: 'غير المسلّمة (' + undeliveredCount + ')' },
+        { key: 'failed', label: 'الرسائل الفاشلة (' + failedCount + ')' },
+        { key: 'retried', label: 'المعاد إرسالها (' + retriedCount + ')' },
+        { key: 'replies', label: 'ردود الأولياء (' + replies.length + ')' }
+      ];
+      if (canDeleteWhatsAppMessages()) {
+        tabDefs.push({ key: 'deleted', label: '🗑 الرسائل المحذوفة للمسؤول (' + deletedLogs.length + ')' });
+        tabDefs.push({ key: 'audit', label: '🛡 سجل تدقيق الحذف' });
+      }
+
+      tabsContainer.textContent = '';
+      tabDefs.forEach(function (td) {
+        var isAct = activeSubTab === td.key;
+        tabsContainer.appendChild(h('button', {
+          type: 'button',
+          class: 'btn small ' + (isAct ? 'gold' : 'light'),
+          style: isAct
+            ? 'background:#082D50;border-color:#B4873A;color:#FFFFFF;font-weight:800;padding:8px 14px;border-bottom:3px solid #B4873A;'
+            : 'background:#FFFFFF;color:#082D50;border-color:#CBD5E1;font-weight:700;padding:8px 14px;',
+          text: td.label,
+          onclick: function () {
+            activeSubTab = td.key;
+            selectedMsgIds = {};
+            refreshWhatsAppManager();
+          }
+        }));
+      });
+
+      renderCurrentSubTab();
+    }
+
+    function renderCurrentSubTab() {
+      bulkActionsHost.textContent = '';
+      mainTableHost.textContent = '';
+
+      if (activeSubTab === 'replies') {
+        filtersCard.style.display = 'none';
+        renderRepliesView(mainTableHost, replies, allKids);
+        return;
+      }
+
+      if (activeSubTab === 'audit') {
+        filtersCard.style.display = 'none';
+        var allAudits = readLocalWaAuditLogs().concat(remoteAudits);
+        if (!allAudits.length) {
+          mainTableHost.appendChild(h('div', { class: 'empty', text: 'لا توجد عمليات حذف مسجلة في سجل التدقيق حتى الآن.' }));
+          return;
+        }
+        var audCard = h('div', { class: 'card', style: 'padding:0;overflow-x:auto;border:1.5px solid #CBD5E1;border-radius:12px;' });
+        var audTbl = h('table', { class: 'tbl', style: 'width:100%;margin:0;' },
+          h('thead', null,
+            h('tr', { style: 'background:#082D50;color:#FFFFFF;' },
+              h('th', { style: 'color:#FFFFFF;', text: 'تاريخ ووقت الحذف' }),
+              h('th', { style: 'color:#FFFFFF;', text: 'المستخدم الذي نفذ الحذف' }),
+              h('th', { style: 'color:#FFFFFF;', text: 'نوع العملية' }),
+              h('th', { style: 'color:#FFFFFF;', text: 'تفاصيل ومعرفات الرسائل المحذوفة' })
             )
+          ),
+          h('tbody', null,
+            allAudits.map(function (a) {
+              return h('tr', null,
+                h('td', { class: 'sic-num', text: fmt(a.at, true) }),
+                h('td', null, h('strong', { style: 'color:#082D50;', text: a.actor_email || 'مدير النظام' })),
+                h('td', null, h('span', { class: 'badge bad', text: a.action || 'حذف رسالة' })),
+                h('td', { class: 'small', text: a.details || JSON.stringify(a.message_ids || []) })
+              );
+            })
           )
         );
+        audCard.appendChild(audTbl);
+        mainTableHost.appendChild(audCard);
+        return;
       }
-    });
+
+      filtersCard.style.display = 'block';
+      var allMerged = mergeWaLogs(remoteLogs, allKids);
+      var rows = getFilteredLogsForSubTab(allMerged);
+      var kidMap = {};
+      allKids.forEach(function (k) { kidMap[k.id] = k; });
+
+      var selectedList = rows.filter(function (r) { return !!selectedMsgIds[r.id]; });
+
+      // شريط التحديد والحذف الجماعي وإعادة المحاولة
+      if (rows.length > 0 && canDeleteWhatsAppMessages()) {
+        var bulkBar = h('div', {
+          class: 'card',
+          style: 'padding:10px 16px;margin-bottom:12px;background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;'
+        },
+          h('div', { class: 'row-actions', style: 'gap:8px;align-items:center;' },
+            h('strong', { style: 'color:#082D50;font-size:0.9rem;', text: 'تم تحديد (' + selectedList.length + ') من (' + rows.length + ') رسالة معروضة' }),
+            h('button', {
+              type: 'button',
+              class: 'btn small light',
+              text: 'تحديد جميع الرسائل المعروضة (' + rows.length + ')',
+              onclick: function () {
+                rows.forEach(function (r) { selectedMsgIds[r.id] = true; });
+                renderCurrentSubTab();
+              }
+            }),
+            selectedList.length > 0 ? h('button', {
+              type: 'button',
+              class: 'btn small light',
+              text: 'إلغاء التحديد',
+              onclick: function () {
+                selectedMsgIds = {};
+                renderCurrentSubTab();
+              }
+            }) : null
+          ),
+          h('div', { class: 'row-actions', style: 'gap:8px;' },
+            (activeSubTab !== 'deleted' && selectedList.length > 0) ? h('button', {
+              type: 'button',
+              class: 'btn small danger',
+              style: 'background:#DC2626;border-color:#DC2626;color:#FFFFFF;font-weight:800;',
+              text: '🗑 حذف الرسائل المحددة جماعياً (' + selectedList.length + ')',
+              onclick: function () { confirmAndSoftDeleteMessages(selectedList); }
+            }) : null,
+            (activeSubTab !== 'deleted' && rows.some(function (r) { return r.status === 'failed'; })) ? h('button', {
+              type: 'button',
+              class: 'btn small gold',
+              style: 'background:#082D50;border-color:#082D50;color:#FFFFFF;',
+              text: '🔄 إعادة محاولة الرسائل الفاشلة',
+              onclick: async function () {
+                var failedTargets = (selectedList.length ? selectedList : rows).filter(function (r) { return r.status === 'failed'; });
+                if (!failedTargets.length) return toast('لا توجد رسائل فاشلة ضمن المحدد لإعادة إرسالها.', 'bad');
+                toast('جارٍ إعادة محاولة إرسال (' + failedTargets.length + ') رسالة…', 'ok');
+                for (var i = 0; i < failedTargets.length; i++) {
+                  var fl = failedTargets[i];
+                  var kd = fl.child_id ? kidMap[fl.child_id] : null;
+                  await dispatchRealWhatsAppMessage({
+                    existing_log_id: fl.id,
+                    child: kd,
+                    child_id: fl.child_id,
+                    child_name: fl.child_name,
+                    parent_name: fl.parent_name,
+                    phone: fl.phone,
+                    message: fl.message_body,
+                    is_retry: true,
+                    retry_count: fl.retry_count || 0,
+                    force_resend: true
+                  });
+                }
+                refreshWhatsAppManager();
+              }
+            }) : null
+          )
+        );
+        bulkActionsHost.appendChild(bulkBar);
+      }
+
+      if (!rows.length) {
+        mainTableHost.appendChild(h('div', { class: 'empty', text: 'لا توجد رسائل مطابقة في هذا القسم أو الفلتر حالياً.' }));
+        return;
+      }
+
+      var allDisplayedChecked = rows.length > 0 && rows.every(function (r) { return !!selectedMsgIds[r.id]; });
+      var masterChk = h('input', {
+        type: 'checkbox',
+        checked: allDisplayedChecked,
+        style: 'width:18px;height:18px;cursor:pointer;',
+        onchange: function () {
+          rows.forEach(function (r) {
+            if (masterChk.checked) selectedMsgIds[r.id] = true;
+            else delete selectedMsgIds[r.id];
+          });
+          renderCurrentSubTab();
+        }
+      });
+
+      var cardWrap = h('div', { class: 'card', style: 'padding:0;overflow-x:auto;border:1.5px solid #CBD5E1;border-radius:12px;' });
+      var tbl = h('table', { class: 'tbl', style: 'width:100%;margin:0;' });
+      tbl.appendChild(h('thead', null,
+        h('tr', { style: 'background:#082D50;color:#FFFFFF;' },
+          h('th', { style: 'width:42px;text-align:center;color:#FFFFFF;' }, masterChk),
+          h('th', { style: 'color:#FFFFFF;', text: 'اسم الطفل' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'اسم الولي' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'رقم الهاتف' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'نص الرسالة' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'تاريخ الإرسال' }),
+          h('th', { style: 'text-align:center;color:#FFFFFF;', text: 'حالة الرسالة' }),
+          h('th', { style: 'color:#FFFFFF;', text: 'معرف الرسالة (WAMID)' }),
+          h('th', { style: 'text-align:center;color:#FFFFFF;', text: 'الإجراءات' })
+        )
+      ));
+
+      var tbody = h('tbody');
+      rows.forEach(function (l, idx) {
+        var kd = l.child_id ? kidMap[l.child_id] : null;
+        var childName = l.child_name || (kd ? kd.full_name : '—');
+        var parentName = l.parent_name || l.recipient_name || (kd ? ('ولي أمر ' + kd.full_name) : 'ولي أمر');
+        var isChecked = !!selectedMsgIds[l.id];
+
+        var rowChk = h('input', {
+          type: 'checkbox',
+          checked: isChecked,
+          style: 'width:17px;height:17px;cursor:pointer;',
+          onchange: function () {
+            if (rowChk.checked) selectedMsgIds[l.id] = true;
+            else delete selectedMsgIds[l.id];
+            renderCurrentSubTab();
+          }
+        });
+
+        var actionsArr = [];
+
+        // زر إعادة المحاولة للرسائل الفاشلة أو غير المسلمة
+        if (!l.is_deleted && (l.status === 'failed' || l.status === 'sending')) {
+          actionsArr.push(h('button', {
+            type: 'button',
+            class: 'btn small gold',
+            style: 'background:#082D50;border-color:#082D50;color:#FFFFFF;font-size:0.75rem;padding:4px 8px;',
+            text: '🔄 إعادة إرسال',
+            onclick: async function () {
+              await dispatchRealWhatsAppMessage({
+                existing_log_id: l.id,
+                child: kd,
+                child_id: l.child_id,
+                child_name: childName,
+                parent_name: parentName,
+                phone: l.phone,
+                message: l.message_body,
+                is_retry: true,
+                retry_count: l.retry_count || 0,
+                force_resend: true
+              });
+              refreshWhatsAppManager();
+            }
+          }));
+        }
+
+        // زر فتح المحادثة في واتساب
+        actionsArr.push(h('button', {
+          type: 'button',
+          class: 'btn small light',
+          style: 'border-color:#25D366;color:#075E54;font-size:0.75rem;padding:4px 8px;',
+          text: 'واتساب',
+          onclick: function () {
+            var chkP = validateAlgerianPhoneStrict(l.phone);
+            var waNum = chkP.normalized || ('213' + String(l.phone || '').replace(/\D/g, '').replace(/^0+/, ''));
+            window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(l.message_body || ''), '_blank');
+          }
+        }));
+
+        // زر الحذف الفردي أو الاستعادة للمسؤول المخول
+        if (canDeleteWhatsAppMessages()) {
+          if (!l.is_deleted) {
+            actionsArr.push(h('button', {
+              type: 'button',
+              class: 'btn small danger',
+              style: 'background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;font-size:0.75rem;padding:4px 8px;font-weight:700;',
+              text: '🗑 حذف',
+              onclick: function () { confirmAndSoftDeleteMessages([l]); }
+            }));
+          } else {
+            actionsArr.push(h('button', {
+              type: 'button',
+              class: 'btn small light',
+              style: 'color:#047857;border-color:#6EE7B7;font-size:0.75rem;padding:4px 8px;',
+              text: '↩ استعادة',
+              onclick: async function () {
+                l.is_deleted = false;
+                l.deleted_at = null;
+                upsertLocalWaLog(l);
+                try {
+                  await C.rest('PATCH', '/whatsapp_logs?id=eq.' + encodeURIComponent(l.id), { is_deleted: false, deleted_at: null });
+                } catch (e) {}
+                await recordWhatsAppAudit('استعادة رسالة محذوفة', [l.id], 'استعادة رسالة الطفل ' + childName);
+                toast('تمت استعادة الرسالة إلى السجل النشط.', 'ok');
+                refreshWhatsAppManager();
+              }
+            }));
+          }
+        }
+
+        var tr = h('tr', { style: 'border-bottom:1px solid #E2E8F0;background:' + (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC') + ';' },
+          h('td', { style: 'text-align:center;' }, rowChk),
+          h('td', null, h('strong', { style: 'color:#082D50;', text: childName })),
+          h('td', { class: 'small', style: 'font-weight:600;', text: parentName }),
+          h('td', null, h('span', { dir: 'ltr', class: 'sic-num', style: 'font-weight:700;', text: l.phone || '—' })),
+          h('td', { style: 'max-width:260px;' },
+            h('div', { style: 'font-size:0.84rem;color:#1E293B;white-space:pre-wrap;', text: (l.message_body || '').length > 90 ? (l.message_body.slice(0, 88) + '…') : (l.message_body || '—') }),
+            l.error_message ? h('div', { class: 'err small', style: 'font-size:0.74rem;margin-top:3px;', text: 'سبب الفشل: ' + l.error_message }) : null,
+            l.is_deleted ? h('div', { class: 'small muted', style: 'color:#991B1B;font-size:0.74rem;margin-top:3px;', text: 'حُذفت بواسطة: ' + (l.deleted_by_email || 'مسؤول') + ' في ' + fmt(l.deleted_at, true) }) : null
+          ),
+          h('td', { class: 'sic-num small', text: fmt(l.created_at, true) }),
+          h('td', { style: 'text-align:center;' }, renderWaStatusBadge(l.status, l.is_retried || (l.retry_count > 0))),
+          h('td', null, h('code', { dir: 'ltr', class: 'sic-num small', style: 'font-size:0.75rem;background:#F1F5F9;padding:2px 6px;border-radius:4px;', text: l.wamid || l.id.slice(0, 12) })),
+          h('td', { style: 'text-align:center;' },
+            h('div', { class: 'row-actions', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, actionsArr)
+          )
+        );
+        tbody.appendChild(tr);
+      });
+
+      tbl.appendChild(tbody);
+      cardWrap.appendChild(tbl);
+      mainTableHost.appendChild(cardWrap);
+    }
+
+    filterSearchInput.addEventListener('input', renderCurrentSubTab);
+    filterDateInput.addEventListener('change', renderCurrentSubTab);
+    filterStatusSelect.addEventListener('change', renderCurrentSubTab);
+    filterChildSelect.addEventListener('change', renderCurrentSubTab);
+
+    refreshWhatsAppManager();
   }
 
   /* عرض ردود الأولياء الواردة */
@@ -8837,341 +10157,113 @@
             return h('strong', { style: 'color:#075E54;', text: r.message_body });
           }
         }
-      ],
-      details: function (r) {
-        return h('div', null,
-          h('p', { text: 'الرسالة الكاملة: ' + r.message_body }),
-          h('div', { class: 'row-actions', style: 'margin-top:10px;' },
-            rbtn('الرد على الولي عبر واتساب', function () {
-              var waNum = getAlgerianWaNumber(r.phone) || ('213' + String(r.phone || '').replace(/\D/g, '').replace(/^0+/, ''));
-              window.open('https://wa.me/' + waNum, '_blank');
-            }, 'gold')
-          )
-        );
-      }
+      ]
     });
   }
 
-  /* نافذة إرسال رسالة واتساب رسمية (برقم المرسل الثابت 0564779067 وخيار الأطفال الغائبين أولاً) */
-  function openSendSingleWhatsAppModal(allKids, branches, sections, absentKidsList) {
-    var absentKids = Array.isArray(absentKidsList) ? absentKidsList : getAbsentKidsToday(allKids, []);
+  /* نافذة إرسال رسالة فردية مخصصة لطفل */
+  function openSendSingleWhatsAppModal(allKids, branches, sections, absentKidsList, onDone) {
+    var absentKids = Array.isArray(absentKidsList) ? absentKidsList : [];
     var fldStyle = 'margin-bottom:12px;display:block;';
-    var lblStyle = 'display:block;font-weight:700;margin-bottom:5px;color:#0F172A;font-size:0.92rem;';
+    var lblStyle = 'display:block;font-weight:700;margin-bottom:5px;color:#082D50;font-size:0.92rem;';
     var inpStyle = 'width:100%;box-sizing:border-box;';
 
-    // 1. رقم المرسل الثابت (غير قابل للتغيير)
     var senderFixedInput = h('input', {
       type: 'tel',
       class: 'input sic-num',
       dir: 'ltr',
       readonly: true,
       value: OFFICIAL_WA_SENDER,
-      style: inpStyle + 'background:#F1F5F9;color:#075E54;font-weight:800;border:1.5px solid #94A3B8;cursor:not-allowed;'
+      style: inpStyle + 'background:#F1F5F9;color:#082D50;font-weight:800;border:1.5px solid #B4873A;cursor:not-allowed;'
     });
-
-    // 2. اختيار الفئة أولاً: الأطفال الغائبين اليوم هو الخيار الأول دائماً
-    var catSelect = h('select', { class: 'input', style: inpStyle + 'font-weight:700;border-color:#075E54;' },
-      h('option', { value: 'absent', text: '1. الأطفال الغائبين اليوم (' + absentKids.length + ' تلميذ)' }),
-      h('option', { value: 'all', text: '2. كافة الأطفال المسجلين (' + allKids.length + ' تلميذ)' }),
-      h('option', { value: 'custom', text: '3. رقم هاتف مخصص / رسالة عامة' })
-    );
 
     var kidSelect = h('select', { class: 'input', style: inpStyle });
-    var phoneInput = h('input', { type: 'tel', class: 'input sic-num', dir: 'ltr', value: '', placeholder: 'رقم هاتف ولي الأمر', style: inpStyle });
-    var nameInput = h('input', { type: 'text', class: 'input', placeholder: 'اسم الولي أو المستلم', style: inpStyle });
-    var absentHint = h('small', { class: 'muted', style: 'display:block;margin-top:4px;color:#B45309;' });
-
-    var msgArea = h('textarea', {
-      class: 'input',
-      rows: 4,
-      style: inpStyle + 'line-height:1.6;',
-      value: DEFAULT_ABSENCE_WA_MSG
-    });
-
-    function syncSelectedKid() {
-      var selId = kidSelect.value;
-      var selKid = allKids.filter(function (k) { return k.id === selId; })[0];
-      if (selKid) {
-        phoneInput.value = selKid.phone || '';
-        nameInput.value = 'ولي أمر: ' + selKid.full_name;
-      } else if (catSelect.value === 'custom') {
-        if (!phoneInput.value) phoneInput.value = OFFICIAL_WA_SENDER;
-        if (!nameInput.value) nameInput.value = 'رسالة عامة / تجريبية';
-      }
-    }
-
-    function populateKidOptions() {
-      kidSelect.textContent = '';
-      var modeCat = catSelect.value;
-      if (modeCat === 'absent') {
-        msgArea.value = DEFAULT_ABSENCE_WA_MSG;
-        if (absentKids.length > 0) {
-          absentHint.textContent = 'تم جلب قائمة الأطفال المسجلين غائبين اليوم تلقائياً.';
-          absentKids.forEach(function (k) {
-            kidSelect.appendChild(h('option', { value: k.id, text: '🔴 [غائب] ' + k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
-          });
-        } else {
-          absentHint.textContent = 'لم يتم تسجيل أطفال غائبين في كشف اليوم بعد — يمكنك الاختيار من القائمة الكاملة أدناه لإرسال إشعار الغياب:';
-          allKids.forEach(function (k) {
-            kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
-          });
-        }
-        kidSelect.disabled = false;
-      } else if (modeCat === 'all') {
-        absentHint.textContent = '';
-        msgArea.value = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من المركز النفسي البيداغوجي دار الإحسان. هذا إشعار رسمي موجه لولي الأمر للمتابعة والتنسيق المستمر.';
-        allKids.forEach(function (k) {
-          kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
-        });
-        kidSelect.disabled = false;
-      } else {
-        absentHint.textContent = '';
-        kidSelect.appendChild(h('option', { value: '', text: '— رسالة عامة بدون ربط بطفل محدد —' }));
-        kidSelect.disabled = true;
-        phoneInput.value = OFFICIAL_WA_SENDER;
-        nameInput.value = 'إشعار عام';
-      }
-      syncSelectedKid();
-    }
-
-    catSelect.addEventListener('change', populateKidOptions);
-    kidSelect.addEventListener('change', syncSelectedKid);
-    populateKidOptions();
-
-    var sendBtn = h('button', { type: 'button', class: 'btn gold', text: 'إرسال وتسجيل الرسالة الآن' });
-    var sendDirectWaBtn = h('button', {
-      type: 'button',
-      class: 'btn light',
-      style: 'border-color:#25D366;color:#075E54;font-weight:700;',
-      text: 'إرسال وفتح محادثة واتساب'
-    });
-
-    async function handleSend(openWaWindow) {
-      var ph = phoneInput.value.trim();
-      var msg = msgArea.value.trim();
-      if (!ph) return toast('يرجى اختيار الطفل أو إدخال رقم هاتف المستلم.', 'bad');
-      if (!msg) return toast('يرجى إدخال نص الرسالة.', 'bad');
-
-      sendBtn.disabled = true;
-      sendDirectWaBtn.disabled = true;
-      sendBtn.textContent = 'جارٍ الإرسال…';
-
-      var selKid = allKids.filter(function (k) { return k.id === kidSelect.value; })[0];
-      await sendAndLogWhatsAppMessage({
-        phone: ph,
-        child_id: selKid ? selKid.id : null,
-        section_id: selKid ? selKid.section_id : null,
-        recipient_name: nameInput.value.trim() || (selKid ? ('ولي أمر: ' + selKid.full_name) : 'ولي أمر'),
-        message: msg,
-        center: (selKid && selKid.center) || S.activeCenter || 'main'
+    if (absentKids.length) {
+      var optGrpAbs = h('optgroup', { label: '🔴 الأطفال الغائبين اليوم (' + absentKids.length + ')' });
+      absentKids.forEach(function (k) {
+        optGrpAbs.appendChild(h('option', { value: k.id, text: '[غائب] ' + k.full_name + ' (N° ' + (k.membership_no || '—') + ')' }));
       });
+      kidSelect.appendChild(optGrpAbs);
+    }
+    var optGrpAll = h('optgroup', { label: 'كافة الأطفال المسجلين (' + allKids.length + ')' });
+    allKids.forEach(function (k) {
+      optGrpAll.appendChild(h('option', { value: k.id, text: k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
+    });
+    kidSelect.appendChild(optGrpAll);
 
-      if (openWaWindow) {
-        var waNum = getAlgerianWaNumber(ph) || ('213' + ph.replace(/\D/g, '').replace(/^0+/, ''));
-        window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msg), '_blank');
+    var phoneInput = h('input', { type: 'tel', class: 'input sic-num', dir: 'ltr', style: inpStyle });
+    var phoneStatusEl = h('small', { style: 'display:block;margin-top:4px;font-weight:700;' });
+    var msgArea = h('textarea', { class: 'input', rows: 5, style: inpStyle + 'line-height:1.6;', value: DEFAULT_ABSENCE_WA_MSG });
+
+    function syncKid() {
+      var sel = allKids.filter(function (k) { return k.id === kidSelect.value; })[0];
+      if (sel) {
+        phoneInput.value = sel.phone || '';
+        msgArea.value = buildPersonalizedAbsenceMessage(DEFAULT_ABSENCE_WA_MSG, sel.full_name);
+        var chk = validateAlgerianPhoneStrict(phoneInput.value);
+        phoneStatusEl.textContent = chk.reason;
+        phoneStatusEl.style.color = chk.valid ? '#047857' : '#DC2626';
       }
-
-      toast('تم إرسال وتسجيل رسالة الواتساب بنجاح من الرقم الثابت (' + OFFICIAL_WA_SENDER + ')!', 'ok');
-      closeModal();
-      go('whatsapp');
     }
 
-    sendBtn.addEventListener('click', function () { handleSend(false); });
-    sendDirectWaBtn.addEventListener('click', function () { handleSend(true); });
+    kidSelect.addEventListener('change', syncKid);
+    phoneInput.addEventListener('input', function () {
+      var chk = validateAlgerianPhoneStrict(phoneInput.value);
+      phoneStatusEl.textContent = chk.reason;
+      phoneStatusEl.style.color = chk.valid ? '#047857' : '#DC2626';
+    });
+    syncKid();
 
-    var modal = h('div', { class: 'modal-body' },
-      h('h2', { text: 'إرسال رسالة واتساب رسمية' }),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'رقم هاتف المرسل الرسمي (ثابت):' }),
-        senderFixedInput
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'فئة المستلمين (الخيار الأول: الأطفال الغائبين):' }),
-        catSelect,
-        absentHint
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'الطفل المعني:' }),
-        kidSelect
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'رقم هاتف ولي الأمر (المستلم):' }),
-        phoneInput
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'اسم المستلم:' }),
-        nameInput
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'نص الرسالة:' }),
-        msgArea
-      ),
+    var statusBox = h('div', { style: 'display:none;margin-top:10px;padding:10px;border-radius:8px;background:#F8FAFC;border:1px solid #CBD5E1;' });
+    var sendApiBtn = h('button', { type: 'button', class: 'btn gold', style: 'background:#082D50;border-color:#B4873A;color:#FFFFFF;', text: 'إرسال عبر Meta Cloud API' });
+    var sendWaBtn = h('button', { type: 'button', class: 'btn light', style: 'border-color:#25D366;color:#075E54;font-weight:700;', text: 'فتح وإرسال عبر واتساب المباشر' });
+
+    sendApiBtn.addEventListener('click', async function () {
+      var sel = allKids.filter(function (k) { return k.id === kidSelect.value; })[0];
+      sendApiBtn.disabled = true;
+      statusBox.style.display = 'block';
+      var resLog = await dispatchRealWhatsAppMessage({
+        child: sel,
+        phone: phoneInput.value.trim(),
+        message: msgArea.value.trim(),
+        force_resend: true,
+        onStatusChange: function (st, entry) {
+          statusBox.textContent = '';
+          statusBox.appendChild(renderWaStatusBadge(st, entry.is_retried));
+          if (entry.error_message) {
+            statusBox.appendChild(h('div', { class: 'err small', style: 'margin-top:6px;', text: entry.error_message }));
+          }
+        }
+      });
+      sendApiBtn.disabled = false;
+      if (resLog.status === 'accepted' || resLog.status === 'delivered') {
+        toast('قُبل طلب الإرسال من Meta بنجاح!', 'ok');
+        if (onDone) onDone();
+      } else {
+        toast('فشل الإرسال عبر Meta API: ' + (resLog.error_message || ''), 'bad');
+        if (onDone) onDone();
+      }
+    });
+
+    sendWaBtn.addEventListener('click', function () {
+      var chk = validateAlgerianPhoneStrict(phoneInput.value);
+      var waNum = chk.normalized || ('213' + phoneInput.value.replace(/\D/g, '').replace(/^0+/, ''));
+      window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msgArea.value.trim()), '_blank');
+    });
+
+    openModal(h('div', { class: 'modal-body' },
+      h('h2', { style: 'color:#082D50;margin-top:0;', text: 'إرسال رسالة واتساب مخصصة لطفل' }),
+      h('div', { style: fldStyle }, h('label', { style: lblStyle, text: 'رقم المرسل الرسمي الثابت:' }), senderFixedInput),
+      h('div', { style: fldStyle }, h('label', { style: lblStyle, text: 'اختيار الطفل (الغائبون أولاً):' }), kidSelect),
+      h('div', { style: fldStyle }, h('label', { style: lblStyle, text: 'رقم هاتف ولي الأمر:' }), phoneInput, phoneStatusEl),
+      h('div', { style: fldStyle }, h('label', { style: lblStyle, text: 'نص الرسالة:' }), msgArea),
+      statusBox,
       h('div', { class: 'modal-actions', style: 'margin-top:16px;flex-wrap:wrap;gap:8px;' },
-        h('button', { class: 'btn light', type: 'button', text: 'إلغاء', onclick: closeModal }),
-        sendDirectWaBtn,
-        sendBtn
+        h('button', { type: 'button', class: 'btn light', text: 'إغلاق', onclick: closeModal }),
+        sendWaBtn,
+        sendApiBtn
       )
-    );
-
-    openModal(modal);
-  }
-
-  /* نافذة الإرسال الجماعي (الخيار الأول: الأطفال الغائبين اليوم، مع رقم المرسل الثابت 0564779067) */
-  function openBulkWhatsAppModal(allKids, branches, sections, absentKidsList) {
-    var absentKids = Array.isArray(absentKidsList) ? absentKidsList : getAbsentKidsToday(allKids, []);
-    var fldStyle = 'margin-bottom:12px;display:block;';
-    var lblStyle = 'display:block;font-weight:700;margin-bottom:5px;color:#0F172A;font-size:0.92rem;';
-    var inpStyle = 'width:100%;box-sizing:border-box;';
-
-    var senderFixedInput = h('input', {
-      type: 'tel',
-      class: 'input sic-num',
-      dir: 'ltr',
-      readonly: true,
-      value: OFFICIAL_WA_SENDER,
-      style: inpStyle + 'background:#F1F5F9;color:#075E54;font-weight:800;border:1.5px solid #94A3B8;cursor:not-allowed;'
-    });
-
-    var typeSelect = h('select', { class: 'input', style: inpStyle + 'font-weight:700;border-color:#075E54;' },
-      h('option', { value: 'absent', text: '1. الأطفال الغائبين اليوم (إرسال إشعار الغياب لأولياء الأمور)' }),
-      h('option', { value: 'section', text: '2. إرسال حسب القسم / الفوج التربوي' }),
-      h('option', { value: 'center', text: '3. إرسال لكافة طلاب المركز النشط' })
-    );
-
-    var secGroup = h('div', { style: fldStyle + 'display:none;' });
-    var secSelect = h('select', { class: 'input', style: inpStyle });
-    sections.forEach(function (s) {
-      secSelect.appendChild(h('option', { value: s.id, text: s.name }));
-    });
-    secGroup.appendChild(h('label', { style: lblStyle, text: 'اختيار القسم:' }));
-    secGroup.appendChild(secSelect);
-
-    var countBadge = h('span', { class: 'badge gold', style: 'margin-right:8px;', text: '0 ولي أمر' });
-
-    var msgArea = h('textarea', {
-      class: 'input',
-      rows: 4,
-      style: inpStyle + 'line-height:1.6;',
-      value: DEFAULT_ABSENCE_WA_MSG
-    });
-
-    function getRecipients() {
-      var t = typeSelect.value;
-      if (t === 'absent') {
-        return absentKids.filter(function (k) { return k.active && k.phone; });
-      } else if (t === 'section') {
-        var sid = secSelect.value;
-        return allKids.filter(function (k) { return k.active && k.phone && k.section_id === sid; });
-      } else {
-        return allKids.filter(function (k) { return k.active && k.phone; });
-      }
-    }
-
-    function updateCount() {
-      var recs = getRecipients();
-      countBadge.textContent = recs.length + ' ولي أمر مؤهل للإرسال';
-    }
-
-    typeSelect.addEventListener('change', function () {
-      var t = typeSelect.value;
-      secGroup.style.display = (t === 'section') ? 'block' : 'none';
-      if (t === 'absent') {
-        msgArea.value = DEFAULT_ABSENCE_WA_MSG;
-      } else {
-        msgArea.value = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من جمعية أولياء الأطفال المعاقين ذهنياً دار الإحسان. نود تذكيركم بموعد الأنشطة البيداغوجية والبرنامج التربوي المعتمد.';
-      }
-      updateCount();
-    });
-    secSelect.addEventListener('change', updateCount);
-    updateCount();
-
-    var progressBox = h('div', { style: 'display:none;margin-top:14px;background:#F8FAFC;padding:12px;border:1px solid #E2E8F0;border-radius:8px;' });
-    var pBar = h('div', { style: 'height:8px;background:#E2E8F0;border-radius:4px;overflow:hidden;margin-bottom:8px;' },
-      h('div', { class: 'p-bar-fill', style: 'height:100%;width:0%;background:#075E54;transition:width 0.3s ease;' })
-    );
-    var pText = h('div', { class: 'small muted', text: 'جارٍ التجهيز…' });
-    var resultsList = h('div', { style: 'max-height:160px;overflow-y:auto;margin-top:8px;font-size:0.85rem;' });
-    progressBox.appendChild(pBar);
-    progressBox.appendChild(pText);
-    progressBox.appendChild(resultsList);
-
-    var startBtn = h('button', { type: 'button', class: 'btn gold', text: 'بدء الإرسال الجماعي' });
-
-    var modal = h('div', { class: 'modal-body' },
-      h('h2', { text: 'الإرسال الجماعي لرسائل واتساب' }),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'رقم هاتف المرسل الرسمي (ثابت):' }),
-        senderFixedInput
-      ),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'نطاق الإرسال (الخيار الأول: الأطفال الغائبين اليوم):' }),
-        typeSelect
-      ),
-      secGroup,
-      h('div', { style: 'margin:8px 0 12px;' }, h('span', { class: 'small muted', text: 'عدد المستلمين المستهدفين: ' }), countBadge),
-      h('div', { style: fldStyle },
-        h('label', { style: lblStyle, text: 'نص الرسالة الموحدة:' }),
-        msgArea
-      ),
-      progressBox,
-      h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
-        h('button', { class: 'btn light', type: 'button', text: 'إلغاء', onclick: closeModal }),
-        startBtn
-      )
-    );
-
-    startBtn.addEventListener('click', async function () {
-      var recs = getRecipients();
-      if (!recs.length) {
-        if (typeSelect.value === 'absent') {
-          return toast('لا يوجد أطفال مسجلون غائبين اليوم في كشف الحضور والغياب. يرجى تسجيل الغياب أولاً أو اختيار قسم.', 'bad');
-        }
-        return toast('لا يوجد أولياء أمور بأرقام هواتف مسجلة في هذا النطاق.', 'bad');
-      }
-      var msg = msgArea.value.trim();
-      if (!msg) return toast('يرجى كتابة نص الرسالة.', 'bad');
-
-      var ok = await ask({
-        title: 'تأكيد الإرسال الجماعي',
-        msg: 'أنت على وشك إرسال الرسالة من الرقم الثابت (' + OFFICIAL_WA_SENDER + ') إلى (' + recs.length + ') ولي أمر عبر واتساب. هل تريد التأكيد والبدء؟',
-        ok: 'بدء الإرسال',
-        danger: false
-      });
-      if (!ok) return;
-
-      startBtn.disabled = true;
-      progressBox.style.display = 'block';
-
-      var total = recs.length;
-      var successCount = 0;
-
-      for (var i = 0; i < total; i++) {
-        var kid = recs[i];
-        pText.textContent = 'جارٍ إرسال (' + (i + 1) + ' من ' + total + '): ' + kid.full_name;
-        progressBox.querySelector('.p-bar-fill').style.width = Math.round(((i + 1) / total) * 100) + '%';
-
-        await sendAndLogWhatsAppMessage({
-          phone: kid.phone,
-          child_id: kid.id,
-          section_id: kid.section_id || null,
-          recipient_name: 'ولي أمر: ' + kid.full_name,
-          message: msg,
-          center: kid.center || S.activeCenter || 'main'
-        });
-        successCount++;
-        resultsList.appendChild(h('div', { style: 'color:#047857;margin:2px 0;' },
-          makeSvgIcon('s-ok'), h('span', { text: ' ' + kid.full_name + ' (' + kid.phone + '): تم الإرسال بنجاح' })
-        ));
-      }
-
-      pText.textContent = 'اكتمل الإرسال بنجاح لـ (' + successCount + ') ولي أمر من الرقم الثابت ' + OFFICIAL_WA_SENDER;
-      toast('اكتملت عملية الإرسال الجماعي بنجاح.', 'ok');
-      startBtn.textContent = 'تم الإرسال (إغلاق)';
-      startBtn.disabled = false;
-      startBtn.onclick = function () { closeModal(); go('whatsapp'); };
-    });
-
-    openModal(modal);
+    ));
   }
 
 
@@ -9211,7 +10303,7 @@
     if (S.isEducator && (sec !== 'children' && (sec !== 'reports' || isFarmSession()))) {
       sec = 'children';
     }
-    if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp')) {
+    if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp' || sec === 'attendance')) {
       toast('غير مخوّلة: هذه الصلاحية محصورة بإدارة المركز فقط.', 'bad');
       return go('children');
     }
