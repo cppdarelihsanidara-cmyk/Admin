@@ -1171,6 +1171,17 @@
   }
 
   /* قوائم العرض والجداول المتجاوبة */
+    /* محوّل ومساعد عام لدوال الجداول (Table Adapter) */
+  function table(o) {
+    if (!o) return;
+    var host = o.host || o.v || document.createElement('div');
+    var opts = Object.assign({}, o, {
+      title: o.title || '',
+      rows: o.rows || o.data || []
+    });
+    return listView(host, opts);
+  }
+
   function listView(v, o) {
     var searchVal = '', curFilters = {}, sortIdx = -1, sortDir = 1, openRows = {}, visible = [];
     var bar = h('div', { class: 'bar-sub' }, h('h2', { text: o.title }));
@@ -8148,9 +8159,9 @@
     var secMap = {};
     sections.forEach(function (s) { secMap[s.id] = s; });
 
-    table({
-      host: host,
-      data: logs,
+    listView(host, {
+      title: 'سجل رسائل واتساب (الصادرة والواردة)',
+      rows: logs,
       file: 'سجل_رسائل_واتساب',
       search: function (l) {
         var kd = kidMap[l.child_id];
@@ -8266,9 +8277,9 @@
     var kidMap = {};
     allKids.forEach(function (k) { kidMap[k.id] = k; });
 
-    table({
-      host: host,
-      data: replies,
+    listView(host, {
+      title: 'ردود الأولياء الواردة عبر واتساب',
+      rows: replies,
       file: 'ردود_الأولياء_واتساب',
       search: function (r) {
         return (r.sender_name || '') + ' ' + (r.phone || '') + ' ' + (r.message_body || '');
@@ -8545,7 +8556,7 @@
     var wabaIdInput = h('input', { type: 'text', class: 'input', dir: 'ltr', value: settings.waba_id || '', placeholder: 'WABA ID من Meta' });
     var verifyToken = settings.webhook_verify_token || 'dar_el_ihsan_wa_verify_2026';
 
-    var webhookUrl = 'https://c_9e4bd28e4c2d71e4.supabase.co/functions/v1/whatsapp-webhook';
+    var webhookUrl = 'https://qgjddtylriqdwvpihvmi.supabase.co/functions/v1/whatsapp-webhook';
 
     var modal = h('div', { class: 'modal-body' },
       h('h2', { text: 'إعدادات Meta Cloud API والـ Webhook' }),
