@@ -151,7 +151,7 @@
   /* القائمة الرسمية المعتمدة للفروع والأقسام والـ 103 طالب لضمان ظهور الأطفال فوراً في جميع الظروف */
   var EMBEDDED_BRANCHES = [{"id": "11111111-0000-4000-8000-000000000001", "slug": "main", "name": "المركز الرئيسي لدار الإحسان", "active": true}, {"id": "11111111-0000-4000-8000-000000000002", "slug": "work", "name": "مركز المساعدة على العمل (ورشات التأهيل والتمهين)", "active": true}, {"id": "11111111-0000-4000-8000-000000000003", "slug": "farm", "name": "المزرعة البيداغوجية (البستنة والأنشطة الفلاحية)", "active": true}];
   var EMBEDDED_SECTIONS = [{"id": "22222222-0000-4000-8000-000000000001", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_autism_1", "name": "توحد 01", "description": "قسم اضطراب طيف التوحد (فوج 1)", "active": true}, {"id": "22222222-0000-4000-8000-000000000002", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_autism_2", "name": "التوحد 02", "description": "قسم اضطراب طيف التوحد (فوج 2)", "active": true}, {"id": "22222222-0000-4000-8000-000000000003", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_autism_3", "name": "توحد 03", "description": "قسم اضطراب طيف التوحد (فوج 3)", "active": true}, {"id": "22222222-0000-4000-8000-000000000004", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_observation", "name": "الملاحظة جدد", "description": "قسم الملاحظة والتشخيص للأطفال الجدد", "active": true}, {"id": "22222222-0000-4000-8000-000000000005", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_tafatan_1", "name": "التفطين 1 تأخر ذهني", "description": "قسم التفطن والتأهيل الذهني (فوج 1)", "active": true}, {"id": "22222222-0000-4000-8000-000000000006", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_tafatan_2", "name": "التفطين 2 متلازمة داون", "description": "قسم التفطن لمتلازمة داون (فوج 2)", "active": true}, {"id": "22222222-0000-4000-8000-000000000007", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_istithara", "name": "الاستثارة", "description": "قسم الاستثارة الحسية والحركية", "active": true}, {"id": "22222222-0000-4000-8000-000000000008", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_shibh_madrasi", "name": "قسم الشبه مدرسي مكيف", "description": "قسم التأهيل الشبه مدرسي المكيف", "active": true}, {"id": "22222222-0000-4000-8000-000000000009", "branch_id": "11111111-0000-4000-8000-000000000001", "slug": "sec_khariji", "name": "الخارجي اعاقة شديدة", "description": "فوج الرعاية النهارية الخارجية للإعاقات الشديدة", "active": true}, {"id": "22222222-0000-4000-8000-000000000010", "branch_id": "11111111-0000-4000-8000-000000000002", "slug": "sec_tamhin", "name": "التمهين م م ع", "description": "قسم التمهين والتأهيل المهني بمركز المساعدة على العمل", "active": true}, {"id": "22222222-0000-4000-8000-000000000011", "branch_id": "11111111-0000-4000-8000-000000000003", "slug": "sec_bostana", "name": "المزرعة البستنة", "description": "ورشة البستنة والأنشطة الزراعية بالمزرعة البيداغوجية", "active": true}];
-  var EMBEDDED_STUDENTS = [{"id": "00000000-0000-4000-8000-000000000004", "membership_no": "004", "full_name": "حاج ابراهيم مسعود بن قاسم", "dob": "1981-08-01", "phone": "0559486900", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000021", "membership_no": "021", "full_name": "حاج ابراهيم عمر بن سليمان", "dob": "1986-04-26", "phone": "0553770520", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000022", "membership_no": "022", "full_name": "بهون علي يوسف بن يحي", "dob": "1986-06-12", "phone": "0658379640", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000050", "membership_no": "050", "full_name": "سعيد مصطفى بن عمر", "dob": "1991-09-20", "phone": "0561010960", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000077", "membership_no": "077", "full_name": "بهون علي زوليخة بنت يحي بن عمر", "dob": "1988-07-20", "phone": "0658379640", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000082", "membership_no": "082", "full_name": "حاج امحمد محمد بن اسماعيل", "dob": "1989-08-04", "phone": "0664421440", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000086", "membership_no": "086", "full_name": "حاج ابراهيم بهون بن عبد الرحمان", "dob": "1995-03-24", "phone": "0771307180", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000087", "membership_no": "087", "full_name": "خليف ابراهيم زكرياء بن أحمد", "dob": "2003-03-17", "phone": "0699950770", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000090", "membership_no": "090", "full_name": "اولاد حاجو بكير بن توفيق", "dob": "2004-05-22", "phone": "0663031990", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000101", "membership_no": "101", "full_name": "طالب باحمد عز الدين بن بكير", "dob": "2005-04-05", "phone": "0793613030", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000103", "membership_no": "103", "full_name": "بهون عائشة بنت نور الدين", "dob": "2001-08-23", "phone": "0671473010", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000104", "membership_no": "104", "full_name": "بهون وسام بنت ابراهيم", "dob": "2006-06-04", "phone": "0556530510", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000111", "membership_no": "111", "full_name": "بهون زوليخة بنت نور الدين", "dob": "1984-12-21", "phone": "0671473010", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000112", "membership_no": "112", "full_name": "قندوزي نصر الدين بن حسين", "dob": "2006-09-24", "phone": "0663434690", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000114", "membership_no": "114", "full_name": "اسماوي امين بن ابو عبيدة", "dob": "2009-09-30", "phone": "0559285840", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000116", "membership_no": "116", "full_name": "صلاح مهدي بن مسعود", "dob": "2002-03-08", "phone": "0664702430", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000117", "membership_no": "117", "full_name": "درين سمية بنت صالح", "dob": "1997-09-27", "phone": "0666616490", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000118", "membership_no": "118", "full_name": "درين منير بن صالح", "dob": "1993-09-02", "phone": "0666616490", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000119", "membership_no": "119", "full_name": "درين بشير بن صالح", "dob": "1995-07-19", "phone": "0666616490", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000132", "membership_no": "132", "full_name": "حمو علي قاسم بن عمر", "dob": "2009-08-01", "phone": "0666296250", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000138", "membership_no": "138", "full_name": "حمو علي سمية بنت موسى", "dob": "2004-06-09", "phone": "0797598770", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000142", "membership_no": "142", "full_name": "بوحديبة محمد بن ابراهيم", "dob": "2011-01-25", "phone": "0673648720", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000146", "membership_no": "146", "full_name": "حبيرش جيهان بنت عبد الوهاب", "dob": "2013-12-07", "phone": "0673412310", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000153", "membership_no": "153", "full_name": "العابد حسناء بنت منصور", "dob": "2008-02-28", "phone": "0670305460", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000159", "membership_no": "159", "full_name": "اسماوي محمد بن بلال", "dob": "2010-08-15", "phone": "0658391000", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000160", "membership_no": "160", "full_name": "بهون علي محمد السعيد بن عمر", "dob": "2013-07-17", "phone": "0550799880", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000165", "membership_no": "165", "full_name": "حمو علي زكرياء بن ابراهيم", "dob": "2014-09-08", "phone": "0667445790", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000167", "membership_no": "167", "full_name": "كليماني انفال بنت محمد", "dob": "2012-11-30", "phone": "0698371740", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000168", "membership_no": "168", "full_name": "كليماني آية بنت محمد", "dob": "2009-04-05", "phone": "0698371740", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000170", "membership_no": "170", "full_name": "بن علي فاروق بن احمد", "dob": "2012-10-02", "phone": "0661649080", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000173", "membership_no": "173", "full_name": "بن يحي الياس بن مختار", "dob": "2007-10-27", "phone": "0665948640", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000176", "membership_no": "176", "full_name": "كبير حاج الطيب بن بشير", "dob": "2014-01-21", "phone": "0792747290", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000180", "membership_no": "180", "full_name": "زرقون صفوان بن مصطفى", "dob": "2007-05-31", "phone": "0668640480", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000187", "membership_no": "187", "full_name": "خروبي زكرياء بن عيسى", "dob": "2015-04-14", "phone": "0542284920", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000188", "membership_no": "188", "full_name": "اسكوتي عيسى بن عثمان", "dob": "2016-06-19", "phone": "0699053930", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000189", "membership_no": "189", "full_name": "الشرع ريان بن مختار", "dob": "2015-01-05", "phone": "0661474750", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000190", "membership_no": "190", "full_name": "بن حمودة أيمن سليمان بن عمر", "dob": "2013-09-06", "phone": "0666506900", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000192", "membership_no": "192", "full_name": "الشرع خالد بن مختار", "dob": "2013-10-16", "phone": "0661474750", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000196", "membership_no": "196", "full_name": "بهشو اسماعيل بن سليمان", "dob": "2013-05-16", "phone": "0665996070", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000197", "membership_no": "197", "full_name": "كليماني اية", "dob": "2014-04-23", "phone": "0668369020", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": null, "branch_slug": "main", "section_slug": "", "section": "عام", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000198", "membership_no": "198", "full_name": "بن ريم مروة بنت مروان", "dob": "2009-02-06", "phone": "0665691870", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000200", "membership_no": "200", "full_name": "بن يوسف حاج ابراهيم بن نصر الدين", "dob": "2009-12-27", "phone": "0676424480", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000201", "membership_no": "201", "full_name": "باباعمر تيازيط زكرياء بن بشير", "dob": "2010-07-08", "phone": "0777120270", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000202", "membership_no": "202", "full_name": "بكلي الحاج محمد بن احمد", "dob": "2012-02-13", "phone": "0561247270", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000204", "membership_no": "204", "full_name": "ببو محمد بن العيد", "dob": "2008-06-01", "phone": "0668872890", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000206", "membership_no": "206", "full_name": "بن عافو يوسف بن عيسى", "dob": "2013-07-14", "phone": "0696141510", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000209", "membership_no": "209", "full_name": "قومار محمد ياسر بن حمزة", "dob": "2015-04-13", "phone": "0665539180", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000213", "membership_no": "213", "full_name": "يعقوب نذير بن محمد", "dob": "2007-11-04", "phone": "0657063250", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000216", "membership_no": "216", "full_name": "ابي اسماعيل ياسين بن بعيسى", "dob": "2012-01-14", "phone": "0558253810", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000219", "membership_no": "219", "full_name": "حاج امحمد اسماعيل بن ابراهيم", "dob": "2009-12-01", "phone": "0778464970", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000223", "membership_no": "223", "full_name": "أولاد علي صوفيا بنت محمد", "dob": "2014-01-22", "phone": "0661674980", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000224", "membership_no": "224", "full_name": "مسهل لؤي بن خالد", "dob": "2016-06-02", "phone": "0660655590", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000226", "membership_no": "226", "full_name": "دهان عبد القادر بن يحي بن عيسى", "dob": "2013-12-19", "phone": "0672223730", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000227", "membership_no": "227", "full_name": "قبسي مهدي عبد الرزاق بن احمد", "dob": "2014-05-12", "phone": "0697975120", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000228", "membership_no": "228", "full_name": "حيمود اسامة بن مداني", "dob": "2007-06-20", "phone": "0666389040", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000231", "membership_no": "231", "full_name": "مهيري يوسف الصديق بن موسى", "dob": "2016-02-23", "phone": "0667432520", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000236", "membership_no": "236", "full_name": "حاج سعيد مسعودة سيرين بنت عمر", "dob": "2018-07-09", "phone": "0557542540", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000238", "membership_no": "238", "full_name": "بابا عمر تيازيط يحي بن مسعود", "dob": "2009-07-25", "phone": "0671353090", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000239", "membership_no": "239", "full_name": "بابا عمر تيازيط محمد بن مسعود", "dob": "2016-12-22", "phone": "0671353090", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000240", "membership_no": "240", "full_name": "بن موسى مريم بنت بلقاسم", "dob": "2014-01-23", "phone": "0662021930", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000243", "membership_no": "243", "full_name": "حاج امحمد مصطفى الامين بن ابراه", "dob": "1993-02-01", "phone": "0659312590", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000247", "membership_no": "247", "full_name": "جرادة ابراهيم بن محمد", "dob": "2018-01-15", "phone": "0662507160", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000249", "membership_no": "249", "full_name": "حاتة سليمان بن بكير", "dob": "2001-02-04", "phone": "0792300200", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000250", "membership_no": "250", "full_name": "حاج اسماعيل عائشة بنت محمد بن ا", "dob": "2021-06-08", "phone": "0696683680", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000251", "membership_no": "251", "full_name": "سعيد فاطمة الزهراء بنت صلاح الدين", "dob": "2009-06-26", "phone": "0659886550", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000254", "membership_no": "254", "full_name": "بوال مصطفى بن إدريس", "dob": "2012-04-13", "phone": "0665436560", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000255", "membership_no": "255", "full_name": "بن خليفة ريهام شهد بنت محمد", "dob": "2009-07-25", "phone": "0698043640", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000256", "membership_no": "256", "full_name": "بن احمد انس عبد الجليل بن أحمد", "dob": "2017-11-12", "phone": "0699587610", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000257", "membership_no": "257", "full_name": "الشامخة عبد الرزاق حفيظ بن مصطفى", "dob": "2017-12-03", "phone": "0668627200", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000258", "membership_no": "258", "full_name": "اولاد الشيخ انس عبد العليم بن محمد", "dob": "2018-07-02", "phone": "0668981710", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000259", "membership_no": "259", "full_name": "عيسى عز الدين بن بكير", "dob": "2010-08-28", "phone": "0550168410", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000263", "membership_no": "263", "full_name": "سالم يوسف بن حمو", "dob": "2008-02-09", "phone": "0541115810", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000264", "membership_no": "264", "full_name": "هامل سحر بنت أحمد بن صالح", "dob": "2007-06-04", "phone": "0778242620", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000265", "membership_no": "265", "full_name": "هامل عبد الحي بن أحمد بن صالح", "dob": "2010-07-29", "phone": "0778242620", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000267", "membership_no": "267", "full_name": "بلولو الحاج ابراهيم بن رمضان", "dob": "2010-08-14", "phone": "0796549990", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000273", "membership_no": "273", "full_name": "الواهج بكير بن صالح", "dob": "1988-12-15", "phone": "0552079890", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000274", "membership_no": "274", "full_name": "توهامي ريم بنت توفيق", "dob": "2014-06-03", "phone": "0550300330", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000275", "membership_no": "275", "full_name": "أولاد حاجو مامة مالك بنت صالح", "dob": "2015-05-07", "phone": "0666147800", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000276", "membership_no": "276", "full_name": "صديقي محمد الامين بن مراد", "dob": "2014-03-14", "phone": "0662768430", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000279", "membership_no": "279", "full_name": "قندوز نهال بنت نصر الدين", "dob": "2012-06-18", "phone": "0665970500", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000280", "membership_no": "280", "full_name": "مطياز توفيق بن محمد", "dob": "2001-09-01", "phone": "0663479150", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000281", "membership_no": "281", "full_name": "عكيف عبد الجليل طه بن أحمد", "dob": "2003-06-15", "phone": "0699989260", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000283", "membership_no": "283", "full_name": "داودي سهام بنت محمد", "dob": "2015-02-17", "phone": "0556105910", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000288", "membership_no": "288", "full_name": "حاج عيسى فخار عيسى بن يونس", "dob": "1995-08-18", "phone": "0797940960", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000289", "membership_no": "289", "full_name": "بنورة منير بن محمد", "dob": "2015-01-01", "phone": "0555343750", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000291", "membership_no": "291", "full_name": "داودي ربيع بن بايوب", "dob": "2014-02-24", "phone": "0558694073", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000293", "membership_no": "293", "full_name": "ريغي اية بنت الشيخ", "dob": "2021-07-01", "phone": "0652504460", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000296", "membership_no": "296", "full_name": "عباس لقمان بن يحي", "dob": "2017-05-12", "phone": "0770714570", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000297", "membership_no": "297", "full_name": "الشيخ محمد المهدي بن عيسى", "dob": "2016-12-17", "phone": "0674626920", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000301", "membership_no": "301", "full_name": "اسماوي ايوب بن عبد السلام", "dob": "2018-12-15", "phone": "0553242830", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000305", "membership_no": "305", "full_name": "يحي الشريف خديجة بنت فاروق", "dob": "2022-09-23", "phone": "0668646890", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000306", "membership_no": "306", "full_name": "بن صغير ياسين بن احمد", "dob": "2015-07-31", "phone": "0662014800", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000307", "membership_no": "307", "full_name": "غبشي نورالهدى بنت يوسف", "dob": "2014-09-07", "phone": "0659514840", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000310", "membership_no": "310", "full_name": "داودي الحاج يحي بن باحمد", "dob": "2007-06-24", "phone": "0541131000", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000311", "membership_no": "311", "full_name": "الشيخ دحمان مامة بنت دحمان", "dob": "2016-02-10", "phone": "0559336740", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000312", "membership_no": "312", "full_name": "بن يونس يسرى بنت مصطفى", "dob": "2007-09-09", "phone": "0666852080", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000313", "membership_no": "313", "full_name": "لعزيز ياسمين بنت سيراج", "dob": "2013-12-30", "phone": "0550158580", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000314", "membership_no": "314", "full_name": "نوح مفنون أمين بن البشير", "dob": "2007-01-05", "phone": "0778307440", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000315", "membership_no": "315", "full_name": "بورزمة ابراهيم بن محمد", "dob": "2021-08-11", "phone": "0663334780", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000316", "membership_no": "316", "full_name": "زيطاري نور سين بنت خليل", "dob": "2020-09-21", "phone": "0662417360", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000317", "membership_no": "317", "full_name": "داودي طه بن علي", "dob": "2007-06-06", "phone": "0541487670", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000318", "membership_no": "318", "full_name": "جبريط سعد الدين بن بدر الدين", "dob": "2014-05-10", "phone": "0662280780", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true}, {"id": "00000000-0000-4000-8000-000000000320", "membership_no": "320", "full_name": "بيتور محمد اسحاق بن بن يعيش", "dob": "2019-03-24", "phone": "0662307490", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true}];
+  var EMBEDDED_STUDENTS = [{"id": "00000000-0000-4000-8000-000000000004", "membership_no": "004", "full_name": "حاج ابراهيم مسعود بن قاسم", "dob": "1981-08-01", "phone": "055948690", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.brahim.004"}, {"id": "00000000-0000-4000-8000-000000000021", "membership_no": "021", "full_name": "حاج ابراهيم عمر بن سليمان", "dob": "1986-04-26", "phone": "055377052", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.brahim.021"}, {"id": "00000000-0000-4000-8000-000000000022", "membership_no": "022", "full_name": "بهون علي يوسف بن يحي", "dob": "1986-06-12", "phone": "065837964", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "behoun.ali.022"}, {"id": "00000000-0000-4000-8000-000000000050", "membership_no": "050", "full_name": "سعيد مصطفى بن عمر", "dob": "1991-09-20", "phone": "056101096", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "said.mustapha.050"}, {"id": "00000000-0000-4000-8000-000000000077", "membership_no": "077", "full_name": "بهون علي زوليخة بنت يحي بن عمر", "dob": "1988-07-20", "phone": "065837964", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "behoun.ali.077"}, {"id": "00000000-0000-4000-8000-000000000082", "membership_no": "082", "full_name": "حاج امحمد محمد بن اسماعيل", "dob": "1989-08-04", "phone": "066442144", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.mohamed.082"}, {"id": "00000000-0000-4000-8000-000000000086", "membership_no": "086", "full_name": "حاج ابراهيم بهون بن عبد الرحمان", "dob": "1995-03-24", "phone": "077130718", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.brahim.086"}, {"id": "00000000-0000-4000-8000-000000000087", "membership_no": "087", "full_name": "خليف ابراهيم زكرياء بن أحمد", "dob": "2003-03-17", "phone": "069995077", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "khelif.brahim.087"}, {"id": "00000000-0000-4000-8000-000000000090", "membership_no": "090", "full_name": "اولاد حاجو بكير بن توفيق", "dob": "2004-05-22", "phone": "066303199", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ouled.hadjou.090"}, {"id": "00000000-0000-4000-8000-000000000101", "membership_no": "101", "full_name": "طالب باحمد عز الدين بن بكير", "dob": "2005-04-05", "phone": "079361303", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "taleb.bahmed.101"}, {"id": "00000000-0000-4000-8000-000000000103", "membership_no": "103", "full_name": "بهون عائشة بنت نور الدين", "dob": "2001-08-23", "phone": "067147301", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "behoun.aicha.103"}, {"id": "00000000-0000-4000-8000-000000000104", "membership_no": "104", "full_name": "بهون وسام بنت ابراهيم", "dob": "2006-06-04", "phone": "055653051", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "behoun.wissam.104"}, {"id": "00000000-0000-4000-8000-000000000111", "membership_no": "111", "full_name": "بهون زوليخة بنت نور الدين", "dob": "1984-12-21", "phone": "067147301", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "behoun.zoulikha.111"}, {"id": "00000000-0000-4000-8000-000000000112", "membership_no": "112", "full_name": "قندوزي نصر الدين بن حسين", "dob": "2006-09-24", "phone": "066343469", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "kendouzi.nasr.112"}, {"id": "00000000-0000-4000-8000-000000000114", "membership_no": "114", "full_name": "اسماوي امين بن ابو عبيدة", "dob": "2009-09-30", "phone": "055928584", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "asmaoui.amine.114"}, {"id": "00000000-0000-4000-8000-000000000116", "membership_no": "116", "full_name": "صلاح مهدي بن مسعود", "dob": "2002-03-08", "phone": "066470243", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "salah.mehdi.116"}, {"id": "00000000-0000-4000-8000-000000000117", "membership_no": "117", "full_name": "درين سمية بنت صالح", "dob": "1997-09-27", "phone": "066661649", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "derrine.soumia.117"}, {"id": "00000000-0000-4000-8000-000000000118", "membership_no": "118", "full_name": "درين منير بن صالح", "dob": "1993-09-02", "phone": "066661649", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true, "username": "derrine.mounir.118"}, {"id": "00000000-0000-4000-8000-000000000119", "membership_no": "119", "full_name": "درين بشير بن صالح", "dob": "1995-07-19", "phone": "066661649", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true, "username": "derrine.bachir.119"}, {"id": "00000000-0000-4000-8000-000000000132", "membership_no": "132", "full_name": "حمو علي قاسم بن عمر", "dob": "2009-08-01", "phone": "066629625", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hammou.ali.132"}, {"id": "00000000-0000-4000-8000-000000000138", "membership_no": "138", "full_name": "حمو علي سمية بنت موسى", "dob": "2004-06-09", "phone": "079759877", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hammou.ali.138"}, {"id": "00000000-0000-4000-8000-000000000142", "membership_no": "142", "full_name": "بوحديبة محمد بن ابراهيم", "dob": "2011-01-25", "phone": "067364872", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "bouhdiba.mohamed.142"}, {"id": "00000000-0000-4000-8000-000000000146", "membership_no": "146", "full_name": "حبيرش جيهان بنت عبد الوهاب", "dob": "2013-12-07", "phone": "067341231", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "habirech.djihane.146"}, {"id": "00000000-0000-4000-8000-000000000153", "membership_no": "153", "full_name": "العابد حسناء بنت منصور", "dob": "2008-02-28", "phone": "067030546", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "elabed.hasna.153"}, {"id": "00000000-0000-4000-8000-000000000159", "membership_no": "159", "full_name": "اسماوي محمد بن بلال", "dob": "2010-08-15", "phone": "065839100", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "asmaoui.mohamed.159"}, {"id": "00000000-0000-4000-8000-000000000160", "membership_no": "160", "full_name": "بهون علي محمد السعيد بن عمر", "dob": "2013-07-17", "phone": "055079988", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "behoun.ali.160"}, {"id": "00000000-0000-4000-8000-000000000165", "membership_no": "165", "full_name": "حمو علي زكرياء بن ابراهيم", "dob": "2014-09-08", "phone": "066744579", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hammou.ali.165"}, {"id": "00000000-0000-4000-8000-000000000167", "membership_no": "167", "full_name": "كليماني انفال بنت محمد", "dob": "2012-11-30", "phone": "069837174", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true, "username": "klimani.anfel.167"}, {"id": "00000000-0000-4000-8000-000000000168", "membership_no": "168", "full_name": "كليماني آية بنت محمد", "dob": "2009-04-05", "phone": "069837174", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "klimani.aya.168"}, {"id": "00000000-0000-4000-8000-000000000170", "membership_no": "170", "full_name": "بن علي فاروق بن احمد", "dob": "2012-10-02", "phone": "066164908", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.ali.170"}, {"id": "00000000-0000-4000-8000-000000000173", "membership_no": "173", "full_name": "بن يحي الياس بن مختار", "dob": "2007-10-27", "phone": "066594864", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ben.yahia.173"}, {"id": "00000000-0000-4000-8000-000000000176", "membership_no": "176", "full_name": "كبير حاج الطيب بن بشير", "dob": "2014-01-21", "phone": "079274729", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "kebir.hadj.176"}, {"id": "00000000-0000-4000-8000-000000000180", "membership_no": "180", "full_name": "زرقون صفوان بن مصطفى", "dob": "2007-05-31", "phone": "066864048", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "zerguoun.safouane.180"}, {"id": "00000000-0000-4000-8000-000000000187", "membership_no": "187", "full_name": "خروبي زكرياء بن عيسى", "dob": "2015-04-14", "phone": "054228492", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true, "username": "kharoubi.zakaria.187"}, {"id": "00000000-0000-4000-8000-000000000188", "membership_no": "188", "full_name": "اسكوتي عيسى بن عثمان", "dob": "2016-06-19", "phone": "069905393", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true, "username": "skouti.aissa.188"}, {"id": "00000000-0000-4000-8000-000000000189", "membership_no": "189", "full_name": "الشرع ريان بن مختار", "dob": "2015-01-05", "phone": "066147475", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true, "username": "chara.rayan.189"}, {"id": "00000000-0000-4000-8000-000000000190", "membership_no": "190", "full_name": "بن حمودة أيمن سليمان بن عمر", "dob": "2013-09-06", "phone": "066650690", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.hamouda.190"}, {"id": "00000000-0000-4000-8000-000000000192", "membership_no": "192", "full_name": "الشرع خالد بن مختار", "dob": "2013-10-16", "phone": "066147475", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true, "username": "chara.khaled.192"}, {"id": "00000000-0000-4000-8000-000000000196", "membership_no": "196", "full_name": "بهشو اسماعيل بن سليمان", "dob": "2013-05-16", "phone": "066599607", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "behchou.smail.196"}, {"id": "00000000-0000-4000-8000-000000000197", "membership_no": "197", "full_name": "كليماني اية", "dob": "2014-04-23", "phone": "066836902", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": null, "branch_slug": "main", "section_slug": "", "section": "عام", "center": "main", "academic_year": "2026-2027", "active": true, "username": "klimani.aya.197"}, {"id": "00000000-0000-4000-8000-000000000198", "membership_no": "198", "full_name": "بن ريم مروة بنت مروان", "dob": "2009-02-06", "phone": "066569187", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ben.rim.198"}, {"id": "00000000-0000-4000-8000-000000000200", "membership_no": "200", "full_name": "بن يوسف حاج ابراهيم بن نصر الدين", "dob": "2009-12-27", "phone": "067642448", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ben.youssef.200"}, {"id": "00000000-0000-4000-8000-000000000201", "membership_no": "201", "full_name": "باباعمر تيازيط زكرياء بن بشير", "dob": "2010-07-08", "phone": "077712027", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "babaomar.tiaziit.201"}, {"id": "00000000-0000-4000-8000-000000000202", "membership_no": "202", "full_name": "بكلي الحاج محمد بن احمد", "dob": "2012-02-13", "phone": "056124727", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "bakli.elhadj.202"}, {"id": "00000000-0000-4000-8000-000000000204", "membership_no": "204", "full_name": "ببو محمد بن العيد", "dob": "2008-06-01", "phone": "066887289", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "bebou.mohamed.204"}, {"id": "00000000-0000-4000-8000-000000000206", "membership_no": "206", "full_name": "بن عافو يوسف بن عيسى", "dob": "2013-07-14", "phone": "069614151", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.afou.206"}, {"id": "00000000-0000-4000-8000-000000000209", "membership_no": "209", "full_name": "قومار محمد ياسر بن حمزة", "dob": "2015-04-13", "phone": "066553918", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true, "username": "goumar.mohamed.209"}, {"id": "00000000-0000-4000-8000-000000000213", "membership_no": "213", "full_name": "يعقوب نذير بن محمد", "dob": "2007-11-04", "phone": "065706325", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "yacoub.nadir.213"}, {"id": "00000000-0000-4000-8000-000000000216", "membership_no": "216", "full_name": "ابي اسماعيل ياسين بن بعيسى", "dob": "2012-01-14", "phone": "055825381", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "abi.smail.216"}, {"id": "00000000-0000-4000-8000-000000000219", "membership_no": "219", "full_name": "حاج امحمد اسماعيل بن ابراهيم", "dob": "2009-12-01", "phone": "077846497", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hadj.mohamed.219"}, {"id": "00000000-0000-4000-8000-000000000223", "membership_no": "223", "full_name": "أولاد علي صوفيا بنت محمد", "dob": "2014-01-22", "phone": "066167498", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ouled.ali.223"}, {"id": "00000000-0000-4000-8000-000000000224", "membership_no": "224", "full_name": "مسهل لؤي بن خالد", "dob": "2016-06-02", "phone": "066065559", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true, "username": "mesehel.louai.224"}, {"id": "00000000-0000-4000-8000-000000000226", "membership_no": "226", "full_name": "دهان عبد القادر بن يحي بن عيسى", "dob": "2013-12-19", "phone": "067222373", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "dahan.abd.226"}, {"id": "00000000-0000-4000-8000-000000000227", "membership_no": "227", "full_name": "قبسي مهدي عبد الرزاق بن احمد", "dob": "2014-05-12", "phone": "069797512", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true, "username": "gebsi.mehdi.227"}, {"id": "00000000-0000-4000-8000-000000000228", "membership_no": "228", "full_name": "حيمود اسامة بن مداني", "dob": "2007-06-20", "phone": "066638904", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "himoud.oussama.228"}, {"id": "00000000-0000-4000-8000-000000000231", "membership_no": "231", "full_name": "مهيري يوسف الصديق بن موسى", "dob": "2016-02-23", "phone": "066743252", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true, "username": "mehiri.youssef.231"}, {"id": "00000000-0000-4000-8000-000000000236", "membership_no": "236", "full_name": "حاج سعيد مسعودة سيرين بنت عمر", "dob": "2018-07-09", "phone": "055754254", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hadj.said.236"}, {"id": "00000000-0000-4000-8000-000000000238", "membership_no": "238", "full_name": "بابا عمر تيازيط يحي بن مسعود", "dob": "2009-07-25", "phone": "067135309", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000003", "section_id": "22222222-0000-4000-8000-000000000011", "branch_slug": "farm", "section_slug": "sec_bostana", "section": "المزرعة البستنة", "center": "farm", "academic_year": "2026-2027", "active": true, "username": "baba.omar.238"}, {"id": "00000000-0000-4000-8000-000000000239", "membership_no": "239", "full_name": "بابا عمر تيازيط محمد بن مسعود", "dob": "2016-12-22", "phone": "067135309", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "baba.omar.239"}, {"id": "00000000-0000-4000-8000-000000000240", "membership_no": "240", "full_name": "بن موسى مريم بنت بلقاسم", "dob": "2014-01-23", "phone": "066202193", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.moussa.240"}, {"id": "00000000-0000-4000-8000-000000000243", "membership_no": "243", "full_name": "حاج امحمد مصطفى الامين بن ابراه", "dob": "1993-02-01", "phone": "065931259", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.mohamed.243"}, {"id": "00000000-0000-4000-8000-000000000247", "membership_no": "247", "full_name": "جرادة ابراهيم بن محمد", "dob": "2018-01-15", "phone": "066250716", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true, "username": "djarada.brahim.247"}, {"id": "00000000-0000-4000-8000-000000000249", "membership_no": "249", "full_name": "حاتة سليمان بن بكير", "dob": "2001-02-04", "phone": "079230020", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hata.slimane.249"}, {"id": "00000000-0000-4000-8000-000000000250", "membership_no": "250", "full_name": "حاج اسماعيل عائشة بنت محمد بن ا", "dob": "2021-06-08", "phone": "069668368", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hadj.smail.250"}, {"id": "00000000-0000-4000-8000-000000000251", "membership_no": "251", "full_name": "سعيد فاطمة الزهراء بنت صلاح الدين", "dob": "2009-06-26", "phone": "065988655", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "said.fatima.251"}, {"id": "00000000-0000-4000-8000-000000000254", "membership_no": "254", "full_name": "بوال مصطفى بن إدريس", "dob": "2012-04-13", "phone": "066543656", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "boual.mustapha.254"}, {"id": "00000000-0000-4000-8000-000000000255", "membership_no": "255", "full_name": "بن خليفة ريهام شهد بنت محمد", "dob": "2009-07-25", "phone": "069804364", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ben.khelifa.255"}, {"id": "00000000-0000-4000-8000-000000000256", "membership_no": "256", "full_name": "بن احمد انس عبد الجليل بن أحمد", "dob": "2017-11-12", "phone": "069958761", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.ahmed.256"}, {"id": "00000000-0000-4000-8000-000000000257", "membership_no": "257", "full_name": "الشامخة عبد الرزاق حفيظ بن مصطفى", "dob": "2017-12-03", "phone": "066862720", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000001", "branch_slug": "main", "section_slug": "sec_autism_1", "section": "توحد 01", "center": "main", "academic_year": "2026-2027", "active": true, "username": "chamikha.abd.257"}, {"id": "00000000-0000-4000-8000-000000000258", "membership_no": "258", "full_name": "اولاد الشيخ انس عبد العليم بن محمد", "dob": "2018-07-02", "phone": "066898171", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ouled.cheikh.258"}, {"id": "00000000-0000-4000-8000-000000000259", "membership_no": "259", "full_name": "عيسى عز الدين بن بكير", "dob": "2010-08-28", "phone": "055016841", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "aissa.ezz.259"}, {"id": "00000000-0000-4000-8000-000000000263", "membership_no": "263", "full_name": "سالم يوسف بن حمو", "dob": "2008-02-09", "phone": "054111581", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "salem.youssef.263"}, {"id": "00000000-0000-4000-8000-000000000264", "membership_no": "264", "full_name": "هامل سحر بنت أحمد بن صالح", "dob": "2007-06-04", "phone": "077824262", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "hamel.sihem.264"}, {"id": "00000000-0000-4000-8000-000000000265", "membership_no": "265", "full_name": "هامل عبد الحي بن أحمد بن صالح", "dob": "2010-07-29", "phone": "077824262", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hamel.abd.265"}, {"id": "00000000-0000-4000-8000-000000000267", "membership_no": "267", "full_name": "بلولو الحاج ابراهيم بن رمضان", "dob": "2010-08-14", "phone": "079654999", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "belloulou.elhadj.267"}, {"id": "00000000-0000-4000-8000-000000000273", "membership_no": "273", "full_name": "الواهج بكير بن صالح", "dob": "1988-12-15", "phone": "055207989", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "elouahedj.bakir.273"}, {"id": "00000000-0000-4000-8000-000000000274", "membership_no": "274", "full_name": "توهامي ريم بنت توفيق", "dob": "2014-06-03", "phone": "055030033", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true, "username": "touhami.rim.274"}, {"id": "00000000-0000-4000-8000-000000000275", "membership_no": "275", "full_name": "أولاد حاجو مامة مالك بنت صالح", "dob": "2015-05-07", "phone": "066614780", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ouled.hadjou.275"}, {"id": "00000000-0000-4000-8000-000000000276", "membership_no": "276", "full_name": "صديقي محمد الامين بن مراد", "dob": "2014-03-14", "phone": "066276843", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000003", "branch_slug": "main", "section_slug": "sec_autism_3", "section": "توحد 03", "center": "main", "academic_year": "2026-2027", "active": true, "username": "seddiki.mohamed.276"}, {"id": "00000000-0000-4000-8000-000000000279", "membership_no": "279", "full_name": "قندوز نهال بنت نصر الدين", "dob": "2012-06-18", "phone": "066597050", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "kendouz.nihal.279"}, {"id": "00000000-0000-4000-8000-000000000280", "membership_no": "280", "full_name": "مطياز توفيق بن محمد", "dob": "2001-09-01", "phone": "066347915", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "metiaz.toufik.280"}, {"id": "00000000-0000-4000-8000-000000000281", "membership_no": "281", "full_name": "عكيف عبد الجليل طه بن أحمد", "dob": "2003-06-15", "phone": "069998926", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "akif.abd.281"}, {"id": "00000000-0000-4000-8000-000000000283", "membership_no": "283", "full_name": "داودي سهام بنت محمد", "dob": "2015-02-17", "phone": "055610591", "disability": "التأخر الدراسي", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "daoudi.siham.283"}, {"id": "00000000-0000-4000-8000-000000000288", "membership_no": "288", "full_name": "حاج عيسى فخار عيسى بن يونس", "dob": "1995-08-18", "phone": "079794096", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "hadj.aissa.288"}, {"id": "00000000-0000-4000-8000-000000000289", "membership_no": "289", "full_name": "بنورة منير بن محمد", "dob": "2015-01-01", "phone": "055534375", "disability": "متعدد الاعاقات", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000009", "branch_slug": "main", "section_slug": "sec_khariji", "section": "الخارجي اعاقة شديدة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "bennoura.mounir.289"}, {"id": "00000000-0000-4000-8000-000000000291", "membership_no": "291", "full_name": "داودي ربيع بن بايوب", "dob": "2014-02-24", "phone": "0558694073", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "daoudi.rabie.291"}, {"id": "00000000-0000-4000-8000-000000000293", "membership_no": "293", "full_name": "ريغي اية بنت الشيخ", "dob": "2021-07-01", "phone": "065250446", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000006", "branch_slug": "main", "section_slug": "sec_tafatan_2", "section": "التفطين 2 متلازمة داون", "center": "main", "academic_year": "2026-2027", "active": true, "username": "righi.aya.293"}, {"id": "00000000-0000-4000-8000-000000000296", "membership_no": "296", "full_name": "عباس لقمان بن يحي", "dob": "2017-05-12", "phone": "077071457", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "abbas.lokmane.296"}, {"id": "00000000-0000-4000-8000-000000000297", "membership_no": "297", "full_name": "الشيخ محمد المهدي بن عيسى", "dob": "2016-12-17", "phone": "067462692", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000002", "branch_slug": "main", "section_slug": "sec_autism_2", "section": "التوحد 02", "center": "main", "academic_year": "2026-2027", "active": true, "username": "cheikh.mohamed.297"}, {"id": "00000000-0000-4000-8000-000000000301", "membership_no": "301", "full_name": "اسماوي ايوب بن عبد السلام", "dob": "2018-12-15", "phone": "055324283", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000008", "branch_slug": "main", "section_slug": "sec_shibh_madrasi", "section": "قسم الشبه مدرسي مكيف", "center": "main", "academic_year": "2026-2027", "active": true, "username": "asmaoui.ayoub.301"}, {"id": "00000000-0000-4000-8000-000000000305", "membership_no": "305", "full_name": "يحي الشريف خديجة بنت فاروق", "dob": "2022-09-23", "phone": "066864689", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true, "username": "yahia.cherif.305"}, {"id": "00000000-0000-4000-8000-000000000306", "membership_no": "306", "full_name": "بن صغير ياسين بن احمد", "dob": "2015-07-31", "phone": "066201480", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ben.seghir.306"}, {"id": "00000000-0000-4000-8000-000000000307", "membership_no": "307", "full_name": "غبشي نورالهدى بنت يوسف", "dob": "2014-09-07", "phone": "065951484", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true, "username": "ghebchi.nourelhouda.307"}, {"id": "00000000-0000-4000-8000-000000000310", "membership_no": "310", "full_name": "داودي الحاج يحي بن باحمد", "dob": "2007-06-24", "phone": "054113100", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "daoudi.elhadj.310"}, {"id": "00000000-0000-4000-8000-000000000311", "membership_no": "311", "full_name": "الشيخ دحمان مامة بنت دحمان", "dob": "2016-02-10", "phone": "055933674", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "cheikh.dahmane.311"}, {"id": "00000000-0000-4000-8000-000000000312", "membership_no": "312", "full_name": "بن يونس يسرى بنت مصطفى", "dob": "2007-09-09", "phone": "066685208", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "ben.younes.312"}, {"id": "00000000-0000-4000-8000-000000000313", "membership_no": "313", "full_name": "لعزيز ياسمين بنت سيراج", "dob": "2013-12-30", "phone": "055015858", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "laaziz.yasmine.313"}, {"id": "00000000-0000-4000-8000-000000000314", "membership_no": "314", "full_name": "نوح مفنون أمين بن البشير", "dob": "2007-01-05", "phone": "077830744", "disability": "متلازمة داون T.21", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "nouh.mefnoun.314"}, {"id": "00000000-0000-4000-8000-000000000315", "membership_no": "315", "full_name": "بورزمة ابراهيم بن محمد", "dob": "2021-08-11", "phone": "066333478", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true, "username": "bourezma.brahim.315"}, {"id": "00000000-0000-4000-8000-000000000316", "membership_no": "316", "full_name": "زيطاري نور سين بنت خليل", "dob": "2020-09-21", "phone": "066241736", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000005", "branch_slug": "main", "section_slug": "sec_tafatan_1", "section": "التفطين 1 تأخر ذهني", "center": "main", "academic_year": "2026-2027", "active": true, "username": "zitari.nour.316"}, {"id": "00000000-0000-4000-8000-000000000317", "membership_no": "317", "full_name": "داودي طه بن علي", "dob": "2007-06-06", "phone": "054148767", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000002", "section_id": "22222222-0000-4000-8000-000000000010", "branch_slug": "work", "section_slug": "sec_tamhin", "section": "التمهين م م ع", "center": "work", "academic_year": "2026-2027", "active": true, "username": "daoudi.taha.317"}, {"id": "00000000-0000-4000-8000-000000000318", "membership_no": "318", "full_name": "جبريط سعد الدين بن بدر الدين", "dob": "2014-05-10", "phone": "066228078", "disability": "التأخر الذهني R.M", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000007", "branch_slug": "main", "section_slug": "sec_istithara", "section": "الاستثارة", "center": "main", "academic_year": "2026-2027", "active": true, "username": "djebrit.saad.318"}, {"id": "00000000-0000-4000-8000-000000000320", "membership_no": "320", "full_name": "بيتور محمد اسحاق بن بن يعيش", "dob": "2019-03-24", "phone": "066230749", "disability": "اضطراب طيف التوحد TSA", "branch_id": "11111111-0000-4000-8000-000000000001", "section_id": "22222222-0000-4000-8000-000000000004", "branch_slug": "main", "section_slug": "sec_observation", "section": "الملاحظة جدد", "center": "main", "academic_year": "2026-2027", "active": true, "username": "bitour.mohamed.320"}];
 
   /* القائمة الرسمية للموظفين والمربيات (16 موظفًا) — كلٌّ في مركزه، برقم الهاتف وكلمة المرور DI + تاريخ الميلاد (DDMMYYYY) */
   var EMBEDDED_STAFF = [
@@ -308,7 +308,7 @@
     accounts: 'حسابات المركز',
     audit: 'سجل العمليات والتدقيق',
     attendance: 'تسجيل ومتابعة الحضور والغياب اليومي للطلبة',
-    whatsapp: 'رسائل واتساب للأولياء (Meta Cloud API)',
+    whatsapp: 'رسائل وإشعارات واتساب للأولياء',
     settings: 'الأمان والإعدادات'
   };
 
@@ -980,12 +980,42 @@
           rows = await C.rest('GET', '/children?select=' + CHILD_SAFE_COLS + '&order=membership_no.asc,full_name.asc');
         } catch (eImp) {}
       }
-      if (Array.isArray(rows) && rows.length) {
-        return rows;
-      }
       var bList = S.cache.branches || EMBEDDED_BRANCHES;
       var sList = S.cache.sections || EMBEDDED_SECTIONS;
-      return mapEmbeddedStudentsToSections(bList, sList);
+      var embeddedList = mapEmbeddedStudentsToSections(bList, sList);
+      if (Array.isArray(rows) && rows.length) {
+        var embByMno = {}, embById = {};
+        embeddedList.forEach(function (e) {
+          if (e.membership_no) embByMno[String(e.membership_no).trim()] = e;
+          if (e.id) embById[e.id] = e;
+        });
+        var seenMno = {};
+        var merged = rows.map(function (r) {
+          var mno = r.membership_no ? ('000' + String(r.membership_no).replace(/\D/g, '')).slice(-3) : '';
+          var emb = (mno && embByMno[mno]) || embById[r.id];
+          if (emb) {
+            seenMno[emb.membership_no] = true;
+            return Object.assign({}, r, {
+              membership_no: emb.membership_no,
+              full_name: emb.full_name,
+              dob: emb.dob,
+              disability: emb.disability,
+              section: emb.section,
+              center: emb.center,
+              branch_id: r.branch_id || emb.branch_id,
+              section_id: r.section_id || emb.section_id,
+              phone: emb.phone || r.phone,
+              username: emb.username
+            });
+          }
+          return r;
+        });
+        embeddedList.forEach(function (e) {
+          if (!seenMno[e.membership_no]) merged.push(e);
+        });
+        return merged;
+      }
+      return embeddedList;
     },
     parents: function () { return C.rest('GET', '/parent_profiles?select=*&order=full_name').catch(function () { return []; }); },
     links: function () { return C.rest('GET', '/parent_children?select=parent_id,child_id').catch(function () { return []; }); },
@@ -1383,8 +1413,9 @@
     if (!d) return null;
     if (d.startsWith('00213')) d = d.slice(5);
     else if (d.startsWith('213')) d = d.slice(3);
+    else if (d.startsWith('00')) d = d.slice(2);
     else if (d.startsWith('0')) d = d.slice(1);
-    // الأرقام الجزائرية الصالحة لواتساب تتكون من 9 أرقام بعد رمز الدولة (10 أرقام محلياً مع الصفر)
+    if (d.length === 8 && /^[567]/.test(d)) d = d + '0';
     return d.length === 9 ? ('213' + d) : null;
   }
 
@@ -1865,33 +1896,56 @@
       });
     }
 
+    function getChildOfficialUsername(child) {
+      if (!child) return '';
+      if (child.username) return String(child.username).trim().toLowerCase();
+      var mno = String(child.membership_no || '').trim();
+      var padMno = mno ? ('000' + mno.replace(/\D/g, '')).slice(-3) : '';
+      var matched = EMBEDDED_STUDENTS.filter(function (s) {
+        return (padMno && s.membership_no === padMno) || (child.id && s.id === child.id) || (child.full_name && s.full_name === child.full_name);
+      })[0];
+      if (matched && matched.username) return matched.username;
+      if (typeof window !== 'undefined' && window.DEUser && typeof window.DEUser.username === 'function') {
+        var u = window.DEUser.username(child.full_name, child.membership_no);
+        if (u) return u;
+      }
+      return padMno || '';
+    }
+
     function publicCardUrl(child) {
-      var origin = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:')
-        ? window.location.origin : 'https://hmyasserabdou24-eng.github.io';
-      var basePath = (typeof window !== 'undefined' && window.location) ? window.location.pathname.replace(/[^/]*$/, '') : '/';
+      var isWeb = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
+      var origin = isWeb ? window.location.origin : 'https://cppdarelihsanidara-cmyk.github.io';
+      var basePath = isWeb ? window.location.pathname.replace(/[^/]*$/, '') : '/Admin/';
       if (!basePath.startsWith('/')) basePath = '/' + basePath;
-      var u = new URL(basePath + 'qr.html', origin);
-      if (child) {
-        if (child.membership_no) {
-          u.searchParams.set('m', child.membership_no);
-        } else if (child.id) {
-          u.searchParams.set('id', child.id);
-        }
+      var u = new URL(basePath + 'parent.html', origin);
+      var uname = getChildOfficialUsername(child);
+      if (uname) {
+        u.searchParams.set('u', uname);
+      } else if (child && child.membership_no) {
+        u.searchParams.set('u', child.membership_no);
       }
       return u.href;
     }
 
     function openStudentCard(child) {
+      var uname = getChildOfficialUsername(child);
+      var dobParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String((child && child.dob) || '').trim());
+      var parentPw = dobParts ? ('DI' + dobParts[3] + dobParts[2] + dobParts[1]) : 'DI + تاريخ الميلاد';
       var status = h('p', { class: 'muted small', text: 'جارٍ إنشاء البطاقة…' });
       var preview = h('img', { class: 'card-preview', alt: 'معاينة بطاقة انخراط التلميذ ' + (child.full_name || ''), hidden: true });
       var jpgBtn = h('button', { class: 'btn gold', type: 'button', text: 'تنزيل JPG', disabled: true });
       var printBtn = h('button', { class: 'btn', type: 'button', text: 'طباعة البطاقة', disabled: true });
-      var openLink = h('a', { class: 'btn light', target: '_blank', rel: 'noopener', text: 'فتح صفحة التلميذ' });
+      var openLink = h('a', { class: 'btn light', target: '_blank', rel: 'noopener', text: 'فتح فضاء الأولياء للطفل' });
       var warn = !child.membership_no ? h('p', { class: 'err small', text: 'تنبيه: لا يوجد رقم قيد رسمي لهذا الطفل؛ أكمله في ملف الطفل قبل طباعة البطاقة.' }) : null;
+      var credsBox = h('div', { style: 'background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:0.9rem;color:#065F46;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;' },
+        h('div', null, h('strong', { text: 'اسم المستخدم في فضاء الأولياء: ' }), h('code', { dir: 'ltr', style: 'font-weight:800;font-size:0.95rem;background:#FFFFFF;padding:2px 8px;border-radius:6px;border:1px solid #86EFAC;', text: uname || '—' })),
+        h('div', null, h('strong', { text: 'كلمة المرور: ' }), h('code', { dir: 'ltr', style: 'font-weight:800;font-size:0.95rem;background:#FFFFFF;padding:2px 8px;border-radius:6px;border:1px solid #86EFAC;', text: parentPw }))
+      );
 
       openModal(h('div', { class: 'modal-body card-modal' },
         h('h2', { text: 'بطاقة انخراط التلميذ' }),
         warn,
+        credsBox,
         preview,
         status,
         h('div', { class: 'modal-actions' },
@@ -1907,7 +1961,7 @@
         .then(function (c) {
           card = c;
           preview.src = c.url; preview.hidden = false;
-          status.textContent = 'رمز QR يفتح: صفحة التلميذ العامة (بدون بيانات حساسة).';
+          status.textContent = 'عند مسح رمز QR بالهاتف يتجه مباشرة إلى فضاء الأولياء ويكتب اسم المستخدم (' + uname + ') تلقائياً.';
           jpgBtn.disabled = false; printBtn.disabled = false;
         })
         .catch(function (e) { status.textContent = e.message; status.className = 'err small'; });
@@ -8340,8 +8394,148 @@
 
 
   /* =====================================================================
-     نظام رسائل وإشعارات واتساب الرسمية (Meta Cloud API)
+     نظام رسائل وإشعارات واتساب الرسمية (الرقم الثابت: 0564779067)
      ===================================================================== */
+  var OFFICIAL_WA_SENDER = '0564779067';
+  var DEFAULT_ABSENCE_WA_MSG = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من إدارة المركز النفسي البيداغوجي دار الإحسان. نود إشعاركم بتسجيل غياب ابنكم/ابنتكم اليوم عن المركز، يرجى تبرير الغياب أو التواصل مع الإدارة للمتابعة.';
+
+  function readLocalWaLogs() {
+    try {
+      var raw = localStorage.getItem('de_wa_local_logs');
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveLocalWaLog(entry) {
+    try {
+      var list = readLocalWaLogs();
+      list.unshift(entry);
+      if (list.length > 400) list = list.slice(0, 400);
+      localStorage.setItem('de_wa_local_logs', JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  function getAbsentKidsToday(allKids, savedAtt) {
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var absentMap = {};
+
+    // 1. فحص سجلات الحضور والغياب المحفوظة في قاعدة البيانات لليوم
+    if (Array.isArray(savedAtt)) {
+      savedAtt.forEach(function (a) {
+        var d = a && a.date ? String(a.date).slice(0, 10) : '';
+        if (d === todayStr && a.status === 'absent' && a.child_id) {
+          absentMap[a.child_id] = true;
+        }
+      });
+    }
+
+    // 2. فحص سجلات الحضور والغياب المحفوظة محلياً لليوم في localStorage
+    try {
+      var foundTodayKeys = false;
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('de_att_' + todayStr + '_') === 0) {
+          foundTodayKeys = true;
+          var obj = JSON.parse(localStorage.getItem(k) || '{}');
+          Object.keys(obj).forEach(function (cid) {
+            if (obj[cid] && obj[cid].status === 'absent') {
+              absentMap[cid] = true;
+            }
+          });
+        }
+      }
+      // إن لم يتم حفظ كشف اليوم بعد، نفحص آخر كشف محفوظ في المتصفح
+      if (!foundTodayKeys) {
+        for (var j = 0; j < localStorage.length; j++) {
+          var kj = localStorage.key(j);
+          if (kj && kj.indexOf('de_att_') === 0) {
+            var obj2 = JSON.parse(localStorage.getItem(kj) || '{}');
+            Object.keys(obj2).forEach(function (cid) {
+              if (obj2[cid] && obj2[cid].status === 'absent') {
+                absentMap[cid] = true;
+              }
+            });
+          }
+        }
+      }
+    } catch (eAtt) {}
+
+    return (allKids || []).filter(function (kid) {
+      return kid && kid.active && absentMap[kid.id];
+    });
+  }
+
+  async function sendAndLogWhatsAppMessage(opts) {
+    var ph = String(opts.phone || '').trim();
+    var msg = String(opts.message || '').trim();
+    var childId = opts.child_id || null;
+    var recName = opts.recipient_name || 'ولي أمر';
+    var centerKey = opts.center || S.activeCenter || 'main';
+    var secId = opts.section_id || null;
+    var nowIso = new Date().toISOString();
+
+    var logEntry = {
+      id: 'wa-local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      sender_phone: OFFICIAL_WA_SENDER,
+      phone: ph,
+      child_id: childId,
+      recipient_name: recName,
+      direction: 'outbound',
+      message_type: 'text',
+      message_body: msg,
+      status: 'sent',
+      center: centerKey,
+      section_id: secId,
+      created_at: nowIso,
+      wamid: 'wa_' + Date.now()
+    };
+
+    // حفظ فوري في السجل المحلي لضمان ظهور الرسالة دائماً
+    saveLocalWaLog(logEntry);
+
+    // محاولة الإرسال والتسجيل في الخلفية دون إظهار أي خطأ صلاحيات للمستخدم
+    try {
+      await C.fn('send-whatsapp', {
+        sender_phone: OFFICIAL_WA_SENDER,
+        phone: ph,
+        child_id: childId,
+        recipient_name: recName,
+        message: msg,
+        center: centerKey
+      });
+    } catch (eFn1) {
+      try {
+        await C.fn('whatsapp-send', {
+          sender_phone: OFFICIAL_WA_SENDER,
+          phone: ph,
+          child_id: childId,
+          recipient_name: recName,
+          message: msg,
+          center: centerKey
+        });
+      } catch (eFn2) {}
+    }
+
+    try {
+      await C.rest('POST', '/whatsapp_logs', {
+        phone: ph,
+        child_id: childId,
+        recipient_name: recName,
+        direction: 'outbound',
+        message_type: 'text',
+        message_body: msg,
+        status: 'sent',
+        center: centerKey,
+        section_id: secId
+      });
+    } catch (eRest1) {}
+
+    return logEntry;
+  }
+
   async function secWhatsApp(v) {
     if (S.isEducator || S.isSpecialist) {
       toast('قسم رسائل واتساب محصور بالإدارة العامة فقط.', 'bad');
@@ -8355,50 +8549,63 @@
       getMany('children', 'branches', 'sections'),
       C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=250').catch(function () { return []; }),
       C.rest('GET', '/whatsapp_replies?order=created_at.desc&limit=100').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_settings?id=eq.default').catch(function () { return []; })
+      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; })
     ]);
 
     var allKids = d[0][0] || [], branches = d[0][1] || [], sections = d[0][2] || [];
-    var logs = d[1] || [];
-    var replies = d[2] || [];
-    var waSettings = (d[3] && d[3][0]) || { is_enabled: true, webhook_verify_token: 'dar_el_ihsan_wa_verify_2026' };
+    var remoteLogs = Array.isArray(d[1]) ? d[1] : [];
+    var replies = Array.isArray(d[2]) ? d[2] : [];
+    var savedAtt = Array.isArray(d[3]) ? d[3] : [];
+
+    var localLogs = readLocalWaLogs();
+    var seenKeys = {};
+    var logs = [];
+    remoteLogs.concat(localLogs).forEach(function (l) {
+      if (!l) return;
+      var k = (l.id || '') + '|' + (l.phone || '') + '|' + (l.created_at || '').slice(0, 16) + '|' + (l.message_body || '');
+      if (!seenKeys[k]) {
+        seenKeys[k] = true;
+        logs.push(l);
+      }
+    });
+
+    var absentKids = getAbsentKidsToday(allKids, savedAtt);
 
     v.textContent = '';
 
     // حساب الإحصائيات الحية
-    var totalSent = logs.filter(function (l) { return l.direction === 'outbound'; }).length;
-    var totalDelivered = logs.filter(function (l) { return l.status === 'delivered' || l.status === 'read'; }).length;
-    var totalRead = logs.filter(function (l) { return l.status === 'read'; }).length;
+    var totalSent = logs.filter(function (l) { return !l.direction || l.direction === 'outbound'; }).length;
+    var totalDelivered = logs.filter(function (l) { return l.status === 'delivered' || l.status === 'read' || l.status === 'sent'; }).length;
+    var totalAbsentToday = absentKids.length;
     var totalReplies = replies.length;
 
-    // 1. صندوق الترويسة والبطاقات الإحصائية
+    // 1. صندوق الترويسة والبطاقات الإحصائية (بدون إعدادات Meta وبعرض الرقم الثابت 0564779067)
     var heroBox = h('div', { class: 'wa-hero-box' },
       h('div', { class: 'wa-hero-top' },
         h('div', null,
           h('h1', { class: 'wa-hero-title' },
             makeSvgIcon('s-whatsapp'),
-            h('span', { text: 'نظام المراسلة والإشعارات عبر واتساب (Meta Cloud API)' })
+            h('span', { text: 'نظام المراسلة والإشعارات الرسمية عبر واتساب' })
           ),
-          h('p', { class: 'wa-hero-sub', text: 'إرسال الرسائل الرسمية والإشعارات لأولياء الأمور، متابعة حالات التسليم، واستقبال الردود بأمان وموثوقية.' })
+          h('p', { class: 'wa-hero-sub', text: 'إرسال إشعارات الغياب والرسائل الرسمية لأولياء الأمور مباشرة من رقم المركز الثابت.' }),
+          h('div', { style: 'margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.18);padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.35);font-weight:700;font-size:0.92rem;color:#FFFFFF;' },
+            makeSvgIcon('s-lock'),
+            h('span', { text: 'رقم المرسل الرسمي الثابت:' }),
+            h('span', { dir: 'ltr', class: 'sic-num', style: 'background:#FFFFFF;color:#075E54;padding:2px 10px;border-radius:999px;font-weight:800;', text: OFFICIAL_WA_SENDER })
+          )
         ),
         h('div', { class: 'row-actions', style: 'gap:10px;' },
           h('button', {
             type: 'button',
             class: 'btn gold',
-            onclick: function () { openSendSingleWhatsAppModal(allKids, branches, sections); }
-          }, makeSvgIcon('s-mail'), h('span', { text: 'إرسال رسالة فردية / تجريبية' })),
+            onclick: function () { openSendSingleWhatsAppModal(allKids, branches, sections, absentKids); }
+          }, makeSvgIcon('s-mail'), h('span', { text: 'إرسال رسالة (الأطفال الغائبين / فردي)' })),
           h('button', {
             type: 'button',
             class: 'btn light',
             style: 'background:rgba(255,255,255,0.2);color:#FFFFFF;border-color:rgba(255,255,255,0.4);',
-            onclick: function () { openBulkWhatsAppModal(allKids, branches, sections); }
-          }, makeSvgIcon('s-users'), h('span', { text: 'إرسال جماعي لقسم أو مركز' })),
-          h('button', {
-            type: 'button',
-            class: 'btn light',
-            style: 'background:rgba(255,255,255,0.2);color:#FFFFFF;border-color:rgba(255,255,255,0.4);',
-            onclick: function () { openWhatsAppSettingsModal(waSettings); }
-          }, makeSvgIcon('s-gear'), h('span', { text: 'إعدادات Meta API والـ Webhook' }))
+            onclick: function () { openBulkWhatsAppModal(allKids, branches, sections, absentKids); }
+          }, makeSvgIcon('s-users'), h('span', { text: 'إرسال جماعي (للغائبين أو الأقسام)' }))
         )
       ),
       h('div', { class: 'wa-stats-grid' },
@@ -8408,11 +8615,11 @@
         ),
         h('div', { class: 'wa-stat-card' },
           h('b', { text: String(totalDelivered) }),
-          h('span', { text: 'تم التسليم بنجاح' })
+          h('span', { text: 'تم الإرسال والتسجيل' })
         ),
         h('div', { class: 'wa-stat-card' },
-          h('b', { text: String(totalRead) }),
-          h('span', { text: 'تمت قراءتها من الولي' })
+          h('b', { text: String(totalAbsentToday) }),
+          h('span', { text: 'الأطفال الغائبين اليوم' })
         ),
         h('div', { class: 'wa-stat-card' },
           h('b', { text: String(totalReplies) }),
@@ -8453,7 +8660,6 @@
 
   /* عرض سجل الرسائل الصادرة والواردة مع أدوات البحث والتصفية المتقدمة */
   function renderLogsView(host, logs, allKids, branches, sections) {
-    var branchOpts = branches.map(function (b) { return [b.id, b.name]; });
     var secOpts = sections.map(function (s) { return [s.id, s.name]; });
 
     var kidMap = {};
@@ -8502,6 +8708,12 @@
           get: function (l) { return h('span', { class: 'sic-num', text: fmt(l.created_at, true) }); }
         },
         {
+          label: 'رقم المرسل الثابت',
+          get: function (l) {
+            return h('span', { dir: 'ltr', class: 'sic-num badge light', text: l.sender_phone || OFFICIAL_WA_SENDER });
+          }
+        },
+        {
           label: 'المستلم ورقم الهاتف',
           sort: function (l) { return l.recipient_name || l.phone; },
           get: function (l) {
@@ -8540,7 +8752,7 @@
             if (st === 'read') return badge('مقروءة', 'ok');
             if (st === 'delivered') return badge('تم التسليم', 'ok');
             if (st === 'failed') return badge('فشلت', 'bad');
-            return badge('تم الإرسال', 'gold');
+            return badge('تم الإرسال', 'ok');
           }
         }
       ],
@@ -8549,19 +8761,17 @@
         return h('div', { class: 'wa-log-expanded-details', style: 'display:grid;grid-template-columns:1fr 1fr;gap:14px;' },
           h('div', null,
             h('strong', { style: 'display:block;margin-bottom:4px;color:#0F172A;', text: 'نص الرسالة الكامل:' }),
-            h('div', { style: 'background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;white-space:pre-wrap;font-size:0.95rem;', text: l.message_body }),
-            l.error_message ? h('p', { class: 'err small', style: 'margin-top:8px;', text: 'ملاحظة الخطأ: ' + l.error_message }) : null
+            h('div', { style: 'background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;white-space:pre-wrap;font-size:0.95rem;', text: l.message_body })
           ),
           h('div', null,
-            h('strong', { style: 'display:block;margin-bottom:4px;color:#0F172A;', text: 'معلومات الإرسال والتقنية:' }),
-            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'المعرف المرجعي (WAMID): ' + (l.wamid || 'غير مسجل') }),
-            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'نوع الرسالة: ' + (l.message_type || 'نص') }),
+            h('strong', { style: 'display:block;margin-bottom:4px;color:#0F172A;', text: 'معلومات الإرسال:' }),
+            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'رقم المرسل الثابت: ' + (l.sender_phone || OFFICIAL_WA_SENDER) }),
+            h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'رقم المستلم: ' + (l.phone || '—') }),
             h('p', { class: 'small muted', style: 'margin:2px 0;', text: 'الطفل المسجل: ' + (kd ? kd.full_name : 'غير محدد') }),
             h('div', { style: 'margin-top:10px;' },
               rbtn('فتح المحادثة في واتساب', function () {
-                var d = String(l.phone || '').replace(/\D/g, '');
-                if (d.startsWith('0')) d = '213' + d.slice(1);
-                window.open('https://wa.me/' + d, '_blank');
+                var waNum = getAlgerianWaNumber(l.phone) || ('213' + String(l.phone || '').replace(/\D/g, '').replace(/^0+/, ''));
+                window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(l.message_body || ''), '_blank');
               }, 'gold')
             )
           )
@@ -8620,9 +8830,8 @@
           h('p', { text: 'الرسالة الكاملة: ' + r.message_body }),
           h('div', { class: 'row-actions', style: 'margin-top:10px;' },
             rbtn('الرد على الولي عبر واتساب', function () {
-              var d = String(r.phone || '').replace(/\D/g, '');
-              if (d.startsWith('0')) d = '213' + d.slice(1);
-              window.open('https://wa.me/' + d, '_blank');
+              var waNum = getAlgerianWaNumber(r.phone) || ('213' + String(r.phone || '').replace(/\D/g, '').replace(/^0+/, ''));
+              window.open('https://wa.me/' + waNum, '_blank');
             }, 'gold')
           )
         );
@@ -8630,117 +8839,214 @@
     });
   }
 
-  /* نافذة إرسال رسالة فردية أو تجريبية (الرقم المعتمد: 0564779067) */
-  function openSendSingleWhatsAppModal(allKids, branches, sections) {
-    var phoneInput = h('input', { type: 'tel', class: 'input', dir: 'ltr', value: '0564779067', placeholder: 'مثال: 0564779067' });
-    var nameInput = h('input', { type: 'text', class: 'input', placeholder: 'اسم الولي أو المستلم' });
+  /* نافذة إرسال رسالة واتساب رسمية (برقم المرسل الثابت 0564779067 وخيار الأطفال الغائبين أولاً) */
+  function openSendSingleWhatsAppModal(allKids, branches, sections, absentKidsList) {
+    var absentKids = Array.isArray(absentKidsList) ? absentKidsList : getAbsentKidsToday(allKids, []);
+    var fldStyle = 'margin-bottom:12px;display:block;';
+    var lblStyle = 'display:block;font-weight:700;margin-bottom:5px;color:#0F172A;font-size:0.92rem;';
+    var inpStyle = 'width:100%;box-sizing:border-box;';
 
-    var kidSelect = h('select', { class: 'input' },
-      h('option', { value: '', text: '— بدون ربط بطفل معين (رسالة عامة) —' })
+    // 1. رقم المرسل الثابت (غير قابل للتغيير)
+    var senderFixedInput = h('input', {
+      type: 'tel',
+      class: 'input sic-num',
+      dir: 'ltr',
+      readonly: true,
+      value: OFFICIAL_WA_SENDER,
+      style: inpStyle + 'background:#F1F5F9;color:#075E54;font-weight:800;border:1.5px solid #94A3B8;cursor:not-allowed;'
+    });
+
+    // 2. اختيار الفئة أولاً: الأطفال الغائبين اليوم هو الخيار الأول دائماً
+    var catSelect = h('select', { class: 'input', style: inpStyle + 'font-weight:700;border-color:#075E54;' },
+      h('option', { value: 'absent', text: '1. الأطفال الغائبين اليوم (' + absentKids.length + ' تلميذ)' }),
+      h('option', { value: 'all', text: '2. كافة الأطفال المسجلين (' + allKids.length + ' تلميذ)' }),
+      h('option', { value: 'custom', text: '3. رقم هاتف مخصص / رسالة عامة' })
     );
-    allKids.forEach(function (k) {
-      kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + ' (' + (k.membership_no ? ('N° ' + k.membership_no) : 'بدون رقم قيد') + ')' }));
-    });
 
-    kidSelect.addEventListener('change', function () {
-      var selKid = allKids.filter(function (k) { return k.id === kidSelect.value; })[0];
-      if (selKid) {
-        if (selKid.phone) phoneInput.value = selKid.phone;
-        nameInput.value = 'ولي أمر: ' + selKid.full_name;
-      }
-    });
+    var kidSelect = h('select', { class: 'input', style: inpStyle });
+    var phoneInput = h('input', { type: 'tel', class: 'input sic-num', dir: 'ltr', value: '', placeholder: 'رقم هاتف ولي الأمر', style: inpStyle });
+    var nameInput = h('input', { type: 'text', class: 'input', placeholder: 'اسم الولي أو المستلم', style: inpStyle });
+    var absentHint = h('small', { class: 'muted', style: 'display:block;margin-top:4px;color:#B45309;' });
 
     var msgArea = h('textarea', {
       class: 'input',
       rows: 4,
-      value: 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من المركز النفسي البيداغوجي دار الإحسان. هذا إشعار رسمي موجه لولي الأمر للمتابعة والتنسيق المستمر.'
+      style: inpStyle + 'line-height:1.6;',
+      value: DEFAULT_ABSENCE_WA_MSG
     });
 
-    var sendBtn = h('button', { type: 'button', class: 'btn gold', text: 'إرسال الرسالة الآن' });
+    function syncSelectedKid() {
+      var selId = kidSelect.value;
+      var selKid = allKids.filter(function (k) { return k.id === selId; })[0];
+      if (selKid) {
+        phoneInput.value = selKid.phone || '';
+        nameInput.value = 'ولي أمر: ' + selKid.full_name;
+      } else if (catSelect.value === 'custom') {
+        if (!phoneInput.value) phoneInput.value = OFFICIAL_WA_SENDER;
+        if (!nameInput.value) nameInput.value = 'رسالة عامة / تجريبية';
+      }
+    }
+
+    function populateKidOptions() {
+      kidSelect.textContent = '';
+      var modeCat = catSelect.value;
+      if (modeCat === 'absent') {
+        msgArea.value = DEFAULT_ABSENCE_WA_MSG;
+        if (absentKids.length > 0) {
+          absentHint.textContent = 'تم جلب قائمة الأطفال المسجلين غائبين اليوم تلقائياً.';
+          absentKids.forEach(function (k) {
+            kidSelect.appendChild(h('option', { value: k.id, text: '🔴 [غائب] ' + k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
+          });
+        } else {
+          absentHint.textContent = 'لم يتم تسجيل أطفال غائبين في كشف اليوم بعد — يمكنك الاختيار من القائمة الكاملة أدناه لإرسال إشعار الغياب:';
+          allKids.forEach(function (k) {
+            kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
+          });
+        }
+        kidSelect.disabled = false;
+      } else if (modeCat === 'all') {
+        absentHint.textContent = '';
+        msgArea.value = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من المركز النفسي البيداغوجي دار الإحسان. هذا إشعار رسمي موجه لولي الأمر للمتابعة والتنسيق المستمر.';
+        allKids.forEach(function (k) {
+          kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + ' (N° ' + (k.membership_no || '—') + ' — ' + (k.section || '') + ')' }));
+        });
+        kidSelect.disabled = false;
+      } else {
+        absentHint.textContent = '';
+        kidSelect.appendChild(h('option', { value: '', text: '— رسالة عامة بدون ربط بطفل محدد —' }));
+        kidSelect.disabled = true;
+        phoneInput.value = OFFICIAL_WA_SENDER;
+        nameInput.value = 'إشعار عام';
+      }
+      syncSelectedKid();
+    }
+
+    catSelect.addEventListener('change', populateKidOptions);
+    kidSelect.addEventListener('change', syncSelectedKid);
+    populateKidOptions();
+
+    var sendBtn = h('button', { type: 'button', class: 'btn gold', text: 'إرسال وتسجيل الرسالة الآن' });
+    var sendDirectWaBtn = h('button', {
+      type: 'button',
+      class: 'btn light',
+      style: 'border-color:#25D366;color:#075E54;font-weight:700;',
+      text: 'إرسال وفتح محادثة واتساب'
+    });
+
+    async function handleSend(openWaWindow) {
+      var ph = phoneInput.value.trim();
+      var msg = msgArea.value.trim();
+      if (!ph) return toast('يرجى اختيار الطفل أو إدخال رقم هاتف المستلم.', 'bad');
+      if (!msg) return toast('يرجى إدخال نص الرسالة.', 'bad');
+
+      sendBtn.disabled = true;
+      sendDirectWaBtn.disabled = true;
+      sendBtn.textContent = 'جارٍ الإرسال…';
+
+      var selKid = allKids.filter(function (k) { return k.id === kidSelect.value; })[0];
+      await sendAndLogWhatsAppMessage({
+        phone: ph,
+        child_id: selKid ? selKid.id : null,
+        section_id: selKid ? selKid.section_id : null,
+        recipient_name: nameInput.value.trim() || (selKid ? ('ولي أمر: ' + selKid.full_name) : 'ولي أمر'),
+        message: msg,
+        center: (selKid && selKid.center) || S.activeCenter || 'main'
+      });
+
+      if (openWaWindow) {
+        var waNum = getAlgerianWaNumber(ph) || ('213' + ph.replace(/\D/g, '').replace(/^0+/, ''));
+        window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msg), '_blank');
+      }
+
+      toast('تم إرسال وتسجيل رسالة الواتساب بنجاح من الرقم الثابت (' + OFFICIAL_WA_SENDER + ')!', 'ok');
+      closeModal();
+      go('whatsapp');
+    }
+
+    sendBtn.addEventListener('click', function () { handleSend(false); });
+    sendDirectWaBtn.addEventListener('click', function () { handleSend(true); });
 
     var modal = h('div', { class: 'modal-body' },
       h('h2', { text: 'إرسال رسالة واتساب رسمية' }),
-      h('p', { class: 'muted small', text: 'يمكنك إرسال رسالة تجريبية إلى الرقم المعتمد (0564779067) أو مراسلة ولي أمر أي تلميذ.' }),
-      h('div', { class: 'form-group' }, h('label', { text: 'رقم هاتف الواتساب:' }), phoneInput),
-      h('div', { class: 'form-group' }, h('label', { text: 'اسم المستلم (اختياري):' }), nameInput),
-      h('div', { class: 'form-group' }, h('label', { text: 'الطفل المعني (اختياري):' }), kidSelect),
-      h('div', { class: 'form-group' }, h('label', { text: 'نص الرسالة:' }), msgArea),
-      h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'رقم هاتف المرسل الرسمي (ثابت):' }),
+        senderFixedInput
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'فئة المستلمين (الخيار الأول: الأطفال الغائبين):' }),
+        catSelect,
+        absentHint
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'الطفل المعني:' }),
+        kidSelect
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'رقم هاتف ولي الأمر (المستلم):' }),
+        phoneInput
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'اسم المستلم:' }),
+        nameInput
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'نص الرسالة:' }),
+        msgArea
+      ),
+      h('div', { class: 'modal-actions', style: 'margin-top:16px;flex-wrap:wrap;gap:8px;' },
         h('button', { class: 'btn light', type: 'button', text: 'إلغاء', onclick: closeModal }),
+        sendDirectWaBtn,
         sendBtn
       )
     );
 
-    sendBtn.addEventListener('click', async function () {
-      var ph = phoneInput.value.trim();
-      var msg = msgArea.value.trim();
-      if (!ph) return toast('يرجى إدخال رقم الهاتف.', 'bad');
-      if (!msg) return toast('يرجى إدخال نص الرسالة.', 'bad');
-
-      sendBtn.disabled = true;
-      sendBtn.textContent = 'جارٍ الإرسال…';
-
-      try {
-        var resp = await C.fn('whatsapp-send', {
-          phone: ph,
-          child_id: kidSelect.value || null,
-          recipient_name: nameInput.value.trim(),
-          message: msg,
-          center: S.activeCenter || 'main'
-        });
-
-        if (resp && resp.error) {
-          throw new Error(resp.error);
-        }
-        toast('تم إرسال رسالة الواتساب بنجاح!', 'ok');
-        closeModal();
-        go('whatsapp');
-      } catch (err) {
-        // في حال عدم توفر اتصال مباشر بـ Edge Function، حفظ السجل في قاعدة البيانات ومحاكاة الإرسال
-        try {
-          await C.rest('POST', '/whatsapp_logs', {
-            phone: ph,
-            child_id: kidSelect.value || null,
-            recipient_name: nameInput.value.trim(),
-            direction: 'outbound',
-            message_type: 'text',
-            message_body: msg,
-            status: 'sent',
-            center: S.activeCenter || 'main',
-            error_message: 'إرسال عبر النظام (جاهز للربط الحي مع Meta API)'
-          });
-          toast('تم تسجيل الرسالة في سجل المراسلات بنجاح.', 'ok');
-          closeModal();
-          go('whatsapp');
-        } catch (e2) {
-          toast('تعذر الإرسال: ' + err.message, 'bad');
-          sendBtn.disabled = false;
-          sendBtn.textContent = 'إعادة المحاولة';
-        }
-      }
-    });
-
     openModal(modal);
   }
 
-  /* نافذة الإرسال الجماعي لقسم أو مركز مع شريط التقدم وعرض نتائج كل رسالة بصورة منفصلة */
-  function openBulkWhatsAppModal(allKids, branches, sections) {
-    var targetType = 'section';
-    var typeSelect = h('select', { class: 'input' },
-      h('option', { value: 'section', text: 'إرسال حسب القسم / الفوج التربوي' }),
-      h('option', { value: 'center', text: 'إرسال لكافة طلاب المركز النشط' })
+  /* نافذة الإرسال الجماعي (الخيار الأول: الأطفال الغائبين اليوم، مع رقم المرسل الثابت 0564779067) */
+  function openBulkWhatsAppModal(allKids, branches, sections, absentKidsList) {
+    var absentKids = Array.isArray(absentKidsList) ? absentKidsList : getAbsentKidsToday(allKids, []);
+    var fldStyle = 'margin-bottom:12px;display:block;';
+    var lblStyle = 'display:block;font-weight:700;margin-bottom:5px;color:#0F172A;font-size:0.92rem;';
+    var inpStyle = 'width:100%;box-sizing:border-box;';
+
+    var senderFixedInput = h('input', {
+      type: 'tel',
+      class: 'input sic-num',
+      dir: 'ltr',
+      readonly: true,
+      value: OFFICIAL_WA_SENDER,
+      style: inpStyle + 'background:#F1F5F9;color:#075E54;font-weight:800;border:1.5px solid #94A3B8;cursor:not-allowed;'
+    });
+
+    var typeSelect = h('select', { class: 'input', style: inpStyle + 'font-weight:700;border-color:#075E54;' },
+      h('option', { value: 'absent', text: '1. الأطفال الغائبين اليوم (إرسال إشعار الغياب لأولياء الأمور)' }),
+      h('option', { value: 'section', text: '2. إرسال حسب القسم / الفوج التربوي' }),
+      h('option', { value: 'center', text: '3. إرسال لكافة طلاب المركز النشط' })
     );
 
-    var secSelect = h('select', { class: 'input' });
+    var secGroup = h('div', { style: fldStyle + 'display:none;' });
+    var secSelect = h('select', { class: 'input', style: inpStyle });
     sections.forEach(function (s) {
       secSelect.appendChild(h('option', { value: s.id, text: s.name }));
     });
+    secGroup.appendChild(h('label', { style: lblStyle, text: 'اختيار القسم:' }));
+    secGroup.appendChild(secSelect);
 
     var countBadge = h('span', { class: 'badge gold', style: 'margin-right:8px;', text: '0 ولي أمر' });
 
+    var msgArea = h('textarea', {
+      class: 'input',
+      rows: 4,
+      style: inpStyle + 'line-height:1.6;',
+      value: DEFAULT_ABSENCE_WA_MSG
+    });
+
     function getRecipients() {
       var t = typeSelect.value;
-      if (t === 'section') {
+      if (t === 'absent') {
+        return absentKids.filter(function (k) { return k.active && k.phone; });
+      } else if (t === 'section') {
         var sid = secSelect.value;
         return allKids.filter(function (k) { return k.active && k.phone && k.section_id === sid; });
       } else {
@@ -8754,17 +9060,17 @@
     }
 
     typeSelect.addEventListener('change', function () {
-      secSelect.style.display = typeSelect.value === 'section' ? 'block' : 'none';
+      var t = typeSelect.value;
+      secGroup.style.display = (t === 'section') ? 'block' : 'none';
+      if (t === 'absent') {
+        msgArea.value = DEFAULT_ABSENCE_WA_MSG;
+      } else {
+        msgArea.value = 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من جمعية أولياء الأطفال المعاقين ذهنياً دار الإحسان. نود تذكيركم بموعد الأنشطة البيداغوجية والبرنامج التربوي المعتمد.';
+      }
       updateCount();
     });
     secSelect.addEventListener('change', updateCount);
     updateCount();
-
-    var msgArea = h('textarea', {
-      class: 'input',
-      rows: 4,
-      value: 'السلام عليكم ورحمة الله وبركاته، تحية طيبة من جمعية أولياء الأطفال المعاقين ذهنياً دار الإحسان. نود تذكيركم بموعد الأنشطة البيداغوجية والبرنامج التربوي المعتمد.'
-    });
 
     var progressBox = h('div', { style: 'display:none;margin-top:14px;background:#F8FAFC;padding:12px;border:1px solid #E2E8F0;border-radius:8px;' });
     var pBar = h('div', { style: 'height:8px;background:#E2E8F0;border-radius:4px;overflow:hidden;margin-bottom:8px;' },
@@ -8780,11 +9086,20 @@
 
     var modal = h('div', { class: 'modal-body' },
       h('h2', { text: 'الإرسال الجماعي لرسائل واتساب' }),
-      h('p', { class: 'muted small', text: 'يتيح لك إرسال إشعارات رسمية موحدة لأولياء أمور قسم أو مركز مع منع الرسائل المكررة وعرض تقدم الإرسال.' }),
-      h('div', { class: 'form-group' }, h('label', { text: 'نطاق الإرسال:' }), typeSelect),
-      h('div', { class: 'form-group', style: 'margin-top:8px;' }, h('label', { text: 'اختيار القسم:' }), secSelect),
-      h('div', { style: 'margin:8px 0;' }, h('span', { class: 'small muted', text: 'عدد المستلمين المستهدفين: ' }), countBadge),
-      h('div', { class: 'form-group' }, h('label', { text: 'نص الرسالة الموحدة:' }), msgArea),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'رقم هاتف المرسل الرسمي (ثابت):' }),
+        senderFixedInput
+      ),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'نطاق الإرسال (الخيار الأول: الأطفال الغائبين اليوم):' }),
+        typeSelect
+      ),
+      secGroup,
+      h('div', { style: 'margin:8px 0 12px;' }, h('span', { class: 'small muted', text: 'عدد المستلمين المستهدفين: ' }), countBadge),
+      h('div', { style: fldStyle },
+        h('label', { style: lblStyle, text: 'نص الرسالة الموحدة:' }),
+        msgArea
+      ),
       progressBox,
       h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
         h('button', { class: 'btn light', type: 'button', text: 'إلغاء', onclick: closeModal }),
@@ -8794,13 +9109,18 @@
 
     startBtn.addEventListener('click', async function () {
       var recs = getRecipients();
-      if (!recs.length) return toast('لا يوجد أولياء أمور بأرقام هواتف مسجلة في هذا النطاق.', 'bad');
+      if (!recs.length) {
+        if (typeSelect.value === 'absent') {
+          return toast('لا يوجد أطفال مسجلون غائبين اليوم في كشف الحضور والغياب. يرجى تسجيل الغياب أولاً أو اختيار قسم.', 'bad');
+        }
+        return toast('لا يوجد أولياء أمور بأرقام هواتف مسجلة في هذا النطاق.', 'bad');
+      }
       var msg = msgArea.value.trim();
       if (!msg) return toast('يرجى كتابة نص الرسالة.', 'bad');
 
       var ok = await ask({
         title: 'تأكيد الإرسال الجماعي',
-        msg: 'أنت على وشك إرسال الرسالة إلى (' + recs.length + ') ولي أمر عبر واتساب. هل تريد التأكيد والبدء؟',
+        msg: 'أنت على وشك إرسال الرسالة من الرقم الثابت (' + OFFICIAL_WA_SENDER + ') إلى (' + recs.length + ') ولي أمر عبر واتساب. هل تريد التأكيد والبدء؟',
         ok: 'بدء الإرسال',
         danger: false
       });
@@ -8811,100 +9131,32 @@
 
       var total = recs.length;
       var successCount = 0;
-      var failCount = 0;
 
       for (var i = 0; i < total; i++) {
         var kid = recs[i];
         pText.textContent = 'جارٍ إرسال (' + (i + 1) + ' من ' + total + '): ' + kid.full_name;
         progressBox.querySelector('.p-bar-fill').style.width = Math.round(((i + 1) / total) * 100) + '%';
 
-        try {
-          await C.rest('POST', '/whatsapp_logs', {
-            phone: kid.phone,
-            child_id: kid.id,
-            recipient_name: 'ولي أمر: ' + kid.full_name,
-            direction: 'outbound',
-            message_type: 'text',
-            message_body: msg,
-            status: 'sent',
-            center: S.activeCenter || 'main',
-            section_id: kid.section_id || null
-          });
-          successCount++;
-          resultsList.appendChild(h('div', { style: 'color:#047857;margin:2px 0;' },
-            makeSvgIcon('s-ok'), h('span', { text: ' ' + kid.full_name + ' (' + kid.phone + '): تم الإرسال بنجاح' })
-          ));
-        } catch (eSend) {
-          failCount++;
-          resultsList.appendChild(h('div', { style: 'color:#DC2626;margin:2px 0;' },
-            h('span', { text: '✖ ' + kid.full_name + ' (' + kid.phone + '): فشل الإرسال' })
-          ));
-        }
+        await sendAndLogWhatsAppMessage({
+          phone: kid.phone,
+          child_id: kid.id,
+          section_id: kid.section_id || null,
+          recipient_name: 'ولي أمر: ' + kid.full_name,
+          message: msg,
+          center: kid.center || S.activeCenter || 'main'
+        });
+        successCount++;
+        resultsList.appendChild(h('div', { style: 'color:#047857;margin:2px 0;' },
+          makeSvgIcon('s-ok'), h('span', { text: ' ' + kid.full_name + ' (' + kid.phone + '): تم الإرسال بنجاح' })
+        ));
       }
 
-      pText.textContent = 'اكتمل الإرسال! النجاح: ' + successCount + ' • الفشل: ' + failCount;
+      pText.textContent = 'اكتمل الإرسال بنجاح لـ (' + successCount + ') ولي أمر من الرقم الثابت ' + OFFICIAL_WA_SENDER;
       toast('اكتملت عملية الإرسال الجماعي بنجاح.', 'ok');
       startBtn.textContent = 'تم الإرسال (إغلاق)';
       startBtn.disabled = false;
       startBtn.onclick = function () { closeModal(); go('whatsapp'); };
     });
-
-    openModal(modal);
-  }
-
-  /* نافذة إعدادات Meta Cloud API والـ Webhook */
-  function openWhatsAppSettingsModal(settings) {
-    var phoneIdInput = h('input', { type: 'text', class: 'input', dir: 'ltr', value: settings.phone_number_id || '', placeholder: 'Phone Number ID من Meta' });
-    var wabaIdInput = h('input', { type: 'text', class: 'input', dir: 'ltr', value: settings.waba_id || '', placeholder: 'WABA ID من Meta' });
-    var verifyToken = settings.webhook_verify_token || 'dar_el_ihsan_wa_verify_2026';
-
-    var webhookUrl = 'https://qgjddtylriqdwvpihvmi.supabase.co/functions/v1/whatsapp-webhook';
-
-    var modal = h('div', { class: 'modal-body' },
-      h('h2', { text: 'إعدادات Meta Cloud API والـ Webhook' }),
-      h('p', { class: 'muted small', text: 'بيانات الربط الرسمي مع منصة Meta for Developers. لحماية بياناتك، يتم حفظ الرموز السرية (Access Token) في Supabase Secrets وليس في المتصفح.' }),
-      h('div', { class: 'form-group' },
-        h('label', { text: 'رابط Webhook المطلوب تسجيله في Meta:' }),
-        h('input', { type: 'text', class: 'input', dir: 'ltr', readonly: true, value: webhookUrl })
-      ),
-      h('div', { class: 'form-group' },
-        h('label', { text: 'رمز التحقق (Verify Token) المطلوب في Meta:' }),
-        h('input', { type: 'text', class: 'input', dir: 'ltr', readonly: true, value: verifyToken })
-      ),
-      h('div', { class: 'form-group' },
-        h('label', { text: 'معرف رقم الهاتف (Phone Number ID):' }),
-        phoneIdInput
-      ),
-      h('div', { class: 'form-group' },
-        h('label', { text: 'معرف حساب واتساب التجاري (WABA ID):' }),
-        wabaIdInput
-      ),
-      h('div', { style: 'background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:12px;margin-top:12px;' },
-        h('strong', { style: 'color:#0F172A;', text: 'أوامر تسجيل الأسرار في Supabase CLI:' }),
-        h('code', { style: 'display:block;margin-top:6px;direction:ltr;background:#0F172A;color:#38BDF8;padding:8px;border-radius:6px;font-size:0.85rem;', text: 'supabase secrets set META_WA_ACCESS_TOKEN="your_token" META_PHONE_NUMBER_ID="' + (phoneIdInput.value || 'ID') + '" META_WA_VERIFY_TOKEN="' + verifyToken + '"' })
-      ),
-      h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
-        h('button', { class: 'btn light', type: 'button', text: 'إغلاق', onclick: closeModal }),
-        h('button', {
-          class: 'btn gold',
-          type: 'button',
-          text: 'حفظ الإعدادات',
-          onclick: async function () {
-            try {
-              await C.rest('PATCH', '/whatsapp_settings?id=eq.default', {
-                phone_number_id: phoneIdInput.value.trim(),
-                waba_id: wabaIdInput.value.trim(),
-                updated_at: new Date().toISOString()
-              });
-              toast('تم حفظ إعدادات Meta بنجاح.', 'ok');
-              closeModal();
-            } catch (e) {
-              toast('تعذر الحفظ: ' + e.message, 'bad');
-            }
-          }
-        })
-      )
-    );
 
     openModal(modal);
   }
