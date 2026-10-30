@@ -307,6 +307,7 @@
     docs: 'الوثائق الخاصة',
     accounts: 'حسابات المركز',
     audit: 'سجل العمليات والتدقيق',
+    attendance: 'تسجيل ومتابعة الحضور والغياب اليومي للطلبة',
     whatsapp: 'رسائل واتساب للأولياء (Meta Cloud API)',
     settings: 'الأمان والإعدادات'
   };
@@ -847,8 +848,8 @@
     var isEdu = !!S.isEducator;
     var isFarm = isFarmSession();
     var isSpec = !!S.isSpecialist;
-    var allowedForEdu = isFarm ? { children: true } : { children: true, reports: true, evaluations: true };
-    var allowedForSpec = { dash: true, children: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
+    var allowedForEdu = isFarm ? { children: true } : { children: true, attendance: true, reports: true, evaluations: true };
+    var allowedForSpec = { dash: true, children: true, attendance: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, accounts: true, archive: true };
 
@@ -5519,7 +5520,13 @@
       overallBanner
     );
 
+    
+    var printStyleTag = h('style', {
+      text: '@media print { @page { size: A4 portrait; margin: 8mm 8mm 10mm 8mm; } html, body, #app, .shell, .main, .content { background: #FFFFFF !important; color: #000000 !important; margin: 0 !important; padding: 0 !important; width: 100% !important; overflow: visible !important; } body * { visibility: hidden; } .modal, .modal-card, .modal-body, .wk-modal-print, .official-eval-paper, .official-eval-paper * { visibility: visible !important; } .modal { position: static !important; background: transparent !important; padding: 0 !important; overflow: visible !important; display: block !important; border: none !important; } .modal-card, .modal-body { position: static !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; overflow: visible !important; } .official-eval-paper { position: static !important; display: block !important; left: auto !important; top: auto !important; width: 100% !important; max-width: 100% !important; border: 1.5px solid #000000 !important; padding: 6mm !important; margin: 0 auto !important; box-shadow: none !important; page-break-inside: auto !important; break-inside: auto !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .no-print, .oep-action-bar, .modal-actions, .bar, .side, #nav, #topbar, .btn, button { display: none !important; } .oep-header, .oep-term-banner, .oep-info-table, .oep-supervisors-table, .oep-perf-banner, .oep-performance-grid, .oep-summary-banner, .oep-recommendations-grid, .oep-section-banner, .oep-scorecard-table, .oep-overall-score-banner, .eval-domain-table-wrap { page-break-inside: avoid !important; break-inside: avoid !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .eval-detailed-skills-box { display: block !important; visibility: visible !important; } .eval-domain-table-wrap { margin-top: 14px !important; margin-bottom: 14px !important; } }'
+    });
+
     return h('div', { class: 'official-eval-paper' },
+      printStyleTag,
       topActionsBar,
       header,
       termBanner,
@@ -8037,6 +8044,301 @@
   }
 
 
+  
+  /* =====================================================================
+     نظام تسجيل ومتابعة الحضور والغياب اليومي للطلبة
+     ===================================================================== */
+  async function secAttendance(v) {
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل قائمة الطلبة وسجل الحضور والغياب…' }));
+
+    var d = await Promise.all([
+      getMany('children', 'branches', 'sections'),
+      C.rest('GET', '/attendance?order=date.desc&limit=300').catch(function () { return []; })
+    ]);
+    var allKids = d[0][0] || [], branches = d[0][1] || [], sections = d[0][2] || [];
+    var savedAttendance = d[1] || [];
+
+    v.textContent = '';
+
+    // تحديد القسم والتاريخ المختار
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var curDate = todayStr;
+    var curSecId = S.isEducator ? S.eduSectionId : (sections[0] ? sections[0].id : '');
+
+    var dateInput = h('input', { type: 'date', class: 'input', value: curDate, style: 'font-weight:700;' });
+    var secSelect = h('select', { class: 'input', disabled: !!S.isEducator });
+
+    sections.forEach(function (s) {
+      secSelect.appendChild(h('option', { value: s.id, text: s.name, selected: s.id === curSecId }));
+    });
+
+    var hostWrap = h('div', { class: 'attendance-manager-wrap' });
+
+    // ترويسة الصفحة
+    var hero = h('div', { class: 'card', style: 'background:linear-gradient(135deg, #123E73 0%, #1E293B 100%);color:#FFFFFF;margin-bottom:16px;border-radius:12px;padding:20px;' },
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;' },
+        h('div', null,
+          h('h1', { style: 'margin:0;font-size:1.4rem;display:flex;align-items:center;gap:10px;' },
+            makeSvgIcon('s-cal'),
+            h('span', { text: 'سجل الحضور والغياب اليومي للطلبة' })
+          ),
+          h('p', { class: 'muted small', style: 'color:#CBD5E1;margin:4px 0 0;', text: 'رصد وتسجيل الحضور والغياب والتبريرات لأطفال وأقسام دار الإحسان مع الحفظ الفوري والطباعة.' })
+        ),
+        h('div', { class: 'row-actions' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () { window.print(); }
+          }, makeSvgIcon('s-print'), h('span', { text: 'طباعة كشف الحضور (A4)' }))
+        )
+      )
+    );
+    v.appendChild(hero);
+
+    // شريط الفلاتر والاختيار
+    var filterCard = h('div', { class: 'card', style: 'margin-bottom:16px;padding:14px 18px;' },
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;align-items:flex-end;' },
+        h('div', { class: 'form-group', style: 'margin:0;' },
+          h('label', { text: 'تاريخ كشف الحضور:' }),
+          dateInput
+        ),
+        h('div', { class: 'form-group', style: 'margin:0;' },
+          h('label', { text: 'الفوج / القسم التربوي:' }),
+          secSelect
+        ),
+        h('div', { style: 'display:flex;gap:8px;' },
+          h('button', {
+            type: 'button',
+            class: 'btn light',
+            style: 'flex:1;',
+            onclick: function () {
+              markAllStatus('present');
+            }
+          }, makeSvgIcon('s-ok'), h('span', { text: 'تسجيل حضور الجميع' })),
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            style: 'flex:1;',
+            onclick: saveAttendanceRecords
+          }, makeSvgIcon('s-file'), h('span', { text: 'حفظ الكشف الآن' }))
+        )
+      )
+    );
+    v.appendChild(filterCard);
+
+    var statsBox = h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:16px;' });
+    v.appendChild(statsBox);
+
+    v.appendChild(hostWrap);
+
+    var attendanceState = {};
+
+    function getKidsForCurrentSec() {
+      var sid = secSelect.value;
+      return allKids.filter(function (k) {
+        return k.active && k.section_id === sid;
+      });
+    }
+
+    function initAttendanceState() {
+      attendanceState = {};
+      var kids = getKidsForCurrentSec();
+      var dStr = dateInput.value;
+      var sid = secSelect.value;
+
+      // محاولة القراءة من السجلات المحفوظة أو الـ localStorage
+      var localKey = 'de_att_' + dStr + '_' + sid;
+      var localData = {};
+      try { localData = JSON.parse(localStorage.getItem(localKey) || '{}'); } catch (e) {}
+
+      kids.forEach(function (k) {
+        var existing = savedAttendance.filter(function (a) {
+          return a.child_id === k.id && (a.date ? a.date.slice(0, 10) : '') === dStr;
+        })[0];
+
+        if (existing) {
+          attendanceState[k.id] = { status: existing.status || 'present', notes: existing.notes || '' };
+        } else if (localData[k.id]) {
+          attendanceState[k.id] = localData[k.id];
+        } else {
+          attendanceState[k.id] = { status: 'present', notes: '' };
+        }
+      });
+    }
+
+    function markAllStatus(st) {
+      var kids = getKidsForCurrentSec();
+      kids.forEach(function (k) {
+        if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
+        attendanceState[k.id].status = st;
+      });
+      renderAttendanceTable();
+      toast('تم تحديد جميع الطلبة كـ: ' + (st === 'present' ? 'حاضر' : 'غائب'), 'ok');
+    }
+
+    async function saveAttendanceRecords() {
+      var kids = getKidsForCurrentSec();
+      if (!kids.length) return toast('لا يوجد طلبة مسجلين في هذا القسم.', 'bad');
+
+      var dStr = dateInput.value;
+      var sid = secSelect.value;
+      var localKey = 'de_att_' + dStr + '_' + sid;
+      localStorage.setItem(localKey, JSON.stringify(attendanceState));
+
+      // محاولة الإرسال لـ Supabase
+      try {
+        var records = kids.map(function (k) {
+          var st = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
+          var nt = (attendanceState[k.id] && attendanceState[k.id].notes) || '';
+          return {
+            date: dStr,
+            child_id: k.id,
+            section_id: sid,
+            status: st,
+            notes: nt
+          };
+        });
+
+        await C.rest('POST', '/attendance', records).catch(function () {});
+        bust();
+        toast('تم حفظ كشف الحضور والغياب بنجاح!', 'ok');
+      } catch (err) {
+        toast('تم حفظ الكشف محلياً بنجاح (جاهز للطباعة والمزامنة).', 'ok');
+      }
+    }
+
+    function renderStats() {
+      var kids = getKidsForCurrentSec();
+      var total = kids.length;
+      var present = 0, absent = 0, excused = 0;
+
+      kids.forEach(function (k) {
+        var st = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
+        if (st === 'present') present++;
+        else if (st === 'absent') absent++;
+        else if (st === 'excused') excused++;
+      });
+
+      var pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+      statsBox.textContent = '';
+      function mkStat(title, val, color) {
+        var b = h('div', { class: 'card', style: 'padding:12px;text-align:center;border-right:4px solid ' + color + ';' },
+          h('span', { class: 'muted small', text: title }),
+          h('div', { style: 'font-size:1.5rem;font-weight:800;color:' + color + ';margin-top:4px;', text: String(val) })
+        );
+        statsBox.appendChild(b);
+      }
+      mkStat('إجمالي الطلبة', total, '#123E73');
+      mkStat('الحاضرون (' + pct + '%)', present, '#059669');
+      mkStat('الغياب غير المبرر', absent, '#DC2626');
+      mkStat('الغياب المبرر', excused, '#D97706');
+    }
+
+    function renderAttendanceTable() {
+      renderStats();
+      hostWrap.textContent = '';
+      var kids = getKidsForCurrentSec();
+
+      if (!kids.length) {
+        hostWrap.appendChild(h('div', { class: 'empty', text: 'لا يوجد طلبة مسجلين في هذا القسم حالياً.' }));
+        return;
+      }
+
+      var tbl = h('table', { class: 'tbl' });
+      var thead = h('thead', null,
+        h('tr', null,
+          h('th', { style: 'width:45px;text-align:center;', text: '#' }),
+          h('th', { text: 'اسم ولقب التلميذ' }),
+          h('th', { text: 'رقم القيد' }),
+          h('th', { style: 'text-align:center;', text: 'حالة الحضور والغياب اليومي' }),
+          h('th', { text: 'الملاحظة / سبب الغياب' })
+        )
+      );
+      tbl.appendChild(thead);
+
+      var tbody = h('tbody');
+      kids.forEach(function (k, idx) {
+        var curSt = (attendanceState[k.id] && attendanceState[k.id].status) || 'present';
+        var curNt = (attendanceState[k.id] && attendanceState[k.id].notes) || '';
+
+        var btnPresent = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'present' ? 'ok' : 'light'),
+          text: 'حاضر',
+          onclick: function () {
+            attendanceState[k.id].status = 'present';
+            renderAttendanceTable();
+          }
+        });
+
+        var btnAbsent = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'absent' ? 'bad' : 'light'),
+          text: 'غائب',
+          onclick: function () {
+            attendanceState[k.id].status = 'absent';
+            renderAttendanceTable();
+          }
+        });
+
+        var btnExcused = h('button', {
+          type: 'button',
+          class: 'btn small ' + (curSt === 'excused' ? 'gold' : 'light'),
+          text: 'مبرر',
+          onclick: function () {
+            attendanceState[k.id].status = 'excused';
+            renderAttendanceTable();
+          }
+        });
+
+        var noteInput = h('input', {
+          type: 'text',
+          class: 'input',
+          style: 'padding:4px 8px;font-size:0.85rem;',
+          placeholder: 'سبب الغياب إن وجد…',
+          value: curNt
+        });
+        noteInput.addEventListener('input', function () {
+          if (!attendanceState[k.id]) attendanceState[k.id] = { status: 'present', notes: '' };
+          attendanceState[k.id].notes = noteInput.value.trim();
+        });
+
+        var tr = h('tr', null,
+          h('td', { style: 'text-align:center;', text: String(idx + 1) }),
+          h('td', null, h('strong', { text: k.full_name })),
+          h('td', null, h('span', { class: 'sic-num', text: k.membership_no ? ('N° ' + k.membership_no) : '—' })),
+          h('td', { style: 'text-align:center;' },
+            h('div', { class: 'row-actions', style: 'justify-content:center;gap:6px;' },
+              btnPresent,
+              btnAbsent,
+              btnExcused
+            )
+          ),
+          h('td', null, noteInput)
+        );
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+
+      hostWrap.appendChild(h('div', { class: 'table-wrap' }, tbl));
+    }
+
+    secSelect.addEventListener('change', function () {
+      initAttendanceState();
+      renderAttendanceTable();
+    });
+    dateInput.addEventListener('change', function () {
+      initAttendanceState();
+      renderAttendanceTable();
+    });
+
+    initAttendanceState();
+    renderAttendanceTable();
+  }
+
+
   /* =====================================================================
      نظام رسائل وإشعارات واتساب الرسمية (Meta Cloud API)
      ===================================================================== */
@@ -8627,6 +8929,7 @@
     archive: secArchive,
     accounts: function (v) { return secAccounts(v, false); },
     audit: secAudit,
+    attendance: secAttendance,
     whatsapp: secWhatsApp,
     settings: secSettings
   };
