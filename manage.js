@@ -11,6 +11,19 @@
    لا innerHTML: حماية تامة من XSS باستخدام DE.h و textContent حصراً. */
 (function () {
   'use strict';
+  try {
+    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v50') {
+      localStorage.setItem('de_app_ver', 'v50');
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.update(); });
+        });
+      }
+    }
+  } catch (eVer) {}
   var FILE_BUILD = '2026-10-26.5';
 
   var DEFAULT_CFG = {
