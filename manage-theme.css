@@ -2056,3 +2056,12 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   background: #CBD5E1;
   border-radius: 3px;
 }
+
+/* ===== صندوق ردود واتساب ===== */
+.wa-box{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow:auto;padding:10px;background:#F5F8FC;border:1px solid #DCE6F2;border-radius:12px}
+.wa-msg{max-width:82%;padding:8px 12px;border-radius:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.wa-in{align-self:flex-start;background:#fff;border:1px solid #DCE6F2}
+.wa-out{align-self:flex-end;background:#DCF8E8;border:1px solid #A9E0C0}
+.wa-meta{margin-top:4px;font-size:11px;color:#64748B}
+.wa-warn{margin-top:10px;padding:9px 12px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;font-size:12px;color:#92400E;line-height:1.7}
+.wa-warn[hidden]{display:none}
