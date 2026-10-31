@@ -8309,6 +8309,18 @@
 
   /* القسم الرئيسي: الغيابات والحضور */
   async function secAttendance(v) {
+    try {
+      await secAttendanceInner(v);
+    } catch (eAtt) {
+      v.textContent = '';
+      v.appendChild(h('div', { class: 'err', role: 'alert' },
+        h('p', { text: 'تعذّر عرض قسم الغيابات والحضور: ' + (eAtt && eAtt.message ? eAtt.message : 'خطأ غير معروف') }),
+        h('button', { class: 'btn small', type: 'button', text: 'إعادة المحاولة', onclick: function () { go('attendance'); } })));
+      try { console.error('attendance section error', eAtt); } catch (e0) {}
+    }
+  }
+
+  async function secAttendanceInner(v) {
     ensureAttStyles();
     if (S.isSpecialist) {
       toast('غير مخوّلة: قسم الغيابات والحضور غير متاح لحساب الأخصائية.', 'bad');
