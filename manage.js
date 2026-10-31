@@ -1776,6 +1776,7 @@
 
     var qaItems = [
       { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأطفال والطلبة', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
+      S.activeCenter !== 'farm' ? { sec: 'attendance', icon: 's-cal', title: 'الغيابات والحضور', sub: 'تسجيل الحضور والغياب، إرسال إشعارات WhatsApp، ومتابعة الردود' } : null,
       { sec: 'educators', icon: 's-users', title: 'المربيات', sub: 'إدارة المربيات وإسناد الأفواج وحساباتهن' },
       { sec: 'programs', icon: 's-book', title: 'البرامج التربوية', sub: 'إعداد وتصدير الجداول الأسبوعية للأقسام' },
       S.activeCenter !== 'farm' ? { sec: 'reports', icon: 's-report', title: 'التقارير التربوية', sub: 'التقارير الدورية ومرفقات ملفات الطلبة' } : null,
@@ -5202,6 +5203,222 @@
      ===================================================================== */
   var EVAL_MARKER = '/*DE_EVAL_V1*/';
 
+  
+/* ==============================================================================
+   DAR EL IHSAN — 3 EVALUATION TYPES & ATTENDANCE REPLIES MODULE
+   - Type 1: تقرير اللجنة البيداغوجية والتربوية (Comprehensive)
+   - Type 2: استمارة تقييم دوافع السلوك (مدا - MAS)
+   - Type 3: استمارة ملاحظة سلوك (Observation)
+   - Attendance Replies & 4-Day Auto-Purge
+   ============================================================================== */
+
+var FOUR_DAYS_MS = 4 * 24 * 60 * 60 * 1000; // 4 days in milliseconds (345,600,000 ms)
+
+/* ---------- ثوابت مقياس تقييم دوافع السلوك (MAS) ---------- */
+var MAS_CATEGORIES = [
+  { key: 'sensory', name: 'حسي / استثارة ذاتية', items: [1, 5, 9, 13] },
+  { key: 'escape', name: 'الهروب / تجنب المهام', items: [2, 6, 10, 14] },
+  { key: 'attention', name: 'لفت الانتباه', items: [3, 7, 11, 15] },
+  { key: 'tangible', name: 'أشياء / أنشطة مفضلة (مادي)', items: [4, 8, 12, 16] }
+];
+
+var MAS_SCALE_OPTIONS = [
+  { val: 0, label: '0 = مطلقاً (Never)' },
+  { val: 1, label: '1 = شبه مطلقاً (Almost Never)' },
+  { val: 2, label: '2 = نادراً (Seldom)' },
+  { val: 3, label: '3 = نصف الوقت (Half the Time)' },
+  { val: 4, label: '4 = عادة (Usually)' },
+  { val: 5, label: '5 = أغلب الأوقات (Almost Always)' },
+  { val: 6, label: '6 = دائماً (Always)' }
+];
+
+var MAS_QUESTIONS = [
+  { num: 1, text: 'هل يتكرر السلوك باستمرار إذا ترك الشخص لوحده لمرات ولفترات طويلة لساعات مثلاً؟', cat: 'sensory' },
+  { num: 2, text: 'هل يظهر السلوك عند الطلب منه أن يقوم بمهمة صعبة أو غير محببة؟', cat: 'escape' },
+  { num: 3, text: 'هل يظهر السلوك كاستجابة لتحدثك مع آخرين في الغرفة أو انشغالك عنه؟', cat: 'attention' },
+  { num: 4, text: 'هل يظهر السلوك كوسيلة للحصول على لعبة، طعام، أو نشاط أخبر أنه لن يحصل عليه؟', cat: 'tangible' },
+  { num: 5, text: 'هل يتكرر السلوك بنفس الطريقة لفترات طويلة إذا لم يكن هناك أحد حوله (مثل هز الجسم)؟', cat: 'sensory' },
+  { num: 6, text: 'هل يظهر السلوك عند إعطاء المفحوص تعليمات وأوامر أو تكليفه بنشاط؟', cat: 'escape' },
+  { num: 7, text: 'هل يظهر السلوك عندما توقف انتباهك للمفحوص؟', cat: 'attention' },
+  { num: 8, text: 'هل يظهر السلوك عندما تأخذ لعبة مفضلة، طعام، أو نشاطاً منه؟', cat: 'tangible' },
+  { num: 9, text: 'هل يبدو لك أن المفحوص يستمتع بالقيام بالسلوك (يحب ملمس، مذاق، منظر، أو صوت المثير)؟', cat: 'sensory' },
+  { num: 10, text: 'هل يبدو لك أن المفحوص يقوم بالسلوك ليزعجك أو يغضبك عند محاولتك لجعله يتبع تعليماتك؟', cat: 'escape' },
+  { num: 11, text: 'هل ينظر إليك أو يترقب رد فعلك أثناء قيامه بالسلوك للتأكد من أنك تراه؟', cat: 'attention' },
+  { num: 12, text: 'هل يتوقف السلوك إذا أعطيت المفحوص اللعبة، الطعام أو النشاط الذي طلبه؟', cat: 'tangible' },
+  { num: 13, text: 'خلال القيام بالسلوك هل يظهر المفحوص هادئاً وغير واعٍ لأي شيء آخر يحدث حوله؟', cat: 'sensory' },
+  { num: 14, text: 'هل يتوقف السلوك خلال (1 - 5 دقائق) من إيقافك لتشغيل المفحوص أو إعفائه من المهمة؟', cat: 'escape' },
+  { num: 15, text: 'هل يبدو لك أن المفحوص يقوم بالسلوك لحملك على قضاء بعض الوقت معه والاهتمام به؟', cat: 'attention' },
+  { num: 16, text: 'هل يظهر السلوك عند إخبار المفحوص بأنه لن يقوم بشيء أراد القيام به؟', cat: 'tangible' }
+];
+
+/* ---------- ثوابت استمارة ملاحظة سلوك ---------- */
+var OBSERVATION_STATEMENTS = [
+  'الاستقرار داخل القسم',
+  'التواصل اللفظي مثل القدرة على تكرار الكلمات وفهم التعليمات اللفظية، والتعبير عن الاحتياجات',
+  'التواصل غير اللفظي مثل الإشارات والرموز...',
+  'الاستقلالية والمساعدة الذاتية',
+  'التقليد',
+  'الاستماع والاستجابة للأوامر وللتعليمات',
+  'الطلب والاختيار',
+  'التفاعل الاجتماعي واللعب وبناء علاقات مع الأقران ومع الغير',
+  'الحركية الكبرى والتناسق الحركي',
+  'الانتباه البصري',
+  'الانتباه السمعي',
+  'الانتباه اللمسي',
+  'العصبية والعناد',
+  'السلوكيات الغير مقبولة إن وجدت',
+  'السلوكيات النمطية إن وجدت',
+  'المشاكل الحسية إن وجدت'
+];
+
+/* ---------- دالة تصنيف نوع الاستمارة ---------- */
+function getEvalType(r) {
+  if (!r) return 'comp';
+  if (r.eval_type) return r.eval_type;
+  if (typeof r.activities === 'string' && r.activities.indexOf(EVAL_MARKER) === 0) {
+    try {
+      var parsed = JSON.parse(r.activities.slice(EVAL_MARKER.length));
+      if (parsed && parsed.eval_type) return parsed.eval_type;
+      if (parsed && parsed.mas) return 'mas';
+      if (parsed && parsed.observation) return 'observation';
+    } catch (e) {}
+  }
+  var t = String(r.title || '');
+  if (t.indexOf('MAS') >= 0 || t.indexOf('دوافع السلوك') >= 0 || t.indexOf('مدا') >= 0) return 'mas';
+  if (t.indexOf('ملاحظة سلوك') >= 0 || t.indexOf('استمارة ملاحظة') >= 0) return 'observation';
+  return 'comp';
+}
+
+function getEvalTypeName(type) {
+  if (type === 'mas') return 'استمارة تقييم دوافع السلوك (مدا - MAS)';
+  if (type === 'observation') return 'استمارة ملاحظة سلوك';
+  return 'تقرير اللجنة البيداغوجية والتربوية';
+}
+
+function getEvalTypeBadge(type) {
+  if (type === 'mas') return badge('تقييم دوافع السلوك (MAS)', 'gold');
+  if (type === 'observation') return badge('استمارة ملاحظة سلوك', 'blue');
+  return badge('تقرير بيداغوجي شامل', 'ok');
+}
+
+/* ---------- حساب نقاط مقياس MAS ---------- */
+function calculateMasScores(answers) {
+  var catTotals = {};
+  MAS_CATEGORIES.forEach(function (c) {
+    var sum = 0;
+    c.items.forEach(function (qNum) {
+      var val = parseInt((answers && answers[qNum]) || 0, 10);
+      if (isNaN(val)) val = 0;
+      sum += val;
+    });
+    var avg = (sum / c.items.length).toFixed(2);
+    catTotals[c.key] = {
+      name: c.name,
+      total: sum,
+      avg: parseFloat(avg)
+    };
+  });
+
+  var sorted = Object.keys(catTotals).map(function (k) {
+    return { key: k, total: catTotals[k].total, avg: catTotals[k].avg };
+  }).sort(function (a, b) { return b.total - a.total; });
+
+  sorted.forEach(function (item, idx) {
+    catTotals[item.key].rank = idx + 1;
+  });
+
+  return {
+    scores: catTotals,
+    primaryFunction: sorted[0] ? catTotals[sorted[0].key].name : '—',
+    sortedCategories: sorted
+  };
+}
+
+/* ---------- نظام الردود والحذف التلقائي بعد 4 أيام ---------- */
+function getActiveAttendanceReplies() {
+  var now = Date.now();
+  var raw = [];
+  try {
+    raw = JSON.parse(localStorage.getItem('de_attendance_replies_v2') || '[]');
+  } catch (e) { raw = []; }
+  if (!Array.isArray(raw)) raw = [];
+
+  var valid = [];
+  var hasPurged = false;
+  raw.forEach(function (r) {
+    if (!r) return;
+    var t = r.created_at ? new Date(r.created_at).getTime() : 0;
+    if (t && (now - t > FOUR_DAYS_MS)) {
+      hasPurged = true; // تم تجاوز مهلة 4 أيام
+    } else {
+      valid.push(r);
+    }
+  });
+
+  if (hasPurged) {
+    try { localStorage.setItem('de_attendance_replies_v2', JSON.stringify(valid)); } catch (e) {}
+  }
+  return valid;
+}
+
+function saveAttendanceReply(reply) {
+  var replies = getActiveAttendanceReplies();
+  if (!reply.id) {
+    reply.id = 'rep_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
+  if (!reply.created_at) {
+    reply.created_at = new Date().toISOString();
+  }
+  reply.expires_at = new Date(new Date(reply.created_at).getTime() + FOUR_DAYS_MS).toISOString();
+
+  // تحديث الرد إن وجد للطفل في نفس التاريخ أو إضافة رد جديد
+  var existingIdx = -1;
+  for (var i = 0; i < replies.length; i++) {
+    if (replies[i].child_id === reply.child_id && replies[i].date === reply.date) {
+      existingIdx = i;
+      break;
+    }
+  }
+  if (existingIdx >= 0) {
+    replies[existingIdx] = reply;
+  } else {
+    replies.unshift(reply);
+  }
+
+  try { localStorage.setItem('de_attendance_replies_v2', JSON.stringify(replies)); } catch (e) {}
+
+  // محاولة المزامنة مع خادم قاعدة البيانات إن توفرت نقطة النهاية
+  if (typeof C !== 'undefined' && C.rest) {
+    C.rest('POST', '/whatsapp_messages', {
+      to_phone: reply.phone || '213000000000',
+      direction: 'inbound',
+      body: 'تبرير غياب الطفل [' + (reply.child_name || '') + ']: ' + (reply.reply_text || ''),
+      status: 'delivered',
+      child_id: reply.child_id || null
+    }).catch(function () {});
+  }
+  return reply;
+}
+
+function deleteAttendanceReply(id) {
+  var replies = getActiveAttendanceReplies();
+  var filtered = replies.filter(function (r) { return r.id !== id; });
+  try { localStorage.setItem('de_attendance_replies_v2', JSON.stringify(filtered)); } catch (e) {}
+}
+
+function getReplyRemainingTime(createdAtStr) {
+  if (!createdAtStr) return '—';
+  var t = new Date(createdAtStr).getTime();
+  var elapsed = Date.now() - t;
+  var remaining = FOUR_DAYS_MS - elapsed;
+  if (remaining <= 0) return 'منتهي الصلاحية (سيُحذف)';
+  var days = Math.floor(remaining / (24 * 60 * 60 * 1000));
+  var hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  if (days > 0) return 'متبقي ' + days + ' يوم و ' + hours + ' س';
+  return 'متبقي ' + hours + ' ساعة';
+}
+
+
   function isEvaluationReport(r) {
     if (!r) return false;
     return (typeof r.activities === 'string' && r.activities.indexOf(EVAL_MARKER) === 0)
@@ -5247,6 +5464,9 @@
           if (rawJson.term) res.term = rawJson.term;
           if (rawJson.school_year) res.school_year = rawJson.school_year;
           if (rawJson.degree_of_disability) res.degree_of_disability = rawJson.degree_of_disability;
+          if (rawJson.eval_type) res.eval_type = rawJson.eval_type;
+          if (rawJson.mas) res.mas = rawJson.mas;
+          if (rawJson.observation) res.observation = rawJson.observation;
           if (rawJson.qualification_level) res.qualification_level = rawJson.qualification_level;
           if (Array.isArray(rawJson.supervisors) && rawJson.supervisors.length) res.supervisors = rawJson.supervisors;
           if (rawJson.general_report) res.general_report = rawJson.general_report;
@@ -5308,7 +5528,569 @@
   }
 
   /* رسم ورقة التقييم الرسمية المطابقة بدقة للصورة المرفقة (53020.jpg) */
+  
+/* ---------- ورقة العرض الرسمية لاستمارة تقييم دوافع السلوك (MAS - A4 Sheet) ---------- */
+function renderMasEvaluationSheetView(r, childFullName, secName, kd) {
+  var ev = parseEvaluationReport(r);
+  ev.eval_type = 'mas';
+  var mas = ev.mas || {};
+  var bip = mas.bip || {};
+  var answers = mas.answers || {};
+
+  var ageTxt = '—';
+  if (kd && kd.dob) {
+    try {
+      var birthDate = new Date(kd.dob);
+      var today = new Date();
+      var age = today.getFullYear() - birthDate.getFullYear();
+      var m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      if (age > 0) ageTxt = age + ' سنة';
+    } catch (e) {}
+  }
+
+  var logoImg = h('img', { class: 'oep-logo-side', alt: 'شعار الجمعية' });
+  logoImg.setAttribute('src', 'logo-sq.png');
+
+  // 1. ترويسة الوثيقة الرسمية
+  var header = h('div', { class: 'oep-header' },
+    h('div', { class: 'oep-title-block' },
+      h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
+      h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
+      h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
+      h('div', { class: 'oep-fr-title', text: "ÉVALUATION DES MOTIVATIONS DU COMPORTEMENT (MAS) & BIP" }),
+      h('h2', { class: 'oep-report-heading', text: ev.title || 'استمارة تقييم دوافع السلوك (مدا - MAS)' })
+    ),
+    logoImg
+  );
+
+  // 2. بانر عنوان التقييم
+  var termBanner = h('div', { class: 'oep-term-banner', text: 'مقياس تقييم دوافع السلوك الوظيفي مع خطة التدخل السلوكي الفردية (BIP)' });
+
+  // 3. جدول معلومات الحالة
+  var infoTable = h('table', { class: 'oep-info-table' },
+    h('tbody', null,
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'اسم ولقب الحالة:' }),
+        h('td', { class: 'oep-info-val' }, h('strong', { text: childFullName || '—' })),
+        h('td', { class: 'oep-info-label', text: 'العمر:' }),
+        h('td', { class: 'oep-info-val', text: ageTxt })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'التشخيص / الإعاقة:' }),
+        h('td', { class: 'oep-info-val', text: (kd && kd.disability) || '—' }),
+        h('td', { class: 'oep-info-label', text: 'تاريخ الميلاد:' }),
+        h('td', { class: 'oep-info-val', text: (kd && kd.dob) ? fmt(kd.dob) : '—' })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'القسم / الفوج:' }),
+        h('td', { class: 'oep-info-val', text: secName || '—' }),
+        h('td', { class: 'oep-info-label', text: 'تاريخ التقييم:' }),
+        h('td', { class: 'oep-info-val', text: fmt(ev.report_date) })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'القائم بالتقييم / الفاحص:' }),
+        h('td', { class: 'oep-info-val', text: mas.examiner || 'فريق المركز' }),
+        h('td', { class: 'oep-info-label', text: 'البيئة محط التقييم:' }),
+        h('td', { class: 'oep-info-val', text: mas.environment || 'المركز والمنزل' })
+      )
+    )
+  );
+
+  // 4. السلوك المستهدف والتعريف الإجرائي
+  var behBanner = h('div', { class: 'oep-section-banner', style: 'background-color:#E0E7FF; color:#1E1B4B; margin:14px 0 6px;' }, 'تحديد السلوك المستهدف والتعريف الإجرائي');
+  var behCard = h('table', { class: 'oep-info-table', style: 'margin-bottom:12px;' },
+    h('tbody', null,
+      h('tr', null,
+        h('td', { class: 'oep-info-label', style: 'width:20%;', text: 'السلوك المستهدف:' }),
+        h('td', { class: 'oep-info-val', colspan: 3 }, h('strong', { style: 'color:#B45309;', text: mas.target_behavior || '—' }))
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'التعريف الإجرائي ومظاهره:' }),
+        h('td', { class: 'oep-info-val', colspan: 3, style: 'white-space:pre-wrap; line-height:1.6;', text: mas.operational_definition || '—' })
+      )
+    )
+  );
+
+  // 5. حساب الدرجات وجدول العوامل الوظيفية الأربعة
+  var scoreRes = calculateMasScores(answers);
+  var scoreBanner = h('div', { class: 'oep-section-banner', style: 'background-color:#FEF3C7; color:#92400E; margin:14px 0 6px;' }, 'نتائج مقياس تقييم دوافع السلوك (كشف الدرجات والترتيب)');
+
+  var scoreTable = h('table', { class: 'oep-scorecard-table', style: 'margin-bottom:12px;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { text: 'العامل الوظيفي لدوافع السلوك' }),
+        h('th', { text: 'الأسئلة المرتبطة' }),
+        h('th', { text: 'المجموع' }),
+        h('th', { text: 'المتوسط الحسابي' }),
+        h('th', { text: 'الترتيب والدافع' })
+      )
+    ),
+    h('tbody', null,
+      MAS_CATEGORIES.map(function (cat) {
+        var sc = scoreRes.scores[cat.key];
+        var isTop = sc.rank === 1;
+        return h('tr', { style: isTop ? 'background-color:#FEF3C7; font-weight:bold;' : '' },
+          h('td', null, h('strong', { text: cat.name })),
+          h('td', { class: 'sic-num', text: cat.items.join('، ') }),
+          h('td', { class: 'sic-num', text: String(sc.total) }),
+          h('td', { class: 'sic-num', text: String(sc.avg) }),
+          h('td', null, h('span', { class: isTop ? 'badge gold' : 'badge light', text: isTop ? ('★ المرتبة ' + sc.rank + ' (الدافع الأساسي)') : ('المرتبة ' + sc.rank) }))
+        );
+      })
+    )
+  );
+
+  // 6. التحليل والتفسير السلوكي والتوصيات
+  var analysisBanner = h('div', { class: 'oep-perf-banner', text: 'التحليل والتفسير السلوكي والتوصيات' });
+  var analysisGrid = h('div', { class: 'oep-performance-grid', style: 'margin-bottom:12px;' },
+    h('div', { class: 'oep-perf-box' },
+      h('div', { class: 'oep-box-title', text: 'التحليل والتفسير السلوكي المبني على النتائج' }),
+      h('div', { class: 'oep-box-content', style: 'white-space:pre-wrap;', text: mas.behavioral_analysis || '—' })
+    ),
+    h('div', { class: 'oep-perf-box' },
+      h('div', { class: 'oep-box-title', text: 'التوصيات السلوكية الأولية' }),
+      h('div', { class: 'oep-box-content', style: 'white-space:pre-wrap;', text: mas.recommendations || '—' })
+    )
+  );
+
+  // 7. خطة التدخل السلوكي الفردية (BIP)
+  var bipBanner = h('div', { class: 'oep-summary-banner', style: 'background-color:#DCFCE7; color:#14532D;', text: 'خطة التدخل السلوكي الفردية (BIP - Behavior Intervention Plan)' });
+  var bipGrid = h('div', { class: 'oep-recommendations-grid', style: 'margin-bottom:14px;' },
+    h('div', { class: 'oep-rec-card' },
+      h('div', { class: 'oep-rec-header' }, h('span', { class: 'oep-rec-badge', text: '1' }), h('h5', { text: 'الأهداف السلوكية' })),
+      h('div', { class: 'oep-rec-body', style: 'white-space:pre-wrap;', text: bip.behavioral_goals || '—' })
+    ),
+    h('div', { class: 'oep-rec-card' },
+      h('div', { class: 'oep-rec-header' }, h('span', { class: 'oep-rec-badge', text: '2' }), h('h5', { text: 'الإجراءات الوقائية والبيئية' })),
+      h('div', { class: 'oep-rec-body', style: 'white-space:pre-wrap;', text: bip.antecedent_strategies || '—' })
+    ),
+    h('div', { class: 'oep-rec-card' },
+      h('div', { class: 'oep-rec-header' }, h('span', { class: 'oep-rec-badge', text: '3' }), h('h5', { text: 'تعليم السلوك البديل المقبول' })),
+      h('div', { class: 'oep-rec-body', style: 'white-space:pre-wrap;', text: bip.replacement_behavior || '—' })
+    ),
+    h('div', { class: 'oep-rec-card' },
+      h('div', { class: 'oep-rec-header' }, h('span', { class: 'oep-rec-badge', text: '4' }), h('h5', { text: 'استراتيجيات العواقب والتعزيز' })),
+      h('div', { class: 'oep-rec-body', style: 'white-space:pre-wrap;', text: bip.consequence_strategies || '—' })
+    )
+  );
+
+  var bipExtraTable = h('table', { class: 'oep-info-table', style: 'margin-bottom:14px;' },
+    h('tbody', null,
+      h('tr', null,
+        h('td', { class: 'oep-info-label', style: 'width:20%;', text: 'المعززات المحببة:' }),
+        h('td', { class: 'oep-info-val', colspan: 3, text: bip.reinforcers || '—' })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'المتابعة وفريق العمل:' }),
+        h('td', { class: 'oep-info-val', colspan: 3, text: bip.followup_plan || '—' })
+      )
+    )
+  );
+
+  // 8. جدول تفصيلي لكافة بنود مقياس MAS الـ 16
+  var questionRows = MAS_QUESTIONS.map(function (q) {
+    var val = answers[q.num];
+    var scoreTxt = (val !== '' && val != null) ? (val + ' / 6') : 'لم تُقيَّم';
+    var catName = (MAS_CATEGORIES.filter(function (c) { return c.key === q.cat; })[0] || {}).name || '';
+    return h('tr', null,
+      h('td', { class: 'sic-num', style: 'text-align:center; font-weight:bold;', text: String(q.num) }),
+      h('td', null, h('div', { text: q.text }), h('small', { class: 'muted', text: 'العامل: ' + catName })),
+      h('td', { style: 'text-align:center;' }, h('span', { class: 'badge gold', text: scoreTxt }))
+    );
+  });
+
+  var detailTable = h('table', { class: 'oep-domain-table', style: 'margin-bottom:14px;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { style: 'width:50px; text-align:center;', text: '#' }),
+        h('th', { text: 'البند وموقف الملاحظة في مقياس MAS' }),
+        h('th', { style: 'width:120px; text-align:center;', text: 'الدرجة' })
+      )
+    ),
+    h('tbody', null, questionRows)
+  );
+
+  // 9. جدول التوقيعات الرسمية
+  var signaturesTable = h('table', { class: 'oep-supervisors-table', style: 'margin-top:16px;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { text: 'المشرف / الأخصائي الفاحص' }),
+        h('th', { text: 'الوظيفة' }),
+        h('th', { text: 'التوقيع والختم الرسمي' })
+      )
+    ),
+    h('tbody', null,
+      h('tr', null,
+        h('td', { text: mas.examiner || 'أخصائي التربية الخاصة / النفسي' }),
+        h('td', { text: 'الأخصائي المتابع للحالة' }),
+        h('td', { class: 'oep-sig-cell', text: '............................................' })
+      ),
+      h('tr', null,
+        h('td', { text: 'أمير زكرياء' }),
+        h('td', { text: 'مدير المركز النفسي البيداغوجي' }),
+        h('td', { class: 'oep-sig-cell', text: '............................................' })
+      )
+    )
+  );
+
+  // 10. شريط الأزرار العلوي (تنزيل PDF، طباعة A4، تصدير Word)
+  var topActionsBar = h('div', { class: 'oep-action-bar no-print', style: 'display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;padding:10px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;' },
+    h('button', {
+      type: 'button',
+      class: 'btn light',
+      onclick: function () {
+        var wordDoc = generateWordDocMas(r, kd, secName, 'دار الإحسان');
+        downloadWordFile(wordDoc, 'استمارة_دوافع_السلوك_MAS_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.doc');
+      }
+    }, makeSvgIcon('s-file'), h('span', { text: 'تصدير Word (.doc)' })),
+    h('button', {
+      type: 'button',
+      class: 'btn gold',
+      onclick: async function () {
+        try {
+          toast('جارٍ تجهيز وتحميل الاستمارة بصيغة PDF...', 'ok');
+          var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd);
+          DE_PDF.downloadPdf(pdfBytes, 'استمارة_دوافع_السلوك_MAS_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
+          toast('تم تنزيل ملف PDF بنجاح!', 'ok');
+        } catch (e) {
+          toast('تعذر تنزيل PDF: ' + e.message, 'bad');
+        }
+      }
+    }, makeSvgIcon('s-download'), h('span', { text: 'تحميل الاستمارة بصيغة PDF' })),
+    h('button', {
+      type: 'button',
+      class: 'btn',
+      onclick: function () { window.print(); }
+    }, makeSvgIcon('s-print'), h('span', { text: 'طباعة الورقة الرسمية (A4)' }))
+  );
+
+  return h('div', { class: 'official-eval-paper' },
+    topActionsBar,
+    header,
+    termBanner,
+    infoTable,
+    behBanner,
+    behCard,
+    scoreBanner,
+    scoreTable,
+    analysisBanner,
+    analysisGrid,
+    bipBanner,
+    bipGrid,
+    bipExtraTable,
+    h('div', { class: 'oep-section-banner', style: 'background-color:#F1F5F9; color:#334155; margin:14px 0 6px;' }, 'البنود التفصيلية لمقياس تقييم دوافع السلوك (MAS 1-16)'),
+    detailTable,
+    signaturesTable
+  );
+}
+
+/* ---------- ورقة العرض الرسمية لاستمارة ملاحظة سلوك (Observation - A4 Sheet) ---------- */
+function renderObservationEvaluationSheetView(r, childFullName, secName, kd) {
+  var ev = parseEvaluationReport(r);
+  ev.eval_type = 'observation';
+  var obs = ev.observation || {};
+  var ratings = obs.ratings || {};
+
+  var ageTxt = '—';
+  if (kd && kd.dob) {
+    try {
+      var birthDate = new Date(kd.dob);
+      var today = new Date();
+      var age = today.getFullYear() - birthDate.getFullYear();
+      var m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      if (age > 0) ageTxt = age + ' سنة';
+    } catch (e) {}
+  }
+
+  var logoImg = h('img', { class: 'oep-logo-side', alt: 'شعار الجمعية' });
+  logoImg.setAttribute('src', 'logo-sq.png');
+
+  // 1. ترويسة الوثيقة الرسمية
+  var header = h('div', { class: 'oep-header' },
+    h('div', { class: 'oep-title-block' },
+      h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
+      h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
+      h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
+      h('div', { class: 'oep-fr-title', text: "FICHE D&#39;OBSERVATION DU COMPORTEMENT" }),
+      h('h2', { class: 'oep-report-heading', text: ev.title || 'استمارة ملاحظة سلوك' })
+    ),
+    logoImg
+  );
+
+  var termBanner = h('div', { class: 'oep-term-banner', text: 'استمارة متابعة وملاحظة السلوك الميداني والمظاهر النمائية للطفل' });
+
+  // 2. جدول معلومات الحالة
+  var infoTable = h('table', { class: 'oep-info-table' },
+    h('tbody', null,
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'لقب واسم الحالة:' }),
+        h('td', { class: 'oep-info-val' }, h('strong', { text: childFullName || '—' })),
+        h('td', { class: 'oep-info-label', text: 'العمر:' }),
+        h('td', { class: 'oep-info-val', text: ageTxt })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'الإعاقة / الاضطراب:' }),
+        h('td', { class: 'oep-info-val', text: obs.disability || (kd && kd.disability) || '—' }),
+        h('td', { class: 'oep-info-label', text: 'القسم / الفوج:' }),
+        h('td', { class: 'oep-info-val', text: secName || '—' })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-info-label', text: 'تاريخ الملاحظة:' }),
+        h('td', { class: 'oep-info-val', text: fmt(ev.report_date) }),
+        h('td', { class: 'oep-info-label', text: 'القائم بالملاحظة:' }),
+        h('td', { class: 'oep-info-val', text: obs.observer || 'المربية / الأخصائي' })
+      )
+    )
+  );
+
+  // 3. جدول بنود الملاحظة الـ 16
+  var rows = OBSERVATION_STATEMENTS.map(function (stmt, idx) {
+    var cur = ratings[idx] || { status: 'لا يوجد', note: '' };
+    var isPresent = cur.status === 'يوجد';
+    var isModerate = cur.status === 'متوسط';
+    var isAbsent = cur.status === 'لا يوجد' || !cur.status;
+
+    return h('tr', null,
+      h('td', { class: 'sic-num', style: 'text-align:center; font-weight:bold;', text: String(idx + 1) }),
+      h('td', { style: 'font-weight:500;', text: stmt }),
+      h('td', { style: 'text-align:center; font-weight:bold; font-size:16px;' }, isPresent ? '✔' : ''),
+      h('td', { style: 'text-align:center; font-weight:bold; font-size:16px;' }, isModerate ? '✔' : ''),
+      h('td', { style: 'text-align:center; font-weight:bold; font-size:16px;' }, isAbsent ? '✔' : ''),
+      h('td', { style: 'font-size:12px; color:#475569;', text: cur.note || '—' })
+    );
+  });
+
+  var obsTable = h('table', { class: 'oep-domain-table', style: 'margin-bottom:14px;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { style: 'width:40px; text-align:center;', text: '#' }),
+        h('th', { text: 'العبارات' }),
+        h('th', { style: 'width:70px; text-align:center;', text: 'يوجد' }),
+        h('th', { style: 'width:70px; text-align:center;', text: 'متوسط' }),
+        h('th', { style: 'width:70px; text-align:center;', text: 'لا يوجد' }),
+        h('th', { style: 'width:220px;', text: 'ملاحظات' })
+      )
+    ),
+    h('tbody', null, rows)
+  );
+
+  // 4. بطاقة الملاحظات الإضافية
+  var notesBanner = h('div', { class: 'oep-perf-banner', text: 'ملاحظات إضافية وتوجيهات' });
+  var notesBox = h('div', { class: 'oep-perf-box', style: 'margin-bottom:14px;' },
+    h('div', { class: 'oep-box-content', style: 'white-space:pre-wrap; min-height:60px;', text: obs.additional_notes || 'لا توجد ملاحظات إضافية مسجلة.' })
+  );
+
+  // 5. التوقيعات
+  var sigTable = h('table', { class: 'oep-supervisors-table', style: 'margin-top:16px;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { text: 'القائم بالملاحظة' }),
+        h('th', { text: 'الأخصائي النفسي / المشرف' }),
+        h('th', { text: 'إدارة المركز والختم' })
+      )
+    ),
+    h('tbody', null,
+      h('tr', null,
+        h('td', { text: obs.observer || 'المربية / الملاحظ' }),
+        h('td', { text: 'الأخصائي النفسي العيادي' }),
+        h('td', { text: 'المدير: أمير زكرياء' })
+      ),
+      h('tr', null,
+        h('td', { class: 'oep-sig-cell', text: '............................................' }),
+        h('td', { class: 'oep-sig-cell', text: '............................................' }),
+        h('td', { class: 'oep-sig-cell', text: '............................................' })
+      )
+    )
+  );
+
+  // 6. شريط الإجراءات العلوي
+  var topActionsBar = h('div', { class: 'oep-action-bar no-print', style: 'display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;padding:10px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;' },
+    h('button', {
+      type: 'button',
+      class: 'btn light',
+      onclick: function () {
+        var wordDoc = generateWordDocObservation(r, kd, secName, 'دار الإحسان');
+        downloadWordFile(wordDoc, 'استمارة_ملاحظة_سلوك_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.doc');
+      }
+    }, makeSvgIcon('s-file'), h('span', { text: 'تصدير Word (.doc)' })),
+    h('button', {
+      type: 'button',
+      class: 'btn gold',
+      onclick: async function () {
+        try {
+          toast('جارٍ تجهيز وتحميل الاستمارة بصيغة PDF...', 'ok');
+          var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd);
+          DE_PDF.downloadPdf(pdfBytes, 'استمارة_ملاحظة_سلوك_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
+          toast('تم تنزيل ملف PDF بنجاح!', 'ok');
+        } catch (e) {
+          toast('تعذر تنزيل PDF: ' + e.message, 'bad');
+        }
+      }
+    }, makeSvgIcon('s-download'), h('span', { text: 'تحميل الاستمارة بصيغة PDF' })),
+    h('button', {
+      type: 'button',
+      class: 'btn',
+      onclick: function () { window.print(); }
+    }, makeSvgIcon('s-print'), h('span', { text: 'طباعة الورقة الرسمية (A4)' }))
+  );
+
+  return h('div', { class: 'official-eval-paper' },
+    topActionsBar,
+    header,
+    termBanner,
+    infoTable,
+    h('div', { class: 'oep-section-banner', style: 'background-color:#E0E7FF; color:#1E1B4B; margin:14px 0 6px;' }, 'جدول بنود ملاحظة السلوك الميداني (16 عبارة)'),
+    obsTable,
+    notesBanner,
+    notesBox,
+    sigTable
+  );
+}
+
+/* ---------- دالة تصدير ملفات Word (.doc) ---------- */
+function downloadWordFile(content, filename) {
+  var blob = new Blob(['\ufeff' + content], { type: 'application/msword;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+}
+
+/* ---------- مولد مستند Word لاستمارة تقييم دوافع السلوك (MAS) ---------- */
+function generateWordDocMas(rep, child, secName, brName) {
+  var title = rep.title || 'استمارة تقييم دوافع السلوك (مدا - MAS)';
+  var chName = child ? child.full_name : 'غير محدد';
+  var safeDate = rep.report_date || '';
+  var memNo = child ? (child.membership_no || '—') : '—';
+
+  var ev = parseEvaluationReport(rep);
+  var mas = ev.mas || {};
+  var bip = mas.bip || {};
+  var answers = mas.answers || {};
+  var scoreRes = calculateMasScores(answers);
+
+  var scoreRowsHtml = MAS_CATEGORIES.map(function (cat) {
+    var sc = scoreRes.scores[cat.key];
+    return '<tr><td style="padding:6pt;border:1pt solid #000;font-weight:bold;">' + cat.name + '</td>' +
+      '<td style="padding:6pt;border:1pt solid #000;text-align:center;">' + cat.items.join(', ') + '</td>' +
+      '<td style="padding:6pt;border:1pt solid #000;text-align:center;">' + sc.total + '</td>' +
+      '<td style="padding:6pt;border:1pt solid #000;text-align:center;">' + sc.avg + '</td>' +
+      '<td style="padding:6pt;border:1pt solid #000;text-align:center;">' + sc.rank + '</td></tr>';
+  }).join('');
+
+  var qRowsHtml = MAS_QUESTIONS.map(function (q) {
+    var val = answers[q.num];
+    var scTxt = (val !== '' && val != null) ? (val + ' / 6') : '—';
+    return '<tr><td style="padding:4pt;border:1pt solid #000;text-align:center;">' + q.num + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;">' + q.text + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;text-align:center;font-weight:bold;">' + scTxt + '</td></tr>';
+  }).join('');
+
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">\n' +
+    '<head><meta charset="utf-8"><title>' + title + ' — ' + chName + '</title>\n' +
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->\n' +
+    '<style>\n' +
+    '@page { size: 21cm 29.7cm; margin: 2cm; mso-page-orientation: portrait; }\n' +
+    'body { font-family: "Times New Roman", "Cairo", Arial, sans-serif; direction: rtl; text-align: right; color: #000000; }\n' +
+    'table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }\n' +
+    'th, td { border: 1pt solid #000000; padding: 6pt; font-size: 11pt; text-align: right; }\n' +
+    '.banner { background-color: #EAB308; color: #000; font-weight: bold; text-align: center; padding: 6pt; border: 1pt solid #000; margin-bottom: 10pt; }\n' +
+    '.sec-banner { background-color: #7DD3FC; font-weight: bold; text-align: center; padding: 6pt; border: 1pt solid #000; margin-bottom: 8pt; }\n' +
+    '.hdr { text-align: center; border-bottom: 2pt solid #000; padding-bottom: 8pt; margin-bottom: 10pt; }\n' +
+    '</style></head><body>\n' +
+    '<div class="hdr"><h3>جمعية أولياء الأطفال المعاقين ذهنيًا — المركز النفسي البيداغوجي دار الإحسان</h3>\n' +
+    '<p>العطف - غرداية • ÉVALUATION DES MOTIVATIONS DU COMPORTEMENT (MAS) & BIP</p>\n' +
+    '<h2>' + title + '</h2></div>\n' +
+    '<div class="banner">مقياس تقييم دوافع السلوك الوظيفي مع خطة التدخل السلوكي الفردية (BIP)</div>\n' +
+    '<table><tr><td style="background:#f1f5f9;font-weight:bold;width:20%;">اسم ولقب الحالة:</td><td><strong>' + chName + '</strong></td><td style="background:#f1f5f9;font-weight:bold;width:20%;">رقم القيد:</td><td>' + memNo + '</td></tr>\n' +
+    '<tr><td style="background:#f1f5f9;font-weight:bold;">القسم:</td><td>' + secName + '</td><td style="background:#f1f5f9;font-weight:bold;">تاريخ التقييم:</td><td>' + safeDate + '</td></tr>\n' +
+    '<tr><td style="background:#f1f5f9;font-weight:bold;">القائم بالتقييم:</td><td>' + (mas.examiner || '—') + '</td><td style="background:#f1f5f9;font-weight:bold;">البيئة محط التقييم:</td><td>' + (mas.environment || 'المركز والمنزل') + '</td></tr></table>\n' +
+    '<div class="sec-banner">تحديد السلوك المستهدف والتعريف الإجرائي</div>\n' +
+    '<table><tr><td style="width:25%;background:#f8fafc;font-weight:bold;">السلوك المستهدف:</td><td>' + (mas.target_behavior || '—') + '</td></tr>\n' +
+    '<tr><td style="background:#f8fafc;font-weight:bold;">التعريف الإجرائي:</td><td style="white-space:pre-wrap;">' + (mas.operational_definition || '—') + '</td></tr></table>\n' +
+    '<div class="sec-banner">نتائج مقياس تقييم دوافع السلوك (كشف الدرجات والترتيب)</div>\n' +
+    '<table><thead><tr style="background:#f8fafc;"><th>العامل الوظيفي</th><th>الأسئلة</th><th>المجموع</th><th>المتوسط</th><th>الترتيب</th></tr></thead><tbody>' + scoreRowsHtml + '</tbody></table>\n' +
+    '<p><strong>الدافع الأساسي المرجح للسلوك: </strong>' + scoreRes.primaryFunction + '</p>\n' +
+    '<div class="sec-banner">التحليل والتفسير السلوكي والتوصيات</div>\n' +
+    '<table><tr><td style="width:50%;vertical-align:top;"><strong>التحليل والتفسير السلوكي:</strong><p style="white-space:pre-wrap;">' + (mas.behavioral_analysis || '—') + '</p></td>\n' +
+    '<td style="width:50%;vertical-align:top;"><strong>التوصيات الأولية:</strong><p style="white-space:pre-wrap;">' + (mas.recommendations || '—') + '</p></td></tr></table>\n' +
+    '<div class="sec-banner" style="background:#86EFAC;">خطة التدخل السلوكي الفردية (BIP)</div>\n' +
+    '<table><tr><td style="width:50%;vertical-align:top;"><strong>1. الأهداف السلوكية:</strong><p style="white-space:pre-wrap;">' + (bip.behavioral_goals || '—') + '</p></td>\n' +
+    '<td style="width:50%;vertical-align:top;"><strong>2. الإجراءات الوقائية والبيئية:</strong><p style="white-space:pre-wrap;">' + (bip.antecedent_strategies || '—') + '</p></td></tr>\n' +
+    '<tr><td style="width:50%;vertical-align:top;"><strong>3. تعليم السلوك البديل:</strong><p style="white-space:pre-wrap;">' + (bip.replacement_behavior || '—') + '</p></td>\n' +
+    '<td style="width:50%;vertical-align:top;"><strong>4. استراتيجيات العواقب والتعزيز:</strong><p style="white-space:pre-wrap;">' + (bip.consequence_strategies || '—') + '</p></td></tr></table>\n' +
+    '<div class="sec-banner">جدول بنود مقياس MAS التفصيلي (1-16)</div>\n' +
+    '<table><thead><tr style="background:#f8fafc;"><th style="width:30pt;">#</th><th>البند</th><th style="width:50pt;">الدرجة</th></tr></thead><tbody>' + qRowsHtml + '</tbody></table>\n' +
+    '</body></html>';
+}
+
+/* ---------- مولد مستند Word لاستمارة ملاحظة سلوك ---------- */
+function generateWordDocObservation(rep, child, secName, brName) {
+  var title = rep.title || 'استمارة ملاحظة سلوك';
+  var chName = child ? child.full_name : 'غير محدد';
+  var safeDate = rep.report_date || '';
+  var memNo = child ? (child.membership_no || '—') : '—';
+
+  var ev = parseEvaluationReport(rep);
+  var obs = ev.observation || {};
+  var ratings = obs.ratings || {};
+
+  var rowsHtml = OBSERVATION_STATEMENTS.map(function (stmt, idx) {
+    var cur = ratings[idx] || { status: 'لا يوجد', note: '' };
+    var isPresent = cur.status === 'يوجد' ? '✔' : '';
+    var isModerate = cur.status === 'متوسط' ? '✔' : '';
+    var isAbsent = cur.status === 'لا يوجد' || !cur.status ? '✔' : '';
+
+    return '<tr><td style="padding:4pt;border:1pt solid #000;text-align:center;">' + (idx + 1) + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;">' + stmt + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;text-align:center;font-weight:bold;">' + isPresent + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;text-align:center;font-weight:bold;">' + isModerate + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;text-align:center;font-weight:bold;">' + isAbsent + '</td>' +
+      '<td style="padding:4pt;border:1pt solid #000;font-size:10pt;">' + (cur.note || '') + '</td></tr>';
+  }).join('');
+
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">\n' +
+    '<head><meta charset="utf-8"><title>' + title + ' — ' + chName + '</title>\n' +
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->\n' +
+    '<style>\n' +
+    '@page { size: 21cm 29.7cm; margin: 2cm; mso-page-orientation: portrait; }\n' +
+    'body { font-family: "Times New Roman", "Cairo", Arial, sans-serif; direction: rtl; text-align: right; color: #000000; }\n' +
+    'table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }\n' +
+    'th, td { border: 1pt solid #000000; padding: 6pt; font-size: 11pt; text-align: right; }\n' +
+    '.banner { background-color: #EAB308; color: #000; font-weight: bold; text-align: center; padding: 6pt; border: 1pt solid #000; margin-bottom: 10pt; }\n' +
+    '.sec-banner { background-color: #7DD3FC; font-weight: bold; text-align: center; padding: 6pt; border: 1pt solid #000; margin-bottom: 8pt; }\n' +
+    '.hdr { text-align: center; border-bottom: 2pt solid #000; padding-bottom: 8pt; margin-bottom: 10pt; }\n' +
+    '</style></head><body>\n' +
+    '<div class="hdr"><h3>جمعية أولياء الأطفال المعاقين ذهنيًا — المركز النفسي البيداغوجي دار الإحسان</h3>\n' +
+    '<p>العطف - غرداية • FICHE D&#39;OBSERVATION DU COMPORTEMENT</p>\n' +
+    '<h2>' + title + '</h2></div>\n' +
+    '<div class="banner">استمارة متابعة وملاحظة السلوك الميداني والمظاهر النمائية للطفل</div>\n' +
+    '<table><tr><td style="background:#f1f5f9;font-weight:bold;width:20%;">لقب واسم الحالة:</td><td><strong>' + chName + '</strong></td><td style="background:#f1f5f9;font-weight:bold;width:20%;">رقم القيد:</td><td>' + memNo + '</td></tr>\n' +
+    '<tr><td style="background:#f1f5f9;font-weight:bold;">الإعاقة / الاضطراب:</td><td>' + (obs.disability || '—') + '</td><td style="background:#f1f5f9;font-weight:bold;">القسم:</td><td>' + secName + '</td></tr>\n' +
+    '<tr><td style="background:#f1f5f9;font-weight:bold;">تاريخ الملاحظة:</td><td>' + safeDate + '</td><td style="background:#f1f5f9;font-weight:bold;">القائم بالملاحظة:</td><td>' + (obs.observer || '—') + '</td></tr></table>\n' +
+    '<div class="sec-banner">جدول بنود ملاحظة السلوك (16 عبارة)</div>\n' +
+    '<table><thead><tr style="background:#f8fafc;"><th style="width:30pt;">#</th><th>العبارات</th><th style="width:50pt;">يوجد</th><th style="width:50pt;">متوسط</th><th style="width:50pt;">لا يوجد</th><th>ملاحظات</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>\n' +
+    '<div class="sec-banner">ملاحظات وتوجيهات إضافية</div>\n' +
+    '<table><tr><td style="padding:10pt;white-space:pre-wrap;">' + (obs.additional_notes || 'لا توجد ملاحظات إضافية مسجلة.') + '</td></tr></table>\n' +
+    '</body></html>';
+}
+
+
   function renderEvaluationSheetView(r, childFullName, secName, kd) {
+    var t = getEvalType(r);
+    if (t === 'mas') return renderMasEvaluationSheetView(r, childFullName, secName, kd);
+    if (t === 'observation') return renderObservationEvaluationSheetView(r, childFullName, secName, kd);
+    return renderComprehensiveEvaluationSheetView(r, childFullName, secName, kd);
+  }
+
+
+  function renderComprehensiveEvaluationSheetView(r, childFullName, secName, kd) {
     var ev = parseEvaluationReport(r);
 
     // حساب العمر التقريبي للطفل إن توفر تاريخ الميلاد
@@ -5608,7 +6390,581 @@
   }
 
   /* ---- باني ومحرر استمارة التقييم البيداغوجي (مع خانات التقرير والمشرفين والمجالات المصغرة) ---- */
+  
+/* ---------- باني ومحرر استمارة تقييم دوافع السلوك (MAS) ---------- */
+function openMasEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
+  var v = $('#view');
+  v.textContent = '';
+
+  var ev = parseEvaluationReport(existingRep);
+  ev.eval_type = 'mas';
+  if (!ev.mas) {
+    ev.mas = {
+      examiner: (S && S.userName) || '',
+      environment: 'المركز والمنزل',
+      target_behavior: '',
+      operational_definition: '',
+      answers: {},
+      behavioral_analysis: '',
+      recommendations: '',
+      bip: {
+        behavioral_goals: '',
+        antecedent_strategies: '',
+        replacement_behavior: '',
+        consequence_strategies: '',
+        reinforcers: '',
+        followup_plan: ''
+      }
+    };
+  }
+
+  var topBar = h('div', { class: 'prog-builder-head' },
+    h('div', null,
+      h('h2', { text: existingRep ? 'تعديل استمارة تقييم دوافع السلوك (مدا - MAS)' : 'إنشاء استمارة تقييم دوافع السلوك (مدا - MAS) جديدة' }),
+      h('p', { class: 'muted', text: 'أداة تقييم دوافع السلوك الوظيفية وحساب النقاط التلقائي مع خطة التدخل الفردية (BIP)' })
+    ),
+    h('button', { class: 'btn light', type: 'button', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
+  );
+  v.appendChild(topBar);
+
+  // 1. بطاقة المعلومات العامة
+  var childSelect = h('select', null,
+    kids.map(function (k) {
+      return h('option', { value: k.id, text: (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name, selected: k.id === ev.child_id });
+    })
+  );
+  if (!ev.child_id && kids.length) ev.child_id = kids[0].id;
+
+  var dateInput = h('input', { type: 'date', value: ev.report_date || new Date().toISOString().slice(0, 10) });
+  var titleInput = h('input', { type: 'text', value: ev.title || 'استمارة تقييم دوافع السلوك (مدا - MAS)' });
+  var examinerInput = h('input', { type: 'text', placeholder: 'اسم المقيم / الفاحص', value: ev.mas.examiner || (S && S.userName) || '' });
+  var envInput = h('input', { type: 'text', placeholder: 'البيئة محط التقييم (المركز والمنزل)', value: ev.mas.environment || 'المركز والمنزل' });
+
+  var generalCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '1. البيانات العامة وهوية الحالة' }),
+    h('div', { class: 'grid-form-3' },
+      h('label', { class: 'fld' }, h('span', { text: 'الطفل المفحوص' }), childSelect),
+      h('label', { class: 'fld' }, h('span', { text: 'تاريخ التقييم' }), dateInput),
+      h('label', { class: 'fld' }, h('span', { text: 'عنوان الاستمارة (قابل للتعديل)' }), titleInput)
+    ),
+    h('div', { class: 'grid-form-2', style: 'margin-top:12px;' },
+      h('label', { class: 'fld' }, h('span', { text: 'القائم بالتقييم / الفاحص' }), examinerInput),
+      h('label', { class: 'fld' }, h('span', { text: 'البيئة وموقع التقييم' }), envInput)
+    )
+  );
+  v.appendChild(generalCard);
+
+  // 2. بطاقة السلوك المستهدف والتعريف الإجرائي
+  var targetBehInput = h('input', { type: 'text', placeholder: 'مثال: الصراخ ورمي النفس على الأرض...', value: ev.mas.target_behavior || '' });
+  var opDefTextarea = h('textarea', { rows: 3, placeholder: 'اكتب الوصف والتعريف الإجرائي الدقيق للسلوك المستهدف هنا...', text: ev.mas.operational_definition || '' });
+
+  var behaviorCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '2. تحديد السلوك المستهدف والتعريف الإجرائي' }),
+    h('label', { class: 'fld' }, h('span', { text: 'السلوك المستهدف (Target Behavior)' }), targetBehInput),
+    h('label', { class: 'fld', style: 'margin-top:10px;' }, h('span', { text: 'التعريف الإجرائي الدقيق للسلوك ومظاهره' }), opDefTextarea)
+  );
+  v.appendChild(behaviorCard);
+
+  // 3. بنود مقياس MAS الـ 16 وجدول الحساب التلقائي
+  var answersState = Object.assign({}, ev.mas.answers || {});
+  var scoreSummaryBox = h('div', { class: 'mas-score-summary-box' });
+
+  function updateScoreSummaryUI() {
+    var res = calculateMasScores(answersState);
+    scoreSummaryBox.textContent = '';
+
+    var table = h('table', { class: 'oep-scorecard-table', style: 'margin-top:10px;' },
+      h('thead', null,
+        h('tr', null,
+          h('th', { text: 'العامل الوظيفي لدوافع السلوك' }),
+          h('th', { text: 'الأسئلة المرتبطة' }),
+          h('th', { text: 'المجموع' }),
+          h('th', { text: 'المتوسط الحسابي' }),
+          h('th', { text: 'الترتيب' })
+        )
+      ),
+      h('tbody', null,
+        MAS_CATEGORIES.map(function (cat) {
+          var sc = res.scores[cat.key];
+          var isTop = sc.rank === 1;
+          return h('tr', { style: isTop ? 'background-color:#FEF3C7; font-weight:bold;' : '' },
+            h('td', null, h('strong', { text: cat.name })),
+            h('td', { class: 'sic-num', text: cat.items.join('، ') }),
+            h('td', { class: 'sic-num', text: String(sc.total) }),
+            h('td', { class: 'sic-num', text: String(sc.avg) }),
+            h('td', null, h('span', { class: isTop ? 'badge gold' : 'badge light', text: 'المرتبة ' + sc.rank }))
+          );
+        })
+      )
+    );
+
+    var primaryBadge = h('div', { class: 'mas-primary-res', style: 'margin-top:12px; padding:12px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px;' },
+      h('strong', { text: 'الدافع الأساسي المرجح للسلوك: ' }),
+      h('span', { class: 'badge gold', style: 'font-size:14px; margin-right:6px;', text: res.primaryFunction })
+    );
+
+    scoreSummaryBox.appendChild(table);
+    scoreSummaryBox.appendChild(primaryBadge);
+  }
+
+  var questionsRows = MAS_QUESTIONS.map(function (q) {
+    var sel = h('select', { style: 'width:100%; max-width:260px;' },
+      MAS_SCALE_OPTIONS.map(function (opt) {
+        return h('option', { value: String(opt.val), text: opt.label, selected: String(answersState[q.num] || 0) === String(opt.val) });
+      })
+    );
+    sel.addEventListener('change', function () {
+      answersState[q.num] = parseInt(sel.value, 10);
+      updateScoreSummaryUI();
+    });
+
+    var catName = (MAS_CATEGORIES.filter(function (c) { return c.key === q.cat; })[0] || {}).name || '';
+
+    return h('tr', null,
+      h('td', { class: 'sic-num', style: 'text-align:center; font-weight:bold;', text: String(q.num) }),
+      h('td', null, h('div', { text: q.text }), h('small', { class: 'muted', text: 'العامل: ' + catName })),
+      h('td', null, sel)
+    );
+  });
+
+  var masQuestionsTable = h('table', { class: 'oep-domain-table', style: 'width:100%;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { style: 'width:50px; text-align:center;', text: '#' }),
+        h('th', { text: 'نص بند التقييم (MAS 1-16)' }),
+        h('th', { style: 'width:280px;', text: 'الدرجة (0 - 6)' })
+      )
+    ),
+    h('tbody', null, questionsRows)
+  );
+
+  var masCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '3. بنود مقياس تقييم دوافع السلوك (16 بندًا) وحساب النقاط التلقائي' }),
+    masQuestionsTable,
+    h('h4', { style: 'margin-top:20px; font-weight:bold;', text: 'كشف درجات العوامل الوظيفية والترتيب التلقائي:' }),
+    scoreSummaryBox
+  );
+  v.appendChild(masCard);
+  updateScoreSummaryUI();
+
+  // 4. التحليل والتفسير السلوكي والتوصيات
+  var analysisTextarea = h('textarea', { rows: 4, placeholder: 'اكتب التحليل والتفسير السلوكي المبني على النتائج هنا...', text: ev.mas.behavioral_analysis || '' });
+  var recTextarea = h('textarea', { rows: 4, placeholder: 'اكتب التوصيات السلوكية الأولية هنا...', text: ev.mas.recommendations || '' });
+
+  var analysisCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '4. التحليل والتفسير السلوكي والتوصيات الأولية' }),
+    h('label', { class: 'fld' }, h('span', { text: 'التحليل والتفسير السلوكي' }), analysisTextarea),
+    h('label', { class: 'fld', style: 'margin-top:12px;' }, h('span', { text: 'التوصيات السلوكية الأولية' }), recTextarea)
+  );
+  v.appendChild(analysisCard);
+
+  // 5. خطة التدخل السلوكي الفردية (BIP)
+  var bip = ev.mas.bip || {};
+  var bipGoalsInput = h('textarea', { rows: 3, placeholder: 'الأهداف السلوكية (خفض السلوك غير المقبول وتعزيز السلوكيات الإيجابية)...', text: bip.behavioral_goals || '' });
+  var bipAntInput = h('textarea', { rows: 3, placeholder: 'الإجراءات الوقائية والبيئية (تعديل البيئة، الجداول البصرية، التهيؤ المسبق)...', text: bip.antecedent_strategies || '' });
+  var bipReplInput = h('textarea', { rows: 3, placeholder: 'تعليم السلوك البديل المقبول وظيفياً (استخدام بطاقات الطلب، الكلمات، الإشارة)...', text: bip.replacement_behavior || '' });
+  var bipConseqInput = h('textarea', { rows: 3, placeholder: 'استراتيجيات العواقب والتعزيز (جداول التعزيز، الحرمان الإيجابي، التجاهل المنظم)...', text: bip.consequence_strategies || '' });
+  var bipReinfInput = h('textarea', { rows: 2, placeholder: 'المعززات المفضلة للطفل (ألعاب، أنشطة حركية، معززات حسية)...', text: bip.reinforcers || '' });
+  var bipFollowInput = h('textarea', { rows: 2, placeholder: 'خطة المتابعة ومسؤوليات فريق العمل...', text: bip.followup_plan || '' });
+
+  var bipCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '5. خطة التدخل السلوكي الفردية (BIP - Behavior Intervention Plan)' }),
+    h('div', { class: 'grid-form-2' },
+      h('label', { class: 'fld' }, h('span', { text: 'أولاً: الأهداف السلوكية' }), bipGoalsInput),
+      h('label', { class: 'fld' }, h('span', { text: 'ثانياً: الإجراءات الوقائية والبيئية' }), bipAntInput)
+    ),
+    h('div', { class: 'grid-form-2', style: 'margin-top:12px;' },
+      h('label', { class: 'fld' }, h('span', { text: 'ثالثاً: تعليم السلوك البديل المقبول' }), bipReplInput),
+      h('label', { class: 'fld' }, h('span', { text: 'رابعاً: استراتيجيات العواقب والتعزيز' }), bipConseqInput)
+    ),
+    h('div', { class: 'grid-form-2', style: 'margin-top:12px;' },
+      h('label', { class: 'fld' }, h('span', { text: 'المعززات المحببة' }), bipReinfInput),
+      h('label', { class: 'fld' }, h('span', { text: 'خطة المتابعة والمشرفين' }), bipFollowInput)
+    )
+  );
+  v.appendChild(bipCard);
+
+  // 6. شريط الحفظ والاعتماد
+  async function saveMasForm(publishNow) {
+    var cId = childSelect.value;
+    if (!cId) throw new Error('يرجى اختيار الطفل المفحوص أولاً.');
+
+    ev.child_id = cId;
+    ev.title = DE.clean(titleInput.value || 'استمارة تقييم دوافع السلوك (مدا - MAS)', 145);
+    ev.report_date = dateInput.value || new Date().toISOString().slice(0, 10);
+    ev.eval_type = 'mas';
+    ev.mas = {
+      examiner: examinerInput.value.trim(),
+      environment: envInput.value.trim(),
+      target_behavior: targetBehInput.value.trim(),
+      operational_definition: opDefTextarea.value.trim(),
+      answers: answersState,
+      behavioral_analysis: analysisTextarea.value.trim(),
+      recommendations: recTextarea.value.trim(),
+      bip: {
+        behavioral_goals: bipGoalsInput.value.trim(),
+        antecedent_strategies: bipAntInput.value.trim(),
+        replacement_behavior: bipReplInput.value.trim(),
+        consequence_strategies: bipConseqInput.value.trim(),
+        reinforcers: bipReinfInput.value.trim(),
+        followup_plan: bipFollowInput.value.trim()
+      }
+    };
+
+    var body = {
+      child_id: ev.child_id,
+      title: ev.title,
+      report_date: ev.report_date,
+      period_start: ev.report_date,
+      period_end: ev.report_date,
+      achievements: 'استمارة تقييم دوافع السلوك (MAS) — السلوك المستهدف: ' + (ev.mas.target_behavior || '—'),
+      activities: EVAL_MARKER + JSON.stringify(ev),
+      notes: DE.clean(ev.mas.operational_definition || '', 4800) || null,
+      status: publishNow ? 'published' : 'draft'
+    };
+
+    if (ev.id) {
+      await C.rest('PATCH', '/progress_reports?id=eq.' + uid(ev.id), body);
+    } else {
+      await C.rest('POST', '/progress_reports', body);
+    }
+    bust();
+    toast(publishNow ? 'تم اعتماد ونشر استمارة تقييم دوافع السلوك للولي بنجاح!' : 'تم حفظ الاستمارة كمسودة.', 'ok');
+    go('evaluations');
+  }
+
+  var btnSaveDraft = h('button', { type: 'button', class: 'btn light', text: 'حفظ الاستمارة كمسودة' });
+  var btnPublish = h('button', { type: 'button', class: 'btn gold', text: 'اعتماد وإرسال الاستمارة للولي' });
+  btnSaveDraft.addEventListener('click', function () { act(btnSaveDraft, function () { return saveMasForm(false); }); });
+  btnPublish.addEventListener('click', function () { act(btnPublish, function () { return saveMasForm(true); }); });
+
+  var previewBtn = h('button', {
+    type: 'button',
+    class: 'btn',
+    text: 'معاينة الورقة الرسمية (A4)',
+    onclick: function () {
+      var chosenKid = kids.filter(function (k) { return k.id === childSelect.value; })[0];
+      var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+      var previewObj = {
+        id: ev.id,
+        child_id: childSelect.value,
+        title: titleInput.value,
+        report_date: dateInput.value,
+        eval_type: 'mas',
+        mas: {
+          examiner: examinerInput.value.trim(),
+          environment: envInput.value.trim(),
+          target_behavior: targetBehInput.value.trim(),
+          operational_definition: opDefTextarea.value.trim(),
+          answers: answersState,
+          behavioral_analysis: analysisTextarea.value.trim(),
+          recommendations: recTextarea.value.trim(),
+          bip: {
+            behavioral_goals: bipGoalsInput.value.trim(),
+            antecedent_strategies: bipAntInput.value.trim(),
+            replacement_behavior: bipReplInput.value.trim(),
+            consequence_strategies: bipConseqInput.value.trim(),
+            reinforcers: bipReinfInput.value.trim(),
+            followup_plan: bipFollowInput.value.trim()
+          }
+        }
+      };
+      openModal(h('div', { class: 'modal-body wk-modal-print' },
+        renderMasEvaluationSheetView(previewObj, chosenKid ? chosenKid.full_name : '—', sName, chosenKid),
+        h('div', { class: 'modal-actions no-print' },
+          h('button', { class: 'btn light', type: 'button', text: 'إغلاق المعاينة', onclick: closeModal }),
+          h('button', { class: 'btn gold', type: 'button', text: 'طباعة الورقة الرسمية (A4)', onclick: function () { window.print(); } })
+        )
+      ));
+    }
+  });
+
+  var footerCard = h('div', { class: 'card prog-step-card' },
+    h('div', { class: 'prog-submit-bar' },
+      h('button', { type: 'button', class: 'btn light', text: 'إلغاء والعودة', onclick: function () { go('evaluations'); } }),
+      previewBtn,
+      btnSaveDraft,
+      btnPublish
+    )
+  );
+  v.appendChild(footerCard);
+}
+
+/* ---------- باني ومحرر استمارة ملاحظة سلوك ---------- */
+function openObservationEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
+  var v = $('#view');
+  v.textContent = '';
+
+  var ev = parseEvaluationReport(existingRep);
+  ev.eval_type = 'observation';
+  if (!ev.observation) {
+    ev.observation = {
+      observer: (S && S.userName) || '',
+      disability: '',
+      ratings: {}, // key: statement index (0-15) -> { status: 'يوجد' | 'متوسط' | 'لا يوجد', note: '' }
+      additional_notes: ''
+    };
+  }
+
+  var topBar = h('div', { class: 'prog-builder-head' },
+    h('div', null,
+      h('h2', { text: existingRep ? 'تعديل استمارة ملاحظة سلوك' : 'إنشاء استمارة ملاحظة سلوك جديدة' }),
+      h('p', { class: 'muted', text: 'أداة ملاحظة السلوك الميداني ومتابعة المظاهر النمائية والسلوكية للطفل' })
+    ),
+    h('button', { class: 'btn light', type: 'button', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
+  );
+  v.appendChild(topBar);
+
+  var childSelect = h('select', null,
+    kids.map(function (k) {
+      return h('option', { value: k.id, text: (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name, selected: k.id === ev.child_id });
+    })
+  );
+  if (!ev.child_id && kids.length) ev.child_id = kids[0].id;
+
+  var dateInput = h('input', { type: 'date', value: ev.report_date || new Date().toISOString().slice(0, 10) });
+  var titleInput = h('input', { type: 'text', value: ev.title || 'استمارة ملاحظة سلوك' });
+  var observerInput = h('input', { type: 'text', placeholder: 'اسم القائم بالملاحظة', value: ev.observation.observer || (S && S.userName) || '' });
+  var disInput = h('input', { type: 'text', placeholder: 'الإعاقة / الاضطراب', value: ev.observation.disability || '' });
+
+  // تعبئة نوع الإعاقة تلقائياً عند تغيير الطفل المختار
+  function syncDisabilityField() {
+    var k = kids.filter(function (x) { return x.id === childSelect.value; })[0];
+    if (k && k.disability && !disInput.value) disInput.value = k.disability;
+  }
+  childSelect.addEventListener('change', syncDisabilityField);
+  syncDisabilityField();
+
+  var generalCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '1. البيانات العامة' }),
+    h('div', { class: 'grid-form-3' },
+      h('label', { class: 'fld' }, h('span', { text: 'الطفل الملاحظ' }), childSelect),
+      h('label', { class: 'fld' }, h('span', { text: 'تاريخ الملاحظة' }), dateInput),
+      h('label', { class: 'fld' }, h('span', { text: 'عنوان الاستمارة' }), titleInput)
+    ),
+    h('div', { class: 'grid-form-2', style: 'margin-top:12px;' },
+      h('label', { class: 'fld' }, h('span', { text: 'القائم بالملاحظة' }), observerInput),
+      h('label', { class: 'fld' }, h('span', { text: 'الإعاقة / الاضطراب' }), disInput)
+    )
+  );
+  v.appendChild(generalCard);
+
+  // 2. جدول بنود الملاحظة الـ 16
+  var ratingsState = Object.assign({}, ev.observation.ratings || {});
+
+  var rows = OBSERVATION_STATEMENTS.map(function (stmt, idx) {
+    var cur = ratingsState[idx] || { status: 'لا يوجد', note: '' };
+
+    var statusSelect = h('select', { style: 'width:130px;' },
+      h('option', { value: 'يوجد', text: 'يوجد', selected: cur.status === 'يوجد' }),
+      h('option', { value: 'متوسط', text: 'متوسط', selected: cur.status === 'متوسط' }),
+      h('option', { value: 'لا يوجد', text: 'لا يوجد', selected: cur.status === 'لا يوجد' || !cur.status })
+    );
+
+    var noteInput = h('input', { type: 'text', placeholder: 'ملاحظات حول البند...', value: cur.note || '', style: 'width:100%;' });
+
+    statusSelect.addEventListener('change', function () {
+      if (!ratingsState[idx]) ratingsState[idx] = {};
+      ratingsState[idx].status = statusSelect.value;
+    });
+
+    noteInput.addEventListener('input', function () {
+      if (!ratingsState[idx]) ratingsState[idx] = {};
+      ratingsState[idx].note = noteInput.value;
+    });
+
+    return h('tr', null,
+      h('td', { class: 'sic-num', style: 'text-align:center; font-weight:bold;', text: String(idx + 1) }),
+      h('td', { style: 'font-weight:500;', text: stmt }),
+      h('td', { style: 'text-align:center;' }, statusSelect),
+      h('td', null, noteInput)
+    );
+  });
+
+  var obsTable = h('table', { class: 'oep-domain-table', style: 'width:100%;' },
+    h('thead', null,
+      h('tr', null,
+        h('th', { style: 'width:50px; text-align:center;', text: '#' }),
+        h('th', { text: 'العبارات ومظاهر السلوك المقاسة' }),
+        h('th', { style: 'width:140px; text-align:center;', text: 'الدرجة' }),
+        h('th', { style: 'width:260px;', text: 'ملاحظات' })
+      )
+    ),
+    h('tbody', null, rows)
+  );
+
+  var notesTextarea = h('textarea', { rows: 4, placeholder: 'اكتب ملاحظات وتوجيهات إضافية هنا...', text: ev.observation.additional_notes || '' });
+
+  var obsCard = h('div', { class: 'card prog-step-card' },
+    h('h3', { class: 'prog-step-title', text: '2. جدول بنود ملاحظة السلوك (16 عبارة)' }),
+    obsTable,
+    h('h4', { style: 'margin-top:20px; font-weight:bold;', text: 'ملاحظات إضافية:' }),
+    notesTextarea
+  );
+  v.appendChild(obsCard);
+
+  // 3. شريط الإجراءات والحفظ
+  async function saveObsForm(publishNow) {
+    var cId = childSelect.value;
+    if (!cId) throw new Error('يرجى اختيار الطفل أولاً.');
+
+    ev.child_id = cId;
+    ev.title = DE.clean(titleInput.value || 'استمارة ملاحظة سلوك', 145);
+    ev.report_date = dateInput.value || new Date().toISOString().slice(0, 10);
+    ev.eval_type = 'observation';
+    ev.observation = {
+      observer: observerInput.value.trim(),
+      disability: disInput.value.trim(),
+      ratings: ratingsState,
+      additional_notes: notesTextarea.value.trim()
+    };
+
+    var body = {
+      child_id: ev.child_id,
+      title: ev.title,
+      report_date: ev.report_date,
+      period_start: ev.report_date,
+      period_end: ev.report_date,
+      achievements: 'استمارة ملاحظة سلوك — القائم بالملاحظة: ' + (ev.observation.observer || '—'),
+      activities: EVAL_MARKER + JSON.stringify(ev),
+      notes: DE.clean(ev.observation.additional_notes || '', 4800) || null,
+      status: publishNow ? 'published' : 'draft'
+    };
+
+    if (ev.id) {
+      await C.rest('PATCH', '/progress_reports?id=eq.' + uid(ev.id), body);
+    } else {
+      await C.rest('POST', '/progress_reports', body);
+    }
+    bust();
+    toast(publishNow ? 'تم اعتماد ونشر استمارة ملاحظة السلوك للولي بنجاح!' : 'تم حفظ الاستمارة كمسودة.', 'ok');
+    go('evaluations');
+  }
+
+  var btnSaveDraft = h('button', { type: 'button', class: 'btn light', text: 'حفظ الاستمارة كمسودة' });
+  var btnPublish = h('button', { type: 'button', class: 'btn gold', text: 'اعتماد وإرسال الاستمارة للولي' });
+  btnSaveDraft.addEventListener('click', function () { act(btnSaveDraft, function () { return saveObsForm(false); }); });
+  btnPublish.addEventListener('click', function () { act(btnPublish, function () { return saveObsForm(true); }); });
+
+  var previewBtn = h('button', {
+    type: 'button',
+    class: 'btn',
+    text: 'معاينة الورقة الرسمية (A4)',
+    onclick: function () {
+      var chosenKid = kids.filter(function (k) { return k.id === childSelect.value; })[0];
+      var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+      var previewObj = {
+        id: ev.id,
+        child_id: childSelect.value,
+        title: titleInput.value,
+        report_date: dateInput.value,
+        eval_type: 'observation',
+        observation: {
+          observer: observerInput.value.trim(),
+          disability: disInput.value.trim(),
+          ratings: ratingsState,
+          additional_notes: notesTextarea.value.trim()
+        }
+      };
+      openModal(h('div', { class: 'modal-body wk-modal-print' },
+        renderObservationEvaluationSheetView(previewObj, chosenKid ? chosenKid.full_name : '—', sName, chosenKid),
+        h('div', { class: 'modal-actions no-print' },
+          h('button', { class: 'btn light', type: 'button', text: 'إغلاق المعاينة', onclick: closeModal }),
+          h('button', { class: 'btn gold', type: 'button', text: 'طباعة الورقة الرسمية (A4)', onclick: function () { window.print(); } })
+        )
+      ));
+    }
+  });
+
+  var footerCard = h('div', { class: 'card prog-step-card' },
+    h('div', { class: 'prog-submit-bar' },
+      h('button', { type: 'button', class: 'btn light', text: 'إلغاء والعودة', onclick: function () { go('evaluations'); } }),
+      previewBtn,
+      btnSaveDraft,
+      btnPublish
+    )
+  );
+  v.appendChild(footerCard);
+}
+
+/* ---------- نافذة اختيار نوع استمارة التقييم الجديدة (Modal) ---------- */
+function openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts) {
+  var pickerModal = h('div', { class: 'modal-body', style: 'max-width:680px;' },
+    h('div', { style: 'text-align:center; margin-bottom:20px;' },
+      h('h2', { style: 'margin:0 0 8px;', text: 'اختر نوع استمارة التقييم الجديدة' }),
+      h('p', { class: 'muted', text: 'يتضمن النظام 3 نماذج تقييم رسمية معتمدة تدعم كافة خصائص التحرير والطباعة وPDF والتصدير.' })
+    ),
+    h('div', { class: 'eval-type-cards-grid', style: 'display:grid; grid-template-columns:1fr; gap:14px;' },
+      // بطاقة 1: التقرير البيداغوجي الشامل
+      h('div', {
+        class: 'eval-type-select-card',
+        style: 'border:2px solid #E2E8F0; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; display:flex; gap:16px; align-items:center;',
+        onclick: function () {
+          closeModal();
+          openComprehensiveEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts);
+        }
+      },
+        h('div', { style: 'width:48px; height:48px; border-radius:10px; background:#FEF3C7; color:#B45309; display:flex; align-items:center; justify-content:center; flex-shrink:0;' }, makeSvgIcon('s-report')),
+        h('div', { style: 'flex:1;' },
+          h('h3', { style: 'margin:0 0 4px; font-size:16px;', text: '1. تقرير اللجنة البيداغوجية والتربوية' }),
+          h('p', { class: 'muted small', style: 'margin:0;', text: 'التقييم البيداغوجي الشامل، المجالات التنموية والمهارات الـ 7، نسب التحصيل، التقرير العام والتوصيات.' })
+        ),
+        h('button', { type: 'button', class: 'btn gold small', text: 'اختيار' })
+      ),
+      // بطاقة 2: استمارة تقييم دوافع السلوك (MAS)
+      h('div', {
+        class: 'eval-type-select-card',
+        style: 'border:2px solid #E2E8F0; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; display:flex; gap:16px; align-items:center;',
+        onclick: function () {
+          closeModal();
+          openMasEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts);
+        }
+      },
+        h('div', { style: 'width:48px; height:48px; border-radius:10px; background:#DBEAFE; color:#1D4ED8; display:flex; align-items:center; justify-content:center; flex-shrink:0;' }, makeSvgIcon('s-child')),
+        h('div', { style: 'flex:1;' },
+          h('h3', { style: 'margin:0 0 4px; font-size:16px;', text: '2. استمارة تقييم دوافع السلوك (مدا - MAS)' }),
+          h('p', { class: 'muted small', style: 'margin:0;', text: 'مقياس 16 بند، حساب تلقائي لنقاط الحسي والهروب والانتباه والمادي، التحليل السلوكي، وخطة التدخل الفردية (BIP).' })
+        ),
+        h('button', { type: 'button', class: 'btn gold small', text: 'اختيار' })
+      ),
+      // بطاقة 3: استمارة ملاحظة سلوك
+      h('div', {
+        class: 'eval-type-select-card',
+        style: 'border:2px solid #E2E8F0; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; display:flex; gap:16px; align-items:center;',
+        onclick: function () {
+          closeModal();
+          openObservationEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts);
+        }
+      },
+        h('div', { style: 'width:48px; height:48px; border-radius:10px; background:#EDE9FE; color:#6D28D9; display:flex; align-items:center; justify-content:center; flex-shrink:0;' }, makeSvgIcon('s-book')),
+        h('div', { style: 'flex:1;' },
+          h('h3', { style: 'margin:0 0 4px; font-size:16px;', text: '3. استمارة ملاحظة سلوك' }),
+          h('p', { class: 'muted small', style: 'margin:0;', text: 'ملاحظة 16 سلوكاً ومظهراً نمائياً، مقياس (يوجد / متوسط / لا يوجد) مع الملاحظات الفردية وتوقيعات الفريق.' })
+        ),
+        h('button', { type: 'button', class: 'btn gold small', text: 'اختيار' })
+      )
+    ),
+    h('div', { class: 'modal-actions', style: 'margin-top:20px; justify-content:center;' },
+      h('button', { class: 'btn light', type: 'button', text: 'إلغاء', onclick: closeModal })
+    )
+  );
+
+  openModal(pickerModal);
+}
+
+
   function openEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
+    if (!existingRep) {
+      return openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts);
+    }
+    var t = getEvalType(existingRep);
+    if (t === 'mas') return openMasEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts);
+    if (t === 'observation') return openObservationEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts);
+    return openComprehensiveEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts);
+  }
+
+
+  function openComprehensiveEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
     S.inSubBuilder = true;
     try { window.history.pushState({ deApp: true, sec: 'evaluations', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
     var ev = parseEvaluationReport(existingRep);
@@ -6424,15 +7780,17 @@
         return renderEvaluationSheetView(r, kd ? kd.full_name : '—', sName, kd);
       },
       filters: [
+        { label: 'نوع التقييم', opts: [['all', 'جميع النماذج الثلاثة'], ['comp', '1. تقرير اللجنة البيداغوجية والتربوية'], ['mas', '2. استمارة تقييم دوافع السلوك (MAS)'], ['observation', '3. استمارة ملاحظة سلوك']], test: function (r, x) { if (x === 'all') return true; return getEvalType(r) === x; } },
         { label: 'الطفل', opts: kidOpts, test: function (r, x) { return r.child_id === x; } },
         { label: 'الحالة', opts: [['published', 'معتمدة ومنشورة للولي'], ['draft', 'مسودة قيد الإعداد']], test: function (r, x) { return r.status === x; } }
       ],
       cols: [
         {
-          label: 'عنوان الاستمارة',
+          label: 'عنوان ونوع الاستمارة',
           get: function (r) {
+            var t = getEvalType(r);
             return h('div', { class: 'row-actions' },
-              badge('استمارة تقييم رسمية', 'gold'),
+              getEvalTypeBadge(t),
               h('strong', { text: r.title })
             );
           },
@@ -7397,7 +8755,16 @@
       '</body></html>';
   }
 
+  
   function generateWordDocEvaluation(rep, child, secName, brName) {
+    var t = getEvalType(rep);
+    if (t === 'mas') return generateWordDocMas(rep, child, secName, brName);
+    if (t === 'observation') return generateWordDocObservation(rep, child, secName, brName);
+    return generateWordDocComprehensive(rep, child, secName, brName);
+  }
+
+  function generateWordDocComprehensive(rep, child, secName, brName) {
+
     var title = rep.title || 'تقرير اللجنة البيداغوجية والتربوية';
     var chName = child ? child.full_name : 'غير محدد';
     var safeDate = rep.report_date || '';
@@ -8368,6 +9735,70 @@
     var dateInput = h('input', { type: 'date', class: 'att-date sic-num', value: todayStr });
 
     var secSelect = h('select', { disabled: !!S.isEducator });
+    
+    function openRecordReplyModal(kid, dateStr, onDone) {
+      var activeReplies = getActiveAttendanceReplies();
+      var existingReply = activeReplies.filter(function (r) {
+        return r.child_id === kid.id && r.date === dateStr;
+      })[0];
+
+      var textInput = h('textarea', {
+        rows: 4,
+        placeholder: 'اكتب سبب الغياب أو توضيح وتبرير الولي هنا...',
+        text: existingReply ? existingReply.reply_text : ''
+      });
+
+      var senderSelect = h('select', null,
+        h('option', { value: 'parent', text: 'رد من ولي الأمر (WhatsApp أو هاتف)', selected: !existingReply || existingReply.sender_type === 'parent' }),
+        h('option', { value: 'educator', text: 'تسجيل من المربية / الأخصائي', selected: existingReply && existingReply.sender_type === 'educator' }),
+        h('option', { value: 'admin', text: 'تسجيل من إدارة المركز', selected: existingReply && existingReply.sender_type === 'admin' })
+      );
+
+      var modal = h('div', { class: 'modal-body', style: 'max-width:520px;' },
+        h('h3', { style: 'margin:0 0 8px;', text: 'تسجيل رد وتبرير غياب — ' + (kid.full_name || 'طفل') }),
+        h('p', { class: 'muted small', style: 'margin-bottom:14px;', text: 'تاريخ الغياب: ' + dateStr + ' • القسم: ' + (kid.section || '—') }),
+        h('label', { class: 'fld', style: 'margin-bottom:12px;' },
+          h('span', { text: 'مصدر الرد / التبرير' }),
+          senderSelect
+        ),
+        h('label', { class: 'fld' },
+          h('span', { text: 'نص التبرير أو الرد' }),
+          textInput
+        ),
+        h('div', { class: 'att-purge-notice', style: 'margin-top:12px; padding:10px; background:#FEF3C7; border:1px solid #FCD34D; border-radius:8px; font-size:12px; color:#92400E;' },
+          makeSvgIcon('s-clock'),
+          h('span', { text: ' تنبيه سياسة الحذف التلقائي: سيُحذف هذا الرد تلقائياً بعد مرور 4 أيام (96 ساعة) من وقت تسجيله.' })
+        ),
+        h('div', { class: 'modal-actions', style: 'margin-top:16px;' },
+          h('button', { type: 'button', class: 'btn light', text: 'إلغاء', onclick: closeModal }),
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            text: existingReply ? 'تحديث الرد' : 'حفظ الرد',
+            onclick: function () {
+              var val = textInput.value.trim();
+              if (!val) return toast('يرجى كتابة نص التبرير أو الرد.', 'bad');
+              saveAttendanceReply({
+                id: existingReply ? existingReply.id : null,
+                child_id: kid.id,
+                child_name: kid.full_name,
+                section_id: kid.section_id,
+                date: dateStr,
+                reply_text: val,
+                sender_type: senderSelect.value,
+                phone: kid.phone || '',
+                created_at: existingReply ? existingReply.created_at : new Date().toISOString()
+              });
+              closeModal();
+              toast('تم تسجيل رد الولي بنجاح (صالح لمدة 4 أيام).', 'ok');
+              if (onDone) onDone();
+            }
+          })
+        )
+      );
+      openModal(modal);
+    }
+
     function populateSectionOptions() {
       var curVal = secSelect.value;
       secSelect.textContent = '';
@@ -8500,6 +9931,8 @@
     v.appendChild(listHost);
     var trackingHost = h('div', { class: 'att-tracking' });
     v.appendChild(trackingHost);
+    var repliesHost = h('div', { class: 'att-replies-host', style: 'margin-top:24px;' });
+    v.appendChild(repliesHost);
 
     // ───────────── الحفظ ─────────────
     saveBtn.addEventListener('click', async function () {
@@ -8628,7 +10061,8 @@
         h('th', { text: 'الطفل' }),
         h('th', { text: 'القسم' }),
         h('th', { text: 'رقم القيد' }),
-        h('th', { text: 'الحالة' })
+        h('th', { text: 'الحالة' }),
+        h('th', { text: 'الردود وتبرير الغياب (آخر 4 أيام)' })
       )));
       var tbody = h('tbody');
       kids.forEach(function (k, idx) {
@@ -8670,6 +10104,55 @@
         tr.appendChild(h('td', { 'data-label': 'القسم' }, h('span', { class: 'badge gray', text: k.section || '—' })));
         tr.appendChild(h('td', { class: 'sic-num', 'data-label': 'رقم القيد', text: k.membership_no || '—' }));
         tr.appendChild(h('td', { class: 'att-st-cell', 'data-label': 'الحالة' }, seg));
+
+        // خانة الردود وتبرير الغياب مع مؤشر الحذف التلقائي بعد 4 أيام
+        var curSt = dayAttendance[k.id] || 'unrecorded';
+        var dStr = dateInput.value;
+        var activeReplies = getActiveAttendanceReplies();
+        var kidReply = activeReplies.filter(function (rp) {
+          return rp.child_id === k.id && rp.date === dStr;
+        })[0];
+
+        var replyCell = h('td', { 'data-label': 'الردود وتبرير الغياب' });
+        if (kidReply) {
+          var remTxt = getReplyRemainingTime(kidReply.created_at);
+          var replyBadge = h('div', { class: 'att-reply-card-sm', style: 'background:#FEF3C7; border:1px solid #FCD34D; border-radius:6px; padding:6px 8px; font-size:12px;' },
+            h('div', { style: 'font-weight:600; color:#92400E; margin-bottom:2px;', text: '«' + kidReply.reply_text + '»' }),
+            h('div', { style: 'display:flex; justify-content:space-between; align-items:center; gap:6px;' },
+              h('span', { class: 'badge gold small', text: remTxt }),
+              h('button', {
+                type: 'button',
+                class: 'btn small light danger',
+                style: 'padding:2px 6px; font-size:11px;',
+                title: 'حذف التبرير',
+                onclick: function () {
+                  deleteAttendanceReply(kidReply.id);
+                  toast('تم حذف الرد.', 'ok');
+                  renderList();
+                  renderRepliesLogCard();
+                }
+              }, 'حذف')
+            )
+          );
+          replyCell.appendChild(replyBadge);
+        } else if (curSt === 'absent') {
+          var addReplyBtn = h('button', {
+            type: 'button',
+            class: 'btn small light',
+            style: 'font-size:12px; padding:4px 8px;',
+            text: '+ تسجيل رد الولي',
+            onclick: function () {
+              openRecordReplyModal(k, dStr, function () {
+                renderList();
+                renderRepliesLogCard();
+              });
+            }
+          });
+          replyCell.appendChild(addReplyBtn);
+        } else {
+          replyCell.appendChild(h('span', { class: 'muted small', text: '—' }));
+        }
+        tr.appendChild(replyCell);
         tbody.appendChild(tr);
       });
       tbl.appendChild(tbody);
@@ -8677,6 +10160,72 @@
     }
 
     // ───────────── سجل متابعة الرسائل ─────────────
+    
+    function renderRepliesLogCard() {
+      repliesHost.textContent = '';
+      var activeList = getActiveAttendanceReplies();
+
+      var banner = h('div', { class: 'att-purge-banner', style: 'background:#FEF3C7; color:#92400E; border:1px solid #FCD34D; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px;' },
+        makeSvgIcon('s-clock'),
+        h('div', null,
+          h('strong', { text: 'سياسة الحذف التلقائي للردود: ' }),
+          h('span', { text: 'تُحذف ردود وتبريرات أولياء الأمور تلقائياً وفورياً بعد مرور 4 أيام (96 ساعة) من تاريخ تسجيلها لحفظ الخصوصية وتخفيف السجلات.' })
+        )
+      );
+
+      var cardHeader = h('div', { class: 'bar-sub', style: 'margin-bottom:12px;' },
+        h('h2', { text: 'سجل ردود وتبريرات أولياء الأمور النشطة (آخر 4 أيام)' }),
+        h('span', { class: 'badge gold', text: activeList.length + ' ردود نشطة' })
+      );
+
+      var tableHost = h('div');
+      if (!activeList.length) {
+        tableHost.appendChild(h('div', { class: 'card empty', text: 'لا توجد ردود أو تبريرات مسجلة خلال الأيام الأربعة الأخيرة.' }));
+      } else {
+        var tbl = h('table', { class: 'tbl' });
+        tbl.appendChild(h('thead', null, h('tr', null,
+          h('th', { text: 'الطفل' }),
+          h('th', { text: 'تاريخ الغياب' }),
+          h('th', { text: 'نص التبرير / الرد' }),
+          h('th', { text: 'المصدر' }),
+          h('th', { text: 'تاريخ التسجيل' }),
+          h('th', { text: 'الوقت المتبقي قبل الحذف' }),
+          h('th', { text: 'إجراء' })
+        )));
+        var tbody = h('tbody');
+        activeList.forEach(function (rp) {
+          var tr = h('tr');
+          tr.appendChild(h('td', null, h('strong', { text: rp.child_name || 'طفل' })));
+          tr.appendChild(h('td', { class: 'sic-num' }, h('span', { class: 'badge light', text: rp.date || '—' })));
+          tr.appendChild(h('td', { style: 'max-width:320px; font-weight:500;' }, h('div', { text: rp.reply_text || '—' })));
+          tr.appendChild(h('td', null, h('span', { class: 'badge gray', text: rp.sender_type === 'parent' ? 'ولي الأمر' : (rp.sender_type === 'educator' ? 'المربية' : 'الإدارة') })));
+          tr.appendChild(h('td', { class: 'sic-num' }, fmt(rp.created_at, true)));
+          tr.appendChild(h('td', null, h('span', { class: 'badge gold', text: getReplyRemainingTime(rp.created_at) })));
+          tr.appendChild(h('td', null, h('button', {
+            type: 'button',
+            class: 'btn small light danger',
+            text: 'حذف',
+            onclick: function () {
+              deleteAttendanceReply(rp.id);
+              toast('تم حذف الرد.', 'ok');
+              renderList();
+              renderRepliesLogCard();
+            }
+          })));
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        tableHost.appendChild(h('div', { class: 'tbl-wrap' }, tbl));
+      }
+
+      var card = h('div', { class: 'card att-replies-log-card', style: 'padding:16px;' },
+        cardHeader,
+        banner,
+        tableHost
+      );
+      repliesHost.appendChild(card);
+    }
+
     function renderTrackingTable() {
       trackingHost.textContent = '';
       var dStr = dateInput.value;
@@ -8779,7 +10328,7 @@
     if (isFarmSession() && sec === 'reports') {
       sec = 'children';
     }
-    if (S.isEducator && (sec !== 'children' && (sec !== 'reports' || isFarmSession()))) {
+    if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && sec !== 'evaluations' && (sec !== 'reports' || isFarmSession()))) {
       sec = 'children';
     }
     if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp' || sec === 'attendance')) {

@@ -1954,3 +1954,41 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   overflow-x: auto;
 }
 
+
+/* ---------- DAR EL IHSAN: 3 EVALUATION TYPES & ATTENDANCE REPLIES STYLES ---------- */
+.eval-type-select-card:hover {
+  border-color: #D97706 !important;
+  background-color: #FFFBEB !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.12);
+}
+.att-reply-card-sm {
+  background: #FEF3C7;
+  border: 1px solid #FCD34D;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.att-purge-banner {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.att-purge-notice {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.mas-score-summary-box {
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
