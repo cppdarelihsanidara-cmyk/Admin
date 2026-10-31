@@ -1992,3 +1992,67 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   margin-top: 10px;
   margin-bottom: 16px;
 }
+
+/* ─── تنسيقات بنود التقييم وأزرار الاختيار (مطابقة للاستمارة القديمة ومتجاوبة تماماً مع الجوال) ─── */
+.eval-rate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1.5px solid #94A3B8;
+  background: #FFFFFF;
+  color: #0F172A;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 140ms ease;
+  user-select: none;
+}
+.eval-rate-btn:hover {
+  border-color: #D97706;
+  background: #FEF9C3;
+}
+.eval-rate-btn.active-sc,
+.eval-rate-btn.active-yn,
+.eval-rate-btn.is-selected {
+  background: #0C2D55 !important;
+  color: #FFFFFF !important;
+  border-color: #0C2D55 !important;
+  box-shadow: 0 2px 6px rgba(12, 45, 85, 0.25);
+}
+.eval-rate-btn.sc-5,
+.eval-rate-btn.active-yn.sc-5 {
+  background: #15803D !important;
+  color: #FFFFFF !important;
+  border-color: #15803D !important;
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
+}
+.eval-rate-btn.sc-3,
+.eval-rate-btn.active-sc.sc-3 {
+  background: #B4873A !important;
+  color: #FFFFFF !important;
+  border-color: #B4873A !important;
+  box-shadow: 0 2px 6px rgba(180, 135, 58, 0.25);
+}
+.eval-note-input {
+  width: 100%;
+  min-width: 130px;
+  padding: 6px 10px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+.eval-note-input:focus {
+  border-color: #D97706;
+  outline: none;
+}
+.eval-row-rated {
+  background-color: #F0FDF4 !important;
+}
+.att-kids-phone-edit-list::-webkit-scrollbar {
+  width: 6px;
+}
+.att-kids-phone-edit-list::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
