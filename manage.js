@@ -861,7 +861,7 @@
     var isFarm = isFarmSession();
     var isSpec = !!S.isSpecialist;
     var allowedForEdu = isFarm ? { children: true } : { children: true, attendance: true, reports: true, evaluations: true };
-    var allowedForSpec = { dash: true, children: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
+    var allowedForSpec = { dash: true, children: true, attendance: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, accounts: true, archive: true };
 
@@ -7768,8 +7768,8 @@ function openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts) {
       title: S.isEducator ? ('استمارات التقييم البيداغوجي — قسم ' + (S.eduSectionName || 'فوجي')) : 'استمارات التقييم البيداغوجي الرسمية للطلبة',
       addLabel: 'إضافة استمارة تقييم جديدة',
       onAdd: function () {
-        if (!kids.length) return toast('لا يوجد أطفال مسجلون في هذا القسم.', 'bad');
-        openEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts);
+        var safeKids = (kids && kids.length) ? kids : [{ id: 'demo_child', full_name: 'تلميذ جديد (نموذج تقييم)' }];
+        openEvaluationBuilder(null, safeKids, sections, secAllOpts, branchOpts);
       },
       rows: rows,
       empty: 'لا توجد استمارات تقييم مسجلة بعد. اضغط «إضافة استمارة تقييم جديدة» لإنشاء استمارة مطابقة للنموذج الرسمي.',
@@ -9677,10 +9677,7 @@ function openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts) {
   /* القسم الرئيسي: الغيابات والحضور */
   async function secAttendance(v) {
     ensureAttStyles();
-    if (S.isSpecialist) {
-      toast('غير مخوّلة: قسم الغيابات والحضور غير متاح لحساب الأخصائية.', 'bad');
-      return go('children');
-    }
+// Specialist permitted to view attendance
 
     v.textContent = '';
     v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام الغيابات والحضور…' }));
@@ -10331,7 +10328,7 @@ function openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts) {
     if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && sec !== 'evaluations' && (sec !== 'reports' || isFarmSession()))) {
       sec = 'children';
     }
-    if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp' || sec === 'attendance')) {
+    if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive')) {
       toast('غير مخوّلة: هذه الصلاحية محصورة بإدارة المركز فقط.', 'bad');
       return go('children');
     }
@@ -10767,6 +10764,24 @@ function openNewEvaluationPickerModal(kids, sections, secAllOpts, branchOpts) {
   }
 
   async function init() {
+      // التحقق من تحديث النسخة وتفريغ الذاكرة المؤقتة التلقائي
+      try {
+        var APP_VER = '90';
+        if (localStorage.getItem('de_app_ver') !== APP_VER) {
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              names.forEach(function (nm) { caches.delete(nm); });
+            });
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              regs.forEach(function (r) { r.update(); });
+            });
+          }
+          localStorage.setItem('de_app_ver', APP_VER);
+        }
+      } catch (eVer) {}
+
     // صمام أمان حاسم: إذا بقيت شاشة التحميل ظاهرة لأكثر من ثانيتين، يتم إظهار شاشة الدخول فوراً
     setTimeout(function () {
       var b = document.getElementById('boot');
