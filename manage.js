@@ -8295,8 +8295,21 @@
     return logEntry;
   }
 
+  var ATT_CSS = "\n.att-page .sic-num{background:transparent;border:0;box-shadow:none;padding:0;min-width:0}\n.att-page svg.i{width:1.1em;height:1.1em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}\n.att-page svg.i:has(use[href=\"#s-whatsapp\"]),.att-modal svg.i:has(use[href=\"#s-whatsapp\"]){fill:currentColor;stroke:none}\n.att-page .btn,.att-page .att-b-present{display:inline-flex;align-items:center;justify-content:center;gap:7px}\n.att-sender{display:inline-flex;align-items:center;gap:8px;cursor:default}\n.att-fld{display:flex;flex-direction:column;gap:5px;flex:1;min-width:170px;font-size:.8rem;font-weight:800;color:#082D50}\n.att-fld select,.att-fld input{width:100%;box-sizing:border-box}\n.att-date{min-height:40px;padding:8px 14px;border:1.5px solid var(--line-strong,#CBD9EA);border-radius:var(--radius-sm,10px);background:var(--bg,#F5F7FA);font:inherit;font-size:14px;color:inherit}\n.att-date:focus{outline:none;border-color:var(--brand-gold,#B4873A);background:#fff}\n.att-selbar{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 16px;margin-bottom:14px;border-color:#E8D2A6;background:#FDF8ED}\n.att-selbar[hidden]{display:none}\n.att-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}\n.att-main-btn{min-height:50px;font-size:1rem}\n.att-b-present,.att-s-present.on{background:#0F8A5F;color:#fff;border-color:#0F8A5F}\n.att-s-absent.on{background:#D23B3B;color:#fff;border-color:#D23B3B}\n.att-s-unrecorded.on{background:#64748B;color:#fff;border-color:#64748B}\n.att-seg{display:inline-flex;gap:6px;flex-wrap:nowrap}.att-seg .btn{padding-inline:10px;white-space:nowrap}.att-st-cell{white-space:nowrap;min-width:260px}\n.att-check{width:20px;height:20px;accent-color:#123E73;cursor:pointer}\n.att-col-sel{width:44px;text-align:center}\n.att-page table.tbl tr[data-st=\"present\"]{background:#F2FBF6}\n.att-page table.tbl tr[data-st=\"absent\"]{background:#FEF3F3}\n.att-page table.tbl tr.is-sel{box-shadow:inset 0 0 0 2px rgba(180,135,58,.6)}\n.att-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;font-size:.76rem;font-weight:800;border:1px solid;white-space:nowrap}\n.att-badge svg.i{width:13px;height:13px}\n.att-badge-sending{background:#E3EEFC;color:#1E40AF;border-color:#A9C6F2}\n.att-badge-accepted{background:#FEF3D7;color:#8A5A0B;border-color:#EBCB86}\n.att-badge-delivered{background:#D9F5E7;color:#0B6B49;border-color:#86D9B2}\n.att-badge-read{background:#BFEFD7;color:#075C3E;border-color:#5CC796}\n.att-badge-failed{background:#FDE4E4;color:#9F1E1E;border-color:#F0A3A3}\n.att-modal-title{margin:0;display:flex;align-items:center;gap:10px;color:#082D50}\n.att-modal-sub{margin:6px 0 14px;color:#64748B;font-size:.84rem;line-height:1.7}\n.att-minis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}\n.att-mini{display:flex;flex-direction:column;padding:10px;border-radius:12px;background:#F5F8FC;border:1px solid #DCE6F2;text-align:center}\n.att-mini strong{font-size:1.35rem}.att-mini span{font-size:.72rem;font-weight:700;color:#64748B}\n.att-mini-absent strong{color:#D23B3B}.att-mini-present strong{color:#0F8A5F}.att-mini-gold strong{color:#A87A2B}\n.att-modal-lbl{display:block;margin-bottom:6px;font-weight:800;color:#082D50;font-size:.86rem}\n.att-preview{white-space:pre-wrap;background:#F0FAF4;border:1px solid #A9E0C0;border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.8;color:#0B4A33;margin-bottom:16px;max-height:40vh;overflow:auto}\n.att-modal-actions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}\n.btn.is-loading{pointer-events:none;opacity:.8}\n.btn.is-loading::before{content:\"\";width:16px;height:16px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:att-spin .7s linear infinite}\n@keyframes att-spin{to{transform:rotate(360deg)}}\n@media(max-width:760px){.att-actions{grid-template-columns:1fr}.att-minis{grid-template-columns:1fr 1fr}.att-fld{min-width:100%}.att-seg{width:100%}.att-seg .btn{flex:1}.att-page table.tbl td.att-col-sel{justify-content:flex-start}}\n\n@media(max-width:760px){\n.att-page .tbl-wrap{background:transparent;border:0;box-shadow:none;overflow:visible}\n.att-page table.tbl,.att-page table.tbl tbody,.att-page table.tbl tr,.att-page table.tbl td{display:block;width:100%;box-sizing:border-box}\n.att-page table.tbl thead{display:none}\n.att-page table.tbl tbody tr{background:#fff;border:1px solid #DCE6F2;border-radius:14px;box-shadow:0 2px 8px rgba(8,45,80,.06);margin-bottom:10px;padding:6px 14px;position:relative}\n.att-page table.tbl tbody tr[data-st=\"present\"]{background:#F2FBF6;border-color:#9BDDBB}\n.att-page table.tbl tbody tr[data-st=\"absent\"]{background:#FEF3F3;border-color:#F0A3A3}\n.att-page table.tbl td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border:0;border-bottom:1px dashed #DCE6F2;text-align:start;width:100%}\n.att-page table.tbl td:last-child{border-bottom:0}\n.att-page table.tbl td::before{content:attr(data-label);flex:none;color:#64748B;font-size:.8rem;font-weight:700}\n.att-page table.tbl td.att-col-sel{width:100%}\n.att-page table.tbl td.att-st-cell{flex-direction:column;align-items:stretch}\n.att-page table.tbl td.att-st-cell::before{display:none}\n.att-page table.tbl td.att-st-cell .att-seg .btn{min-height:44px}\n}\n";
+  function ensureAttStyles() {
+    try {
+      var old = document.getElementById('att-style');
+      if (old) old.remove();
+      var st = document.createElement('style');
+      st.id = 'att-style';
+      st.textContent = ATT_CSS;
+      document.head.appendChild(st);
+    } catch (e) {}
+  }
+
   /* القسم الرئيسي: الغيابات والحضور */
   async function secAttendance(v) {
+    ensureAttStyles();
     if (S.isSpecialist) {
       toast('غير مخوّلة: قسم الغيابات والحضور غير متاح لحساب الأخصائية.', 'bad');
       return go('children');
@@ -8351,21 +8364,10 @@
     v.textContent = '';
     v.classList.add('att-page');
 
-    // أدوات صغيرة
-    function el(tag, cls, text) {
-      var n = document.createElement(tag);
-      if (cls) n.className = cls;
-      if (text != null) n.textContent = text;
-      return n;
-    }
-    function iconBtnContent(sym, label) {
-      return [makeSvgIcon(sym), h('span', { text: label })];
-    }
-
     var todayStr = new Date().toISOString().slice(0, 10);
-    var dateInput = h('input', { type: 'date', class: 'att-input sic-num', value: todayStr });
+    var dateInput = h('input', { type: 'date', class: 'att-date sic-num', value: todayStr });
 
-    var secSelect = h('select', { class: 'att-input', disabled: !!S.isEducator });
+    var secSelect = h('select', { disabled: !!S.isEducator });
     function populateSectionOptions() {
       var curVal = secSelect.value;
       secSelect.textContent = '';
@@ -8380,20 +8382,16 @@
     }
     populateSectionOptions();
 
-    var statusFilter = h('select', { class: 'att-input' },
+    var statusFilter = h('select', null,
       h('option', { value: 'all', text: 'كل الحالات' }),
       h('option', { value: 'present', text: 'الحاضرون' }),
       h('option', { value: 'absent', text: 'الغائبون' }),
       h('option', { value: 'unrecorded', text: 'لم تُسجل حالتهم' })
     );
+    var searchInput = h('input', { type: 'search', placeholder: 'بحث باسم الطفل أو رقم القيد…' });
 
-    var searchInput = h('input', { type: 'search', class: 'att-input', placeholder: 'ابحث باسم الطفل أو رقم القيد…' });
-
-    // حالة الحضور: child_id -> present | absent | unrecorded
     var dayAttendance = {};
-    // اختيار الأطفال (للتحديد الجماعي والإرسال الانتقائي)
     var selected = {};
-
     function selectedIds() {
       return eligibleKids.filter(function (k) { return selected[k.id]; }).map(function (k) { return k.id; });
     }
@@ -8440,25 +8438,19 @@
       });
     }
 
-    // ───────────── الرأس ─────────────
-    v.appendChild(h('header', { class: 'att-hero' },
-      h('div', { class: 'att-hero-main' },
-        h('span', { class: 'att-hero-ico' }, makeSvgIcon('s-cal')),
+    // ───────────── الرأس + الإحصائيات (نفس بنية لوحة الموقع) ─────────────
+    var statsBar = h('div', { class: 'dash-hero-stats' });
+    v.appendChild(h('div', { class: 'dash-hero-banner' },
+      h('div', { class: 'dash-hero-top' },
         h('div', null,
-          h('h1', { text: 'الغيابات والحضور' }),
-          h('p', { text: 'سجّل حضور وغياب أطفال المركز يومياً، واختر من تريد، ثم أرسل إشعار الغياب لأوليائهم عبر WhatsApp.' })
-        )
+          h('span', { class: 'dash-hero-kicker', text: 'ATTENDANCE • الحضور والغياب' }),
+          h('h1', { class: 'dash-hero-title', text: 'الغيابات والحضور' }),
+          h('p', { class: 'dash-hero-sub', text: 'سجّل حضور وغياب الأطفال يومياً، واختر من تريد، ثم أرسل إشعار الغياب لأوليائهم عبر WhatsApp.' })
+        ),
+        h('span', { class: 'dash-hero-btn att-sender' }, makeSvgIcon('s-lock'), h('span', { text: 'رقم الإرسال الثابت: ' }), h('bdi', { dir: 'ltr', class: 'sic-num', text: OFFICIAL_WA_SENDER }))
       ),
-      h('div', { class: 'att-sender' },
-        makeSvgIcon('s-lock'),
-        h('span', { class: 'att-sender-lbl', text: 'رقم الإرسال الثابت' }),
-        h('bdi', { dir: 'ltr', class: 'att-sender-num sic-num', text: OFFICIAL_WA_SENDER })
-      )
+      statsBar
     ));
-
-    // ───────────── الإحصائيات ─────────────
-    var statsBar = h('section', { class: 'att-stats' });
-    v.appendChild(statsBar);
 
     function updateStatsCards() {
       var total = eligibleKids.length, present = 0, absent = 0, unrecorded = 0;
@@ -8467,37 +8459,20 @@
         if (st === 'present') present++; else if (st === 'absent') absent++; else unrecorded++;
       });
       statsBar.textContent = '';
-      [
-        { cls: 'total', label: 'إجمالي الأطفال', val: total, icon: 's-users' },
-        { cls: 'present', label: 'الحاضرون', val: present, icon: 's-check' },
-        { cls: 'absent', label: 'الغائبون', val: absent, icon: 's-x' },
-        { cls: 'pending', label: 'لم تُسجل حالتهم', val: unrecorded, icon: 's-clock' }
-      ].forEach(function (c) {
-        statsBar.appendChild(h('div', { class: 'att-stat att-stat-' + c.cls },
-          h('span', { class: 'att-stat-ico' }, makeSvgIcon(c.icon)),
-          h('div', { class: 'att-stat-txt' },
-            h('strong', { class: 'sic-num', text: String(c.val) }),
-            h('span', { text: c.label })
-          )
-        ));
+      [['إجمالي الأطفال', total], ['الحاضرون', present], ['الغائبون', absent], ['لم تُسجل حالتهم', unrecorded]].forEach(function (c) {
+        statsBar.appendChild(h('div', { class: 'dash-hero-stat' }, h('b', { text: String(c[1]) }), h('span', { text: c[0] })));
       });
     }
 
-    // ───────────── الفلاتر ─────────────
-    function field(label, ctrl, cls) {
-      return h('label', { class: 'att-field ' + (cls || '') }, h('span', { text: label }), ctrl);
-    }
-    v.appendChild(h('section', { class: 'att-filters' },
-      field('التاريخ', dateInput),
-      field('القسم', secSelect),
-      field('الحالة', statusFilter),
-      field('بحث', searchInput, 'att-field-wide')
+    // ───────────── الفلاتر (filter-bar الموقع) ─────────────
+    function fld(label, ctrl) { return h('label', { class: 'att-fld' }, h('span', { text: label }), ctrl); }
+    v.appendChild(h('div', { class: 'filter-bar' },
+      fld('التاريخ', dateInput), fld('القسم', secSelect), fld('الحالة', statusFilter), fld('بحث', searchInput)
     ));
 
     // ───────────── شريط الاختيار الجماعي ─────────────
-    var selectBar = h('section', { class: 'att-selbar', hidden: true });
+    var selectBar = h('div', { class: 'card att-selbar', hidden: true });
     v.appendChild(selectBar);
-
     function renderSelectBar() {
       var ids = selectedIds();
       selectBar.hidden = !ids.length;
@@ -8505,35 +8480,30 @@
       if (!ids.length) return;
       function bulk(st) {
         ids.forEach(function (id) { dayAttendance[id] = st; });
-        updateStatsCards();
-        renderList();
-        renderSelectBar();
+        updateStatsCards(); renderList(); renderSelectBar();
       }
-      selectBar.appendChild(h('div', { class: 'att-selbar-info' },
-        makeSvgIcon('s-users'),
-        h('span', null, 'تم اختيار ', h('b', { class: 'sic-num', text: String(ids.length) }), ' طفل')
-      ));
-      selectBar.appendChild(h('div', { class: 'att-selbar-btns' },
-        h('button', { type: 'button', class: 'att-chip att-chip-present', onclick: function () { bulk('present'); } }, makeSvgIcon('s-check'), h('span', { text: 'حاضر' })),
-        h('button', { type: 'button', class: 'att-chip att-chip-absent', onclick: function () { bulk('absent'); } }, makeSvgIcon('s-x'), h('span', { text: 'غائب' })),
-        h('button', { type: 'button', class: 'att-chip att-chip-pending', onclick: function () { bulk('unrecorded'); } }, makeSvgIcon('s-clock'), h('span', { text: 'لم يسجل' })),
-        h('button', { type: 'button', class: 'att-chip att-chip-ghost', onclick: function () { selected = {}; renderList(); renderSelectBar(); } }, h('span', { text: 'إلغاء الاختيار' }))
+      selectBar.appendChild(h('strong', null, 'تم اختيار ', h('span', { class: 'badge gold sic-num', text: String(ids.length) }), ' طفل'));
+      selectBar.appendChild(h('div', { class: 'row-actions' },
+        h('button', { type: 'button', class: 'btn small att-b-present', onclick: function () { bulk('present'); } }, makeSvgIcon('s-check'), h('span', { text: 'حاضر' })),
+        h('button', { type: 'button', class: 'btn small danger', onclick: function () { bulk('absent'); } }, makeSvgIcon('s-x'), h('span', { text: 'غائب' })),
+        h('button', { type: 'button', class: 'btn small light', onclick: function () { bulk('unrecorded'); } }, makeSvgIcon('s-clock'), h('span', { text: 'لم يسجل' })),
+        h('button', { type: 'button', class: 'btn small light', onclick: function () { selected = {}; renderList(); renderSelectBar(); } }, h('span', { text: 'إلغاء الاختيار' }))
       ));
     }
 
     // ───────────── الإجراءات الرئيسية ─────────────
-    var saveBtn = h('button', { type: 'button', class: 'att-btn att-btn-primary' }, makeSvgIcon('s-check'), h('span', { text: 'حفظ الحضور والغياب' }));
-    var sendWaBtn = h('button', { type: 'button', class: 'att-btn att-btn-wa' }, makeSvgIcon('s-whatsapp'), h('span', { text: 'إرسال إشعارات الغياب عبر WhatsApp' }));
-    v.appendChild(h('section', { class: 'att-actions' }, saveBtn, sendWaBtn));
+    var saveBtn = h('button', { type: 'button', class: 'btn gold att-main-btn' }, makeSvgIcon('s-check'), h('span', { text: 'حفظ الحضور والغياب' }));
+    var sendWaBtn = h('button', { type: 'button', class: 'btn att-main-btn' }, makeSvgIcon('s-whatsapp'), h('span', { text: 'إرسال إشعارات الغياب عبر WhatsApp' }));
+    v.appendChild(h('div', { class: 'att-actions' }, saveBtn, sendWaBtn));
 
-    var listHost = h('div', { class: 'att-list-host' });
+    var listHost = h('div');
     v.appendChild(listHost);
     var trackingHost = h('div', { class: 'att-tracking' });
     v.appendChild(trackingHost);
 
     // ───────────── الحفظ ─────────────
     saveBtn.addEventListener('click', async function () {
-      saveBtn.disabled = true;
+      saveBtn.disabled = true; saveBtn.classList.add('is-loading');
       var curText = saveBtn.querySelector('span');
       if (curText) curText.textContent = 'جارٍ الحفظ…';
       var dStr = dateInput.value;
@@ -8558,7 +8528,7 @@
           toast('تم حفظ التغييرات محلياً (جاهزة للمزامنة).', 'ok');
         }
       }
-      saveBtn.disabled = false;
+      saveBtn.disabled = false; saveBtn.classList.remove('is-loading');
       if (curText) curText.textContent = 'حفظ الحضور والغياب';
       updateStatsCards();
     });
@@ -8604,10 +8574,10 @@
         h('label', { class: 'att-modal-lbl', text: 'معاينة نص الرسالة:' }),
         h('div', { class: 'att-preview', text: previewText }),
         h('div', { class: 'att-modal-actions' },
-          h('button', { type: 'button', class: 'att-btn att-btn-ghost', onclick: closeModal }, h('span', { text: 'إلغاء' })),
+          h('button', { type: 'button', class: 'btn light', onclick: closeModal }, h('span', { text: 'إلغاء' })),
           h('button', {
             type: 'button',
-            class: 'att-btn att-btn-wa',
+            class: 'btn',
             disabled: !readyToSendCount,
             onclick: async function () {
               closeModal();
@@ -8615,6 +8585,7 @@
               if (!toSend.length) return toast('لا يوجد من يمكن الإرسال إليه (أُرسل مسبقاً أو الرقم غير صالح).', 'gold');
               toast('جارٍ إرسال ' + toSend.length + ' إشعار…', 'ok');
               var ok = 0, fail = 0;
+              sendWaBtn.disabled = true; sendWaBtn.classList.add('is-loading');
               for (var i = 0; i < toSend.length; i++) {
                 var r = await sendSingleAbsenceNotification(toSend[i], dStr, false);
                 if (r.status === 'accepted' || r.status === 'delivered') ok++; else fail++;
@@ -8622,6 +8593,7 @@
               if (ok > 0 && !fail) toast('تم إرسال وقبول جميع الإشعارات (' + ok + ') بنجاح.', 'ok');
               else if (ok > 0) toast('قُبلت ' + ok + ' رسالة وفشلت ' + fail + '. أعد المحاولة من السجل أدناه.', 'gold');
               else toast('تعذر الإرسال. تأكد من ضبط أسرار Meta في Supabase.', 'bad');
+              sendWaBtn.disabled = false; sendWaBtn.classList.remove('is-loading');
               renderTrackingTable();
             }
           }, makeSvgIcon('s-whatsapp'), h('span', { text: 'تأكيد الإرسال (' + readyToSendCount + ')' }))
@@ -8630,86 +8602,78 @@
       openModal(modalBody);
     });
 
-    // ───────────── قائمة الأطفال ─────────────
-    function statusSeg(k, row) {
-      var seg = h('div', { class: 'att-seg', role: 'group' });
-      var defs = [
-        { st: 'present', label: 'حاضر', icon: 's-check' },
-        { st: 'absent', label: 'غائب', icon: 's-x' },
-        { st: 'unrecorded', label: 'لم يسجل', icon: 's-clock' }
-      ];
-      var btns = {};
-      function paint() {
-        var cur = dayAttendance[k.id] || 'unrecorded';
-        row.setAttribute('data-st', cur);
-        defs.forEach(function (d) { btns[d.st].classList.toggle('on', cur === d.st); btns[d.st].setAttribute('aria-pressed', cur === d.st ? 'true' : 'false'); });
-      }
-      defs.forEach(function (d) {
-        var b = h('button', { type: 'button', class: 'att-seg-btn att-seg-' + d.st }, makeSvgIcon(d.icon), h('span', { text: d.label }));
-        b.addEventListener('click', function () {
-          dayAttendance[k.id] = d.st;
-          paint();
-          updateStatsCards();
-        });
-        btns[d.st] = b;
-        seg.appendChild(b);
-      });
-      paint();
-      return seg;
-    }
-
+    // ───────────── قائمة الأطفال (جدول الموقع tbl) ─────────────
     var headCheck = null;
     function renderList() {
       listHost.textContent = '';
       var kids = getFilteredKids();
-
       if (!kids.length) {
-        listHost.appendChild(h('div', { class: 'att-empty', text: 'لا يوجد أطفال مطابقون للبحث أو التصفية الحالية.' }));
+        listHost.appendChild(h('div', { class: 'card empty', text: 'لا يوجد أطفال مطابقون للبحث أو التصفية الحالية.' }));
         return;
       }
-
       var allSel = kids.every(function (k) { return selected[k.id]; });
       var someSel = kids.some(function (k) { return selected[k.id]; });
-      headCheck = h('input', { type: 'checkbox', class: 'att-check', 'aria-label': 'تحديد كل الظاهرين' });
+      headCheck = h('input', { type: 'checkbox', class: 'att-check', 'aria-label': 'تحديد الكل' });
       headCheck.checked = allSel;
       headCheck.indeterminate = !allSel && someSel;
       headCheck.addEventListener('change', function () {
         kids.forEach(function (k) { if (headCheck.checked) selected[k.id] = true; else delete selected[k.id]; });
-        renderList();
-        renderSelectBar();
+        renderList(); renderSelectBar();
       });
 
-      var card = h('div', { class: 'att-list' });
-      card.appendChild(h('div', { class: 'att-list-head' },
-        h('label', { class: 'att-selall' }, headCheck, h('span', { text: 'تحديد الكل' })),
-        h('span', { class: 'att-count' }, 'يظهر ', h('b', { class: 'sic-num', text: String(kids.length) }), ' من ', h('span', { class: 'sic-num', text: String(eligibleKids.length) }))
-      ));
-
+      var tbl = h('table', { class: 'tbl' });
+      tbl.appendChild(h('thead', null, h('tr', null,
+        h('th', { class: 'att-col-sel' }, headCheck),
+        h('th', { text: '#' }),
+        h('th', { text: 'الطفل' }),
+        h('th', { text: 'القسم' }),
+        h('th', { text: 'رقم القيد' }),
+        h('th', { text: 'الحالة' })
+      )));
+      var tbody = h('tbody');
       kids.forEach(function (k, idx) {
-        var row = h('div', { class: 'att-row' + (selected[k.id] ? ' is-sel' : '') });
+        var tr = h('tr');
         var chk = h('input', { type: 'checkbox', class: 'att-check', 'aria-label': 'اختيار ' + (k.full_name || '') });
         chk.checked = !!selected[k.id];
         chk.addEventListener('change', function () {
           if (chk.checked) selected[k.id] = true; else delete selected[k.id];
-          row.classList.toggle('is-sel', chk.checked);
           var a = kids.every(function (x) { return selected[x.id]; });
           var s2 = kids.some(function (x) { return selected[x.id]; });
-          if (headCheck) { headCheck.checked = a; headCheck.indeterminate = !a && s2; }
+          headCheck.checked = a; headCheck.indeterminate = !a && s2;
+          tr.classList.toggle('is-sel', chk.checked);
           renderSelectBar();
         });
-        row.appendChild(h('label', { class: 'att-row-sel' }, chk));
-        row.appendChild(h('span', { class: 'att-row-no sic-num', text: String(idx + 1) }));
-        row.appendChild(h('div', { class: 'att-row-who' },
-          h('strong', { text: k.full_name || '—' }),
-          h('span', { class: 'att-row-meta' },
-            k.section ? h('span', { class: 'att-tag', text: k.section }) : null,
-            k.membership_no ? h('span', { class: 'att-no sic-num', text: 'رقم القيد ' + k.membership_no }) : null
-          )
-        ));
-        row.appendChild(statusSeg(k, row));
-        card.appendChild(row);
+        if (selected[k.id]) tr.classList.add('is-sel');
+
+        var defs = [
+          { st: 'present', label: 'حاضر', icon: 's-check' },
+          { st: 'absent', label: 'غائب', icon: 's-x' },
+          { st: 'unrecorded', label: 'لم يسجل', icon: 's-clock' }
+        ];
+        var btns = {};
+        function paint() {
+          var cur = dayAttendance[k.id] || 'unrecorded';
+          tr.setAttribute('data-st', cur);
+          defs.forEach(function (d) { btns[d.st].classList.toggle('on', cur === d.st); });
+        }
+        var seg = h('div', { class: 'att-seg' });
+        defs.forEach(function (d) {
+          var b = h('button', { type: 'button', class: 'btn small light att-s-' + d.st }, makeSvgIcon(d.icon), h('span', { text: d.label }));
+          b.addEventListener('click', function () { dayAttendance[k.id] = d.st; paint(); updateStatsCards(); });
+          btns[d.st] = b; seg.appendChild(b);
+        });
+        paint();
+
+        tr.appendChild(h('td', { class: 'att-col-sel', 'data-label': 'اختيار' }, chk));
+        tr.appendChild(h('td', { class: 'sic-num', 'data-label': '#', text: String(idx + 1) }));
+        tr.appendChild(h('td', { 'data-label': 'الطفل' }, h('strong', { text: k.full_name || '—' })));
+        tr.appendChild(h('td', { 'data-label': 'القسم' }, h('span', { class: 'badge gray', text: k.section || '—' })));
+        tr.appendChild(h('td', { class: 'sic-num', 'data-label': 'رقم القيد', text: k.membership_no || '—' }));
+        tr.appendChild(h('td', { class: 'att-st-cell', 'data-label': 'الحالة' }, seg));
+        tbody.appendChild(tr);
       });
-      listHost.appendChild(card);
+      tbl.appendChild(tbody);
+      listHost.appendChild(h('div', { class: 'tbl-wrap' }, tbl));
     }
 
     // ───────────── سجل متابعة الرسائل ─────────────
@@ -8719,14 +8683,11 @@
       var dayLogs = getWaLogsForDate(dStr);
       if (!dayLogs.length) return;
 
-      var wrap = h('section', { class: 'att-log' });
-      wrap.appendChild(h('div', { class: 'att-log-head' },
-        h('div', null,
-          h('h3', null, makeSvgIcon('s-whatsapp'), h('span', { text: 'سجل إشعارات WhatsApp — ' + dStr })),
-          h('p', { text: 'تتبّع حالة كل رسالة، وأعد محاولة الفاشلة فقط.' })
-        ),
-        dayLogs.some(function (l) { return l.status === 'failed'; }) ? h('button', {
-          type: 'button', class: 'att-btn att-btn-outline',
+      var failedAny = dayLogs.some(function (l) { return l.status === 'failed'; });
+      trackingHost.appendChild(h('div', { class: 'bar-sub' },
+        h('h2', { text: 'سجل إشعارات WhatsApp — ' + dStr }),
+        failedAny ? h('button', {
+          type: 'button', class: 'btn small light',
           onclick: async function () {
             var failedList = dayLogs.filter(function (l) { return l.status === 'failed'; });
             toast('جارٍ إعادة إرسال ' + failedList.length + ' رسالة فاشلة…', 'ok');
@@ -8741,33 +8702,33 @@
         }, makeSvgIcon('s-refresh'), h('span', { text: 'إعادة إرسال الفاشلة' })) : null
       ));
 
-      var items = h('div', { class: 'att-log-list' });
+      var tbl = h('table', { class: 'tbl' });
+      tbl.appendChild(h('thead', null, h('tr', null,
+        h('th', { text: 'الطفل' }), h('th', { text: 'رقم الولي' }), h('th', { text: 'الوقت' }),
+        h('th', { text: 'الحالة' }), h('th', { text: 'المعرف / السبب' }), h('th', { text: 'إجراء' })
+      )));
+      var tbody = h('tbody');
       dayLogs.forEach(function (l) {
         var isFailed = l.status === 'failed';
-        items.appendChild(h('div', { class: 'att-log-item' + (isFailed ? ' is-failed' : '') },
-          h('div', { class: 'att-log-main' },
-            h('strong', { text: l.child_name || '—' }),
-            h('bdi', { dir: 'ltr', class: 'sic-num att-log-phone', text: l.phone || '—' })
-          ),
-          h('div', { class: 'att-log-side' },
-            makeWaStatusBadge(l.status),
-            h('span', { class: 'att-log-time sic-num', text: fmt(l.created_at, true) })
-          ),
-          h('div', { class: 'att-log-note' },
-            isFailed ? h('span', { class: 'att-err', text: l.error_message || 'فشل الإرسال' })
-                     : h('code', { dir: 'ltr', text: l.wamid || '—' }),
-            isFailed ? h('button', {
-              type: 'button', class: 'att-chip att-chip-ghost',
-              onclick: async function () {
-                var mk = eligibleKids.filter(function (k) { return k.id === l.child_id; })[0];
-                if (mk) { await sendSingleAbsenceNotification(mk, dStr, true); renderTrackingTable(); }
-              }
-            }, makeSvgIcon('s-refresh'), h('span', { text: 'إعادة المحاولة' })) : null
-          )
+        tbody.appendChild(h('tr', null,
+          h('td', { 'data-label': 'الطفل' }, h('strong', { text: l.child_name || '—' })),
+          h('td', { 'data-label': 'رقم الولي' }, h('bdi', { dir: 'ltr', class: 'sic-num', text: l.phone || '—' })),
+          h('td', { class: 'sic-num', 'data-label': 'الوقت', text: fmt(l.created_at, true) }),
+          h('td', { 'data-label': 'الحالة' }, makeWaStatusBadge(l.status)),
+          h('td', { 'data-label': 'المعرف / السبب' },
+            isFailed ? h('span', { class: 'err small', text: l.error_message || 'فشل الإرسال' })
+                     : h('code', { dir: 'ltr', class: 'small', text: l.wamid || '—' })),
+          h('td', { 'data-label': 'إجراء' }, isFailed ? h('button', {
+            type: 'button', class: 'btn small light',
+            onclick: async function () {
+              var mk = eligibleKids.filter(function (k) { return k.id === l.child_id; })[0];
+              if (mk) { await sendSingleAbsenceNotification(mk, dStr, true); renderTrackingTable(); }
+            }
+          }, makeSvgIcon('s-refresh'), h('span', { text: 'إعادة المحاولة' })) : h('span', { class: 'muted small', text: '—' }))
         ));
       });
-      wrap.appendChild(items);
-      trackingHost.appendChild(wrap);
+      tbl.appendChild(tbody);
+      trackingHost.appendChild(h('div', { class: 'tbl-wrap' }, tbl));
     }
 
     // ───────────── ربط الأحداث ─────────────
