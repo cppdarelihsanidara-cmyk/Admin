@@ -15,3 +15,16 @@
    ```bash
    supabase secrets set META_WA_ACCESS_TOKEN="..." META_PHONE_NUMBER_ID="..." META_WA_VERIFY_TOKEN="dar_el_ihsan_wa_verify_2026"
    ```
+
+## نظام الحضور وإشعارات الغياب (الإصدار الجديد)
+**التدفق:** تسجيل الحضور ← حفظ في جدول `attendance` ← معاينة قائمة الغائبين مع رقم الولي المعتمد ← إرسال عبر الدالة `send-whatsapp` ← تحديث الحالة تلقائيًا (تم التسليم/القراءة) عبر `whatsapp-webhook`.
+
+1. شغّل `sql/17-attendance-and-absence-notifications.sql` في Supabase SQL Editor (ينشئ `attendance` و`whatsapp_logs` مع RLS وفهرس يمنع تكرار إشعار الغياب لنفس الطفل في اليوم).
+2. انشر الدالتين:
+   ```bash
+   supabase functions deploy send-whatsapp
+   supabase functions deploy whatsapp-webhook --no-verify-jwt
+   supabase secrets set META_WA_ACCESS_TOKEN=... META_PHONE_NUMBER_ID=... META_WA_VERIFY_TOKEN=... META_APP_SECRET=...
+   ```
+3. **مهم (قيد من Meta):** الرسائل النصية الحرة تُقبل فقط خلال 24 ساعة من آخر رسالة للولي. لإشعار الغياب الصباحي أنشئ قالبًا معتمدًا (Utility) بمتغيرين `{{1}}` اسم الطفل و`{{2}}` التاريخ، ثم: `supabase secrets set META_WA_ABSENCE_TEMPLATE=absence_notice META_WA_TEMPLATE_LANG=ar`.
+4. رقم الولي يُؤخذ من حساب الولي المرتبط بالطفل (`parent_profiles`) ثم من هاتف ملف الطفل، مع إمكانية تصحيحه قبل الإرسال.

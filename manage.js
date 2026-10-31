@@ -8117,6 +8117,26 @@
      الهوية البصرية: الأزرق الداكن (#082D50) • الأبيض (#FFFFFF) • الذهبي (#B4873A)
      ===================================================================== */
   var OFFICIAL_WA_SENDER = '0564779067';
+
+  /* تاريخ اليوم بتوقيت الجزائر (وليس UTC) حتى لا يتغيّر اليوم قبل الساعة 01:00 صباحًا */
+  function localDateStr(d) {
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers' }).format(d || new Date()); }
+    catch (e) { var x = d || new Date(); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+  }
+
+  /* هاتف الولي المعتمد: حساب الولي المرتبط بالطفل أولًا ثم هاتف ملف الطفل. يُرجع خريطة child_id -> {phone, name, source} */
+  async function loadParentContacts() {
+    var map = {};
+    try {
+      var rows = await C.rest('GET', '/parent_children?select=child_id,created_at,parent_profiles(full_name,phone,disabled)&order=created_at.asc&limit=2000');
+      (rows || []).forEach(function (r) {
+        var p = r && r.parent_profiles;
+        if (!p || p.disabled || map[r.child_id]) return;
+        if (validateAlgerianPhoneStrict(p.phone).valid) map[r.child_id] = { phone: p.phone, name: p.full_name || '', source: 'parent_profile' };
+      });
+    } catch (e) { /* يبقى الاعتماد على هاتف الطفل */ }
+    return map;
+  }
   var DEFAULT_ABSENCE_WA_MSG = 'السلام عليكم ورحمة الله وبركاته،\n\nنحيطكم علماً بأن ابنكم/ابنتكم [اسم الطفل] مسجل(ة) اليوم ضمن قائمة الغائبين عن المركز.\n\nنرجو منكم إعلام إدارة المركز بسبب الغياب عند الإمكان.\n\nإدارة مركز دار الإحسان.';
 
   function buildPersonalizedAbsenceMessage(templateStr, childName) {
@@ -8349,8 +8369,9 @@
     var secId = (child && child.section_id) || opts.section_id || null;
     var isRetry = !!opts.is_retry;
     var existingLogId = opts.existing_log_id || null;
-    var todayStr = new Date().toISOString().slice(0, 10);
+    var todayStr = opts.date || localDateStr();
     var nowIso = new Date().toISOString();
+    var msgType = opts.message_type === 'absence' ? 'absence' : 'text';
 
     var phoneCheck = validateAlgerianPhoneStrict(rawPhone);
     var logId = existingLogId || (window.DE && DE.uuid ? DE.uuid() : ('wa-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)));
@@ -8368,7 +8389,7 @@
       parent_name: parentName,
       recipient_name: parentName,
       direction: 'outbound',
-      message_type: 'text',
+      message_type: msgType,
       message_body: msgBody,
       status: 'sending',
       wamid: '',
@@ -8392,21 +8413,6 @@
       logEntry.error_message = phoneCheck.reason;
       logEntry.updated_at = new Date().toISOString();
       upsertLocalWaLog(logEntry);
-      try {
-        await C.rest('POST', '/whatsapp_logs', {
-          id: logEntry.id,
-          phone: rawPhone,
-          child_id: childId,
-          recipient_name: parentName,
-          direction: 'outbound',
-          message_type: 'text',
-          message_body: msgBody,
-          status: 'failed',
-          error_message: logEntry.error_message,
-          center: centerKey,
-          section_id: secId
-        });
-      } catch (eDb0) {}
       if (opts.onStatusChange) opts.onStatusChange('failed', logEntry);
       return logEntry;
     }
@@ -8427,63 +8433,28 @@
       }
     }
 
-    // 3. حفظ السجل الأولي بحالة sending في قاعدة البيانات
-    try {
-      await C.rest('POST', '/whatsapp_logs', {
-        id: logEntry.id,
-        phone: rawPhone,
-        child_id: childId,
-        recipient_name: parentName,
-        direction: 'outbound',
-        message_type: 'text',
-        message_body: msgBody,
-        status: 'sending',
-        center: centerKey,
-        section_id: secId
-      });
-    } catch (eInitDb) {}
-
     // 4. استدعاء Edge Function للإرسال الفعلي عبر Meta Cloud API
     try {
-      var resp = null;
-      try {
-        resp = await C.fn('send-whatsapp', {
-          log_id: logEntry.id,
-          sender_phone: OFFICIAL_WA_SENDER,
-          phone: phoneCheck.local10 || rawPhone,
-          child_id: childId,
-          child_name: childName,
-          parent_name: parentName,
-          recipient_name: parentName,
-          message: msgBody,
-          center: centerKey,
-          section_id: secId,
-          force_resend: isRetry || !!opts.force_resend,
-          actor_email: currentActorEmail()
-        });
-      } catch (eFnPrimary) {
-        resp = await C.fn('whatsapp-send', {
-          log_id: logEntry.id,
-          sender_phone: OFFICIAL_WA_SENDER,
-          phone: phoneCheck.local10 || rawPhone,
-          child_id: childId,
-          child_name: childName,
-          parent_name: parentName,
-          recipient_name: parentName,
-          message: msgBody,
-          center: centerKey,
-          section_id: secId,
-          force_resend: isRetry || !!opts.force_resend,
-          actor_email: currentActorEmail()
-        });
-      }
+      // الخادم هو المسؤول عن: صلاحية المرسل، رقم الولي، التحقق من الغياب، منع التكرار، الإرسال وتسجيل الحالة
+      var resp = await C.fn('send-whatsapp', {
+        log_id: logEntry.id,
+        message_type: msgType,
+        date: todayStr,
+        phone: phoneCheck.local10 || rawPhone,
+        child_id: childId,
+        parent_name: parentName,
+        message: msgBody,
+        center: centerKey,
+        section_id: secId,
+        force_resend: isRetry || !!opts.force_resend
+      });
 
       // التحقق الصارم من استجابة Meta الحقيقية (رفض أي محاكاة أو نجاح وهمي)
-      var realWamid = (resp && (resp.wamid || resp.message_id)) ? String(resp.wamid || resp.message_id) : '';
+      var realWamid = (resp && resp.wamid) ? String(resp.wamid) : '';
       var isSimulated = realWamid.indexOf('sim_') === 0 || realWamid.indexOf('wa_fallback_') === 0 || (resp && resp.error_code === 'MISSING_META_SECRETS');
 
       if (resp && resp.success === true && !resp.error && !isSimulated && realWamid) {
-        logEntry.status = resp.status === 'delivered' ? 'delivered' : resp.status === 'read' ? 'read' : 'accepted';
+        logEntry.status = resp.status === 'delivered' ? 'delivered' : resp.status === 'read' ? 'read' : 'sent';
         logEntry.wamid = realWamid;
         logEntry.error_code = '';
         logEntry.error_message = '';
@@ -8504,13 +8475,6 @@
     logEntry.updated_at = new Date().toISOString();
     upsertLocalWaLog(logEntry);
 
-    try {
-      await C.rest('PATCH', '/whatsapp_logs?id=eq.' + encodeURIComponent(logEntry.id), {
-        status: logEntry.status === 'accepted' ? 'sent' : logEntry.status,
-        wamid: logEntry.wamid || '',
-        error_message: logEntry.error_message || ''
-      });
-    } catch (eUpdDb) {}
 
     if (opts.onStatusChange) opts.onStatusChange(logEntry.status, logEntry);
     return logEntry;
@@ -8704,7 +8668,7 @@
     var rowStatusCells = {};
 
     kidsList.forEach(function (k) {
-      customPhones[k.id] = k.phone || '';
+      customPhones[k.id] = k.wa_phone || k.phone || '';
     });
 
     var tplArea = h('textarea', {
@@ -8811,7 +8775,10 @@
             singleApiBtn.disabled = true;
             var msgForChild = buildPersonalizedAbsenceMessage(tplArea.value, k.full_name);
             var resLog = await dispatchRealWhatsAppMessage({
+              message_type: 'absence',
+              date: todayStr,
               child: k,
+              parent_name: k.wa_parent_name,
               phone: customPhones[k.id],
               message: msgForChild,
               force_resend: !!alreadySent,
@@ -8824,7 +8791,7 @@
               }
             });
             singleApiBtn.disabled = false;
-            if (resLog.status === 'accepted' || resLog.status === 'delivered') {
+            if (resLog.status === 'sent' || resLog.status === 'accepted' || resLog.status === 'delivered' || resLog.status === 'read') {
               toast('قُبل طلب إرسال الرسالة للطفل ' + k.full_name + ' من Meta بنجاح.', 'ok');
             } else {
               toast('فشل الإرسال عبر Meta API: ' + (resLog.error_message || ''), 'bad');
@@ -8889,7 +8856,10 @@
         var cell = rowStatusCells[kid.id];
 
         var resLog = await dispatchRealWhatsAppMessage({
+          message_type: 'absence',
+          date: todayStr,
           child: kid,
+          parent_name: kid.wa_parent_name,
           phone: customPhones[kid.id],
           message: msgForChild,
           onStatusChange: function (st, entry) {
@@ -8903,7 +8873,7 @@
           }
         });
 
-        if (resLog.status === 'accepted' || resLog.status === 'delivered' || resLog.status === 'read') {
+        if (resLog.status === 'sent' || resLog.status === 'accepted' || resLog.status === 'delivered' || resLog.status === 'read') {
           acceptedCount++;
         } else {
           failedCount++;
@@ -8994,13 +8964,22 @@
     v.textContent = '';
     v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام الحضور والغيابات وسجل الإشعارات…' }));
 
+    var dbProblems = [];
     var d = await Promise.all([
       getMany('children', 'branches', 'sections'),
-      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=400').catch(function () { return []; })
+      C.rest('GET', '/attendance?order=date.desc&limit=2000').catch(function (e) { dbProblems.push('جدول الحضور attendance: ' + (e && e.message || 'غير متاح')); return []; }),
+      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=400').catch(function (e) { dbProblems.push('جدول سجل الرسائل whatsapp_logs: ' + (e && e.message || 'غير متاح')); return []; }),
+      loadParentContacts()
     ]);
+    var parentContacts = d[3] || {};
 
     var allKids = (d[0][0] || []).filter(function (k) { return k && k.active; });
+    allKids.forEach(function (k) {
+      var pc = parentContacts[k.id];
+      k.wa_phone = pc ? pc.phone : '';
+      k.wa_parent_name = pc ? pc.name : '';
+      k.phone_source = pc ? 'parent_profile' : (validateAlgerianPhoneStrict(k.phone).valid ? 'child_record' : 'missing');
+    });
     var branches = d[0][1] || [];
     var sections = d[0][2] || [];
     var savedAttendance = Array.isArray(d[1]) ? d[1] : [];
@@ -9008,7 +8987,7 @@
 
     v.textContent = '';
 
-    var todayStr = new Date().toISOString().slice(0, 10);
+    var todayStr = localDateStr();
     var dateInput = h('input', { type: 'date', class: 'input sic-num', value: todayStr, style: 'font-weight:800;border-color:#082D50;' });
 
     var branchSelect = h('select', { class: 'input', disabled: !!S.isEducator },
@@ -9119,16 +9098,15 @@
         else savedAttendance.unshift(rec);
       });
 
+      if (!payload.length) return true;
       try {
         await C.rest('POST', '/attendance?on_conflict=date,child_id', payload, 'resolution=merge-duplicates,return=minimal');
-        if (showToastMsg) toast('تم حفظ التغييرات في قاعدة البيانات وتحديث القوائم فوراً!', 'ok');
+        if (showToastMsg) toast('تم حفظ سجل الحضور في قاعدة البيانات (' + payload.length + ').', 'ok');
+        return true;
       } catch (eUpsert) {
-        try {
-          await C.rest('POST', '/attendance', payload);
-          if (showToastMsg) toast('تم حفظ سجل الحضور والغياب بنجاح!', 'ok');
-        } catch (eFallback) {
-          if (showToastMsg) toast('تم حفظ التغييرات وتحديث قائمة الغائبين فوراً!', 'ok');
-        }
+        // لا نُظهر نجاحًا وهميًا: الحفظ المحلي لا يكفي لأن إشعار الغياب يتحقق منه الخادم
+        toast('تعذّر حفظ الحضور في قاعدة البيانات — ' + (eUpsert && eUpsert.message ? eUpsert.message : 'تحقق من تطبيق sql/17 ومن الصلاحيات') + '. التغييرات محفوظة على هذا الجهاز فقط ولن يُرسل إشعار غياب.', 'bad');
+        return false;
       }
     }
 
@@ -9188,6 +9166,14 @@
 
     var statsHost = h('div');
     v.appendChild(statsHost);
+
+    if (dbProblems.length) {
+      v.appendChild(h('div', { class: 'no-print', style: 'margin:10px 0;padding:12px 16px;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:10px;color:#991B1B;font-weight:700;line-height:1.7;' },
+        h('div', { text: '⚠️ قاعدة البيانات غير جاهزة لنظام الحضور:' }),
+        h('ul', { style: 'margin:6px 18px 0;font-weight:600;font-size:0.88rem;' }, dbProblems.map(function (m) { return h('li', { text: m }); })),
+        h('div', { style: 'margin-top:6px;font-weight:600;font-size:0.85rem;', text: 'نفّذ الملف sql/17-attendance-and-absence-notifications.sql في Supabase SQL Editor ثم أعد تحميل الصفحة.' })));
+    }
+
 
     var absentPanelHost = h('div');
     v.appendChild(absentPanelHost);
@@ -9335,7 +9321,10 @@
           await persistAttendanceChanges([kid], false);
           toast('تم إلغاء غياب «' + kid.full_name + '» وحذفه من قائمة الإشعارات تلقائياً.', 'ok');
         },
-        function onOpenPreview(targetKids) {
+        async function onOpenPreview(targetKids) {
+          // لا يُرسل أي إشعار قبل حفظ الغياب في قاعدة البيانات (الخادم يتحقق منه)
+          var saved = await persistAttendanceChanges(targetKids, false);
+          if (!saved) return;
           openAbsenceMessagePreviewModal(targetKids, dateInput.value, activeWa, function () {
             refreshAllAttendanceViews();
           });
@@ -9943,6 +9932,8 @@
                     parent_name: fl.parent_name,
                     phone: fl.phone,
                     message: fl.message_body,
+                    message_type: fl.message_type,
+                    date: fl.sent_date,
                     is_retry: true,
                     retry_count: fl.retry_count || 0,
                     force_resend: true
@@ -10027,6 +10018,8 @@
                 parent_name: parentName,
                 phone: l.phone,
                 message: l.message_body,
+                message_type: l.message_type,
+                date: l.sent_date,
                 is_retry: true,
                 retry_count: l.retry_count || 0,
                 force_resend: true
@@ -10236,7 +10229,7 @@
         }
       });
       sendApiBtn.disabled = false;
-      if (resLog.status === 'accepted' || resLog.status === 'delivered') {
+      if (resLog.status === 'sent' || resLog.status === 'accepted' || resLog.status === 'delivered' || resLog.status === 'read') {
         toast('قُبل طلب الإرسال من Meta بنجاح!', 'ok');
         if (onDone) onDone();
       } else {
