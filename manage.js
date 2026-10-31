@@ -8295,7 +8295,7 @@
     return logEntry;
   }
 
-  var ATT_CSS = "\n.att-page .sic-num{background:transparent;border:0;box-shadow:none;padding:0;min-width:0}\n.att-page svg.i{width:1.1em;height:1.1em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}\n.att-page svg.i:has(use[href=\"#s-whatsapp\"]),.att-modal svg.i:has(use[href=\"#s-whatsapp\"]){fill:currentColor;stroke:none}\n.att-page .btn,.att-page .att-b-present{display:inline-flex;align-items:center;justify-content:center;gap:7px}\n.att-sender{display:inline-flex;align-items:center;gap:8px;cursor:default}\n.att-fld{display:flex;flex-direction:column;gap:5px;flex:1;min-width:170px;font-size:.8rem;font-weight:800;color:#082D50}\n.att-fld select,.att-fld input{width:100%;box-sizing:border-box}\n.att-date{min-height:40px;padding:8px 14px;border:1.5px solid var(--line-strong,#CBD9EA);border-radius:var(--radius-sm,10px);background:var(--bg,#F5F7FA);font:inherit;font-size:14px;color:inherit}\n.att-date:focus{outline:none;border-color:var(--brand-gold,#B4873A);background:#fff}\n.att-selbar{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 16px;margin-bottom:14px;border-color:#E8D2A6;background:#FDF8ED}\n.att-selbar[hidden]{display:none}\n.att-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}\n.att-main-btn{min-height:50px;font-size:1rem}\n.att-b-present,.att-s-present.on{background:#0F8A5F;color:#fff;border-color:#0F8A5F}\n.att-s-absent.on{background:#D23B3B;color:#fff;border-color:#D23B3B}\n.att-s-unrecorded.on{background:#64748B;color:#fff;border-color:#64748B}\n.att-seg{display:inline-flex;gap:6px;flex-wrap:nowrap}.att-seg .btn{padding-inline:10px;white-space:nowrap}.att-st-cell{white-space:nowrap;min-width:260px}\n.att-check{width:20px;height:20px;accent-color:#123E73;cursor:pointer}\n.att-col-sel{width:44px;text-align:center}\n.att-page table.tbl tr[data-st=\"present\"]{background:#F2FBF6}\n.att-page table.tbl tr[data-st=\"absent\"]{background:#FEF3F3}\n.att-page table.tbl tr.is-sel{box-shadow:inset 0 0 0 2px rgba(180,135,58,.6)}\n.att-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;font-size:.76rem;font-weight:800;border:1px solid;white-space:nowrap}\n.att-badge svg.i{width:13px;height:13px}\n.att-badge-sending{background:#E3EEFC;color:#1E40AF;border-color:#A9C6F2}\n.att-badge-accepted{background:#FEF3D7;color:#8A5A0B;border-color:#EBCB86}\n.att-badge-delivered{background:#D9F5E7;color:#0B6B49;border-color:#86D9B2}\n.att-badge-read{background:#BFEFD7;color:#075C3E;border-color:#5CC796}\n.att-badge-failed{background:#FDE4E4;color:#9F1E1E;border-color:#F0A3A3}\n.att-modal-title{margin:0;display:flex;align-items:center;gap:10px;color:#082D50}\n.att-modal-sub{margin:6px 0 14px;color:#64748B;font-size:.84rem;line-height:1.7}\n.att-minis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}\n.att-mini{display:flex;flex-direction:column;padding:10px;border-radius:12px;background:#F5F8FC;border:1px solid #DCE6F2;text-align:center}\n.att-mini strong{font-size:1.35rem}.att-mini span{font-size:.72rem;font-weight:700;color:#64748B}\n.att-mini-absent strong{color:#D23B3B}.att-mini-present strong{color:#0F8A5F}.att-mini-gold strong{color:#A87A2B}\n.att-modal-lbl{display:block;margin-bottom:6px;font-weight:800;color:#082D50;font-size:.86rem}\n.att-preview{white-space:pre-wrap;background:#F0FAF4;border:1px solid #A9E0C0;border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.8;color:#0B4A33;margin-bottom:16px;max-height:40vh;overflow:auto}\n.att-modal-actions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}\n.btn.is-loading{pointer-events:none;opacity:.8}\n.btn.is-loading::before{content:\"\";width:16px;height:16px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:att-spin .7s linear infinite}\n@keyframes att-spin{to{transform:rotate(360deg)}}\n@media(max-width:760px){.att-actions{grid-template-columns:1fr}.att-minis{grid-template-columns:1fr 1fr}.att-fld{min-width:100%}.att-seg{width:100%}.att-seg .btn{flex:1}.att-page table.tbl td.att-col-sel{justify-content:flex-start}}\n\n@media(max-width:760px){\n.att-page .tbl-wrap{background:transparent;border:0;box-shadow:none;overflow:visible}\n.att-page table.tbl,.att-page table.tbl tbody,.att-page table.tbl tr,.att-page table.tbl td{display:block;width:100%;box-sizing:border-box}\n.att-page table.tbl thead{display:none}\n.att-page table.tbl tbody tr{background:#fff;border:1px solid #DCE6F2;border-radius:14px;box-shadow:0 2px 8px rgba(8,45,80,.06);margin-bottom:10px;padding:6px 14px;position:relative}\n.att-page table.tbl tbody tr[data-st=\"present\"]{background:#F2FBF6;border-color:#9BDDBB}\n.att-page table.tbl tbody tr[data-st=\"absent\"]{background:#FEF3F3;border-color:#F0A3A3}\n.att-page table.tbl td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border:0;border-bottom:1px dashed #DCE6F2;text-align:start;width:100%}\n.att-page table.tbl td:last-child{border-bottom:0}\n.att-page table.tbl td::before{content:attr(data-label);flex:none;color:#64748B;font-size:.8rem;font-weight:700}\n.att-page table.tbl td.att-col-sel{width:100%}\n.att-page table.tbl td.att-st-cell{flex-direction:column;align-items:stretch}\n.att-page table.tbl td.att-st-cell::before{display:none}\n.att-page table.tbl td.att-st-cell .att-seg .btn{min-height:44px}\n}\n\n.att-replies{margin-top:22px}\n.att-replies h2{display:flex;align-items:center;gap:6px}\n.att-replies-note{margin:-4px 0 10px}\n.att-reply-body{white-space:pre-wrap;overflow-wrap:anywhere;max-width:420px}\n.att-page .att-seg a.btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none}\n@media(max-width:760px){.att-reply-body{max-width:none;text-align:end}}\n";
+  var ATT_CSS = "\n.att-page .sic-num{background:transparent;border:0;box-shadow:none;padding:0;min-width:0}\n.att-page svg.i{width:1.1em;height:1.1em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}\n.att-page svg.i:has(use[href=\"#s-whatsapp\"]),.att-modal svg.i:has(use[href=\"#s-whatsapp\"]){fill:currentColor;stroke:none}\n.att-page .btn,.att-page .att-b-present{display:inline-flex;align-items:center;justify-content:center;gap:7px}\n.att-sender{display:inline-flex;align-items:center;gap:8px;cursor:default}\n.att-fld{display:flex;flex-direction:column;gap:5px;flex:1;min-width:170px;font-size:.8rem;font-weight:800;color:#082D50}\n.att-fld select,.att-fld input{width:100%;box-sizing:border-box}\n.att-date{min-height:40px;padding:8px 14px;border:1.5px solid var(--line-strong,#CBD9EA);border-radius:var(--radius-sm,10px);background:var(--bg,#F5F7FA);font:inherit;font-size:14px;color:inherit}\n.att-date:focus{outline:none;border-color:var(--brand-gold,#B4873A);background:#fff}\n.att-selbar{position:sticky;top:8px;z-index:5;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 16px;margin-bottom:14px;border-color:#E8D2A6;background:#FDF8ED}\n.att-selbar[hidden]{display:none}\n.att-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}\n.att-main-btn{min-height:50px;font-size:1rem}\n.att-b-present,.att-s-present.on{background:#0F8A5F;color:#fff;border-color:#0F8A5F}\n.att-s-absent.on{background:#D23B3B;color:#fff;border-color:#D23B3B}\n.att-s-unrecorded.on{background:#64748B;color:#fff;border-color:#64748B}\n.att-seg{display:inline-flex;gap:6px;flex-wrap:nowrap}.att-seg .btn{padding-inline:10px;white-space:nowrap}.att-st-cell{white-space:nowrap;min-width:260px}\n.att-check{width:20px;height:20px;accent-color:#123E73;cursor:pointer}\n.att-col-sel{width:44px;text-align:center}\n.att-page table.tbl tr[data-st=\"present\"]{background:#F2FBF6}\n.att-page table.tbl tr[data-st=\"absent\"]{background:#FEF3F3}\n.att-page table.tbl tr.is-sel{box-shadow:inset 0 0 0 2px rgba(180,135,58,.6)}\n.att-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:999px;font-size:.76rem;font-weight:800;border:1px solid;white-space:nowrap}\n.att-badge svg.i{width:13px;height:13px}\n.att-badge-sending{background:#E3EEFC;color:#1E40AF;border-color:#A9C6F2}\n.att-badge-accepted{background:#FEF3D7;color:#8A5A0B;border-color:#EBCB86}\n.att-badge-delivered{background:#D9F5E7;color:#0B6B49;border-color:#86D9B2}\n.att-badge-read{background:#BFEFD7;color:#075C3E;border-color:#5CC796}\n.att-badge-failed{background:#FDE4E4;color:#9F1E1E;border-color:#F0A3A3}\n.att-modal-title{margin:0;display:flex;align-items:center;gap:10px;color:#082D50}\n.att-modal-sub{margin:6px 0 14px;color:#64748B;font-size:.84rem;line-height:1.7}\n.att-minis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}\n.att-mini{display:flex;flex-direction:column;padding:10px;border-radius:12px;background:#F5F8FC;border:1px solid #DCE6F2;text-align:center}\n.att-mini strong{font-size:1.35rem}.att-mini span{font-size:.72rem;font-weight:700;color:#64748B}\n.att-mini-absent strong{color:#D23B3B}.att-mini-present strong{color:#0F8A5F}.att-mini-gold strong{color:#A87A2B}\n.att-modal-lbl{display:block;margin-bottom:6px;font-weight:800;color:#082D50;font-size:.86rem}\n.att-preview{white-space:pre-wrap;background:#F0FAF4;border:1px solid #A9E0C0;border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.8;color:#0B4A33;margin-bottom:16px;max-height:40vh;overflow:auto}\n.att-modal-actions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}\n.btn.is-loading{pointer-events:none;opacity:.8}\n.btn.is-loading::before{content:\"\";width:16px;height:16px;border-radius:50%;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;animation:att-spin .7s linear infinite}\n@keyframes att-spin{to{transform:rotate(360deg)}}\n@media(max-width:760px){.att-actions{grid-template-columns:1fr}.att-minis{grid-template-columns:1fr 1fr}.att-fld{min-width:100%}.att-seg{width:100%}.att-seg .btn{flex:1}.att-page table.tbl td.att-col-sel{justify-content:flex-start}}\n\n@media(max-width:760px){\n.att-page .tbl-wrap{background:transparent;border:0;box-shadow:none;overflow:visible}\n.att-page table.tbl,.att-page table.tbl tbody,.att-page table.tbl tr,.att-page table.tbl td{display:block;width:100%;box-sizing:border-box}\n.att-page table.tbl thead{display:none}\n.att-page table.tbl tbody tr{background:#fff;border:1px solid #DCE6F2;border-radius:14px;box-shadow:0 2px 8px rgba(8,45,80,.06);margin-bottom:10px;padding:6px 14px;position:relative}\n.att-page table.tbl tbody tr[data-st=\"present\"]{background:#F2FBF6;border-color:#9BDDBB}\n.att-page table.tbl tbody tr[data-st=\"absent\"]{background:#FEF3F3;border-color:#F0A3A3}\n.att-page table.tbl td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border:0;border-bottom:1px dashed #DCE6F2;text-align:start;width:100%}\n.att-page table.tbl td:last-child{border-bottom:0}\n.att-page table.tbl td::before{content:attr(data-label);flex:none;color:#64748B;font-size:.8rem;font-weight:700}\n.att-page table.tbl td.att-col-sel{width:100%}\n.att-page table.tbl td.att-st-cell{flex-direction:column;align-items:stretch}\n.att-page table.tbl td.att-st-cell::before{display:none}\n.att-page table.tbl td.att-st-cell .att-seg .btn{min-height:44px}\n}\n";
   function ensureAttStyles() {
     try {
       var old = document.getElementById('att-style');
@@ -8309,18 +8309,6 @@
 
   /* القسم الرئيسي: الغيابات والحضور */
   async function secAttendance(v) {
-    try {
-      await secAttendanceInner(v);
-    } catch (eAtt) {
-      v.textContent = '';
-      v.appendChild(h('div', { class: 'err', role: 'alert' },
-        h('p', { text: 'تعذّر عرض قسم الغيابات والحضور: ' + (eAtt && eAtt.message ? eAtt.message : 'خطأ غير معروف') }),
-        h('button', { class: 'btn small', type: 'button', text: 'إعادة المحاولة', onclick: function () { go('attendance'); } })));
-      try { console.error('attendance section error', eAtt); } catch (e0) {}
-    }
-  }
-
-  async function secAttendanceInner(v) {
     ensureAttStyles();
     if (S.isSpecialist) {
       toast('غير مخوّلة: قسم الغيابات والحضور غير متاح لحساب الأخصائية.', 'bad');
@@ -8510,8 +8498,6 @@
 
     var listHost = h('div');
     v.appendChild(listHost);
-    var repliesHost = h('div', { class: 'att-replies' });
-    v.appendChild(repliesHost);
     var trackingHost = h('div', { class: 'att-tracking' });
     v.appendChild(trackingHost);
 
@@ -8745,78 +8731,6 @@
       trackingHost.appendChild(h('div', { class: 'tbl-wrap' }, tbl));
     }
 
-    // ───────────── ردود الأولياء الواردة (تُمحى تلقائياً بعد 7 أيام) ─────────────
-    var REPLY_DAYS = 7;
-    var replies = [];
-    var kidById = {};
-    rawKids.forEach(function (k) { if (k && k.id) kidById[k.id] = k; });
-
-    async function loadReplies() {
-      try {
-        var rows = await C.rest('GET', '/whatsapp_messages?direction=eq.inbound&order=created_at.desc&limit=300');
-        replies = (Array.isArray(rows) ? rows : []).filter(function (r) {
-          return (Date.now() - new Date(r.created_at).getTime()) < REPLY_DAYS * 86400000;
-        });
-      } catch (e) { replies = []; }
-      renderReplies();
-    }
-
-    function daysLeft(r) {
-      var left = REPLY_DAYS - Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000);
-      return Math.max(1, Math.min(REPLY_DAYS, left));
-    }
-
-    function renderReplies() {
-      repliesHost.textContent = '';
-      var head = h('div', { class: 'bar-sub' },
-        h('h2', null, makeSvgIcon('s-mail'), h('span', { text: ' ردود الأولياء' }), ' ', h('span', { class: 'badge gold sic-num', text: String(replies.length) })),
-        h('button', { type: 'button', class: 'btn small light', onclick: function () { loadReplies(); } }, makeSvgIcon('s-refresh'), h('span', { text: 'تحديث' }))
-      );
-      repliesHost.appendChild(head);
-      repliesHost.appendChild(h('p', { class: 'muted small att-replies-note', text: 'تصل هنا ردود الأولياء على إشعارات الغياب عبر WhatsApp، وتُمحى كل رد تلقائياً بعد ' + REPLY_DAYS + ' أيام من وصوله.' }));
-
-      if (!replies.length) {
-        repliesHost.appendChild(h('div', { class: 'card empty', text: 'لا توجد ردود واردة حالياً.' }));
-        return;
-      }
-
-      var tbl = h('table', { class: 'tbl' });
-      tbl.appendChild(h('thead', null, h('tr', null,
-        h('th', { text: 'الطفل / الولي' }), h('th', { text: 'الرد' }), h('th', { text: 'وصل في' }), h('th', { text: 'يُمحى بعد' }), h('th', { text: 'إجراء' })
-      )));
-      var tbody = h('tbody');
-      replies.forEach(function (r) {
-        var kid = kidById[r.child_id];
-        var phone = String(r.to_phone || '').replace(/\D/g, '');
-        var chat = phone ? 'https://wa.me/' + phone : '';
-        tbody.appendChild(h('tr', null,
-          h('td', { 'data-label': 'الطفل / الولي' },
-            h('strong', { text: kid ? ('ولي ' + kid.full_name) : 'رقم غير مسجّل' }),
-            h('div', null, h('bdi', { dir: 'ltr', class: 'sic-num small muted', text: phone ? ('+' + phone) : '—' }))
-          ),
-          h('td', { class: 'att-reply-body', 'data-label': 'الرد', text: r.body || '—' }),
-          h('td', { class: 'sic-num', 'data-label': 'وصل في', text: fmt(r.created_at, true) }),
-          h('td', { 'data-label': 'يُمحى بعد' }, h('span', { class: 'badge gray', text: daysLeft(r) + ' يوم' })),
-          h('td', { 'data-label': 'إجراء' }, h('div', { class: 'att-seg' },
-            chat ? h('a', { class: 'btn small', href: chat, target: '_blank', rel: 'noopener' }, makeSvgIcon('s-whatsapp'), h('span', { text: 'رد' })) : null,
-            h('button', {
-              type: 'button', class: 'btn small danger',
-              onclick: async function () {
-                try {
-                  await C.rest('DELETE', '/whatsapp_messages?id=eq.' + uid(r.id));
-                  replies = replies.filter(function (x) { return x.id !== r.id; });
-                  renderReplies();
-                  toast('تم حذف الرد.', 'ok');
-                } catch (e) { toast('تعذّر حذف الرد.', 'bad'); }
-              }
-            }, makeSvgIcon('s-trash'), h('span', { text: 'حذف' }))
-          ))
-        ));
-      });
-      tbl.appendChild(tbody);
-      repliesHost.appendChild(h('div', { class: 'tbl-wrap' }, tbl));
-    }
-
     // ───────────── ربط الأحداث ─────────────
     dateInput.addEventListener('change', function () {
       loadDateAttendance(dateInput.value);
@@ -8829,7 +8743,6 @@
     updateStatsCards();
     renderList();
     renderTrackingTable();
-    loadReplies();
   }
 
 
