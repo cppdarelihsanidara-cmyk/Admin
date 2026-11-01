@@ -1686,27 +1686,8 @@
 
     hubWrap.appendChild(hubGrid);
 
-    // إضافة بطاقة التحميل اليدوي السريع للأرشيف الشامل داخل لوحة الإدارة
-    if (canAccessGeneralAdmin()) {
-      var quickArchCard = h('div', { class: 'hub-quick-archive-box', style: 'margin-top:24px;background:#ffffff;border:1px solid #E2E8F0;border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;' },
-        h('div', { style: 'display:flex;align-items:center;gap:12px;' },
-          h('div', { style: 'width:42px;height:42px;border-radius:8px;background:rgba(180,135,58,0.12);color:#B4873A;display:flex;align-items:center;justify-content:center;' }, makeSvgIcon('s-archive')),
-          h('div', null,
-            h('h3', { style: 'margin:0;font-size:1rem;color:#0C2D55;', text: 'الأرشيف الشامل والنسخ الاحتياطية' }),
-            h('p', { class: 'muted small', style: 'margin:2px 0 0;', text: 'تنزيل فوري لجميع التقارير والوثائق وبيانات الأطفال في ملف ZIP منظم.' })
-          )
-        ),
-        h('div', { style: 'display:flex;gap:8px;' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            style: 'font-weight:600;',
-            onclick: function () { go('archive'); }
-          }, makeSvgIcon('s-download'), h('span', { text: 'تحميل الأرشيف يدوياً (ZIP)' }))
-        )
-      );
-      hubWrap.appendChild(quickArchCard);
-    }
+    // [تمت إزالة بطاقة النسخ الاحتياطي من صفحة المراكز الثلاثة بناء على طلب المستخدم]
+
 
     v.appendChild(hubWrap);
   }
@@ -1775,7 +1756,7 @@
     ));
 
     var qaItems = [
-      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأطفال والطلبة', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
+      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأقسام والأطفال', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
       { sec: 'educators', icon: 's-users', title: 'المربيات', sub: 'إدارة المربيات وإسناد الأفواج وحساباتهن' },
       { sec: 'programs', icon: 's-book', title: 'البرامج التربوية', sub: 'إعداد وتصدير الجداول الأسبوعية للأقسام' },
       S.activeCenter !== 'farm' ? { sec: 'reports', icon: 's-report', title: 'التقارير التربوية', sub: 'التقارير الدورية ومرفقات ملفات الطلبة' } : null,
@@ -2128,7 +2109,7 @@
         ? 'قائمة طلاب البستنة — المزرعة البيداغوجية'
         : S.activeCenter === 'work'
           ? 'قائمة طلاب وأقسام مركز المساعدة على العمل'
-          : 'قائمة طلاب المركز الرئيسي دار الإحسان';
+          : 'الأقسام والأطفال — المركز الرئيسي دار الإحسان';
 
     function openChildReportsModal(child) {
       var childReps = (allReports || []).filter(function (rep) {
@@ -2297,21 +2278,13 @@
           return h('div', { class: 'cd-item' + (it[2] ? ' wide' : '') }, h('span', { text: it[0] }), valNode);
         }));
 
-        // 2. شريط إجراءات الطفل المنقول بالكامل إلى داخل التفاصيل (البطاقة، الرمز، التعديل، الأرشفة، الحذف)
+        // 2. شريط إجراءات الطفل الرسمي المباشر (البطاقة، التعديل، الحذف — مع إزالة رمز الأرشفة ورمز تسجيل الولي والأزرار المكررة)
         var actionsBarItems = [
-          rbtn('التقارير', function () { openChildReportsModal(r); }, 'light'),
-          rbtn('التقييمات', function () { openChildEvaluationsModal(r); }, 'gold'),
-          rbtn('بطاقة التلميذ', function () { openStudentCard(r); }, 'gold'),
-          rbtn('رمز تسجيل الولي', function () { return manageChildCode(r); })
+          rbtn('بطاقة التلميذ الرسمية', function () { openStudentCard(r); }, 'gold')
         ];
         if (!S.isEducator && !S.isSpecialist) {
           actionsBarItems.push(
-            rbtn('تعديل البيانات', function () { editChild(r); }),
-            rbtn(r.active ? 'أرشفة الملف' : 'استعادة الملف', async function () {
-              await C.rest('PATCH', '/children?id=eq.' + uid(r.id), { active: !r.active });
-              bust(); toast(r.active ? 'تم نقل الملف إلى الأرشيف.' : 'تمت استعادة الملف إلى الحالة النشطة.', 'ok');
-              go('children');
-            }, r.active ? 'light' : 'gold'),
+            rbtn('تعديل البيانات', function () { editChild(r); }, 'light'),
             rbtn('حذف نهائي', async function () {
               if (!(await ask({
                 title: 'تنبيه بشأن حذف ملف الطالب',
@@ -2870,13 +2843,7 @@
       title: 'قسم المربيات وإسناد الأقسام التربوية',
       addLabel: 'إضافة مربية جديدة',
       onAdd: function () { editEducator(null); },
-      extra: [
-        {
-          label: 'إنشاء حساب للمربية وتعيين كلمة سر',
-          kind: 'gold',
-          onclick: function () { openCreateEducatorAccountModal(null, sections, meta, 'educators'); }
-        }
-      ],
+      extra: [],
       rows: educators,
       sheet: true,
       searchPlaceholder: 'بحث باسم المربية، القسم، أو رقم الهاتف…',
@@ -2923,7 +2890,7 @@
         return [
           rbtn('تغيير القسم', function () { openChangeEducatorSectionModal(e, allSections); }, 'ok'),
           rbtn('تعديل الملف', function () { editEducator(e); }, 'gold'),
-          rbtn('إنشاء حساب / كلمة سر', function () { openCreateEducatorAccountModal(e, sections, meta, 'educators'); }),
+          // [تمت إزالة زر إنشاء الحساب / كلمة السر بناء على طلب المستخدم]
           rbtn('حذف', async function () {
             if (!(await ask({ title: 'حذف ملف وحساب المربية؟', msg: 'سيتم حذف ملف المربية «' + e.full_name + '» وحسابها نهائيًا.', ok: 'حذف نهائي', danger: true }))) return;
             var emLower = String(e.email || '').toLowerCase();
@@ -5602,8 +5569,7 @@
       perfGrid,
       summaryBanner,
       recGrid,
-      compactSkillsBox,
-      detailedSkillsSection
+      compactSkillsBox
     );
   }
 
@@ -6733,12 +6699,7 @@
             class: 'btn gold',
             text: 'العودة إلى لوحة الإدارة (المراكز الثلاثة)',
             onclick: function () { go('hub'); }
-          }) : h('button', {
-            type: 'button',
-            class: 'btn light',
-            text: 'العودة إلى الطلبة (' + cm.shortName + ')',
-            onclick: function () { go('children'); }
-          })
+          }) : null
         )
       )
     ));
@@ -6984,13 +6945,7 @@
       desc: headingDesc,
       addLabel: canManage ? (isAllCentersView ? 'إضافة حساب جديد (لأي مركز)' : ('إضافة حساب في ' + cm.shortName)) : '',
       onAdd: canManage ? invite : null,
-      extra: canManage ? [
-        {
-          label: 'إنشاء حساب للمربية',
-          kind: 'light',
-          onclick: createEducatorAccountFromAccounts
-        }
-      ] : [],
+      extra: [],
       rows: displayedAccounts,
       sheet: true,
       empty: 'لا توجد حسابات.',
@@ -7233,21 +7188,483 @@
      12. الأمان والإعدادات (Settings)
      ===================================================================== */
   async function secSettings(v) {
+    return runSettingsView(v);
+  }
+
+  async function runSettingsView(v) {
     if (S.isEducator) return go('children');
-    var me = (await C.me().catch(function () { return S.me; })) || S.me, mfa = ((me && me.factors) || []).some(function (f) { return f.status === 'verified'; });
-    v.appendChild(h('div', { class: 'card' },
-      h('h2', { text: 'المصادقة الثنائية (MFA - TOTP)' }),
-      h('p', null, badge(mfa ? 'مفعّلة لحسابك بنجاح' : 'غير مفعّلة', mfa ? 'ok' : 'bad')),
-      h('p', { class: 'muted', text: mfa ? 'حسابك مؤمّن برمز المصادقة المزدوجة (Google Authenticator).' : 'يمكن تفعيلها لحسابك عبر تطبيق مصادقة مثل Google Authenticator أو Microsoft Authenticator.' })
+
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل إعدادات المنصة…' }));
+
+    var draftData = await loadPortalMeta();
+    var curSettings = (draftData && draftData.settings) || {};
+    
+    var s = {
+      general: Object.assign({
+        association_name_ar: 'جمعية أولياء الأطفال المعاقين ذهنيًا — دار الإحسان',
+        association_name_fr: "Association Dar El Ihsan pour Enfants Inadaptés Mentaux",
+        center_name: 'المركز النفسي البيداغوجي دار الإحسان',
+        wilaya: 'غرداية',
+        commune: 'العطف',
+        phone: '029 88 55 22',
+        email: 'contact@darelihsan.org',
+        academic_year: '2026-2027',
+        facebook_url: 'https://facebook.com/darelihsan',
+        instagram_url: 'https://instagram.com/darelihsan'
+      }, curSettings.general || {}),
+      centers: Object.assign({
+        main_visible: true,
+        work_visible: true,
+        farm_visible: true,
+        main_desc: 'المركز الرئيسي النفسي البيداغوجي — التكفل والمرافقة التربوية والنفسية المتخصصة.',
+        work_desc: 'مركز المساعدة على العمل — ورشات التأهيل المهني والتمهين الحرفي.',
+        farm_desc: 'المزرعة البيداغوجية — التأهيل الزراعي والأنشطة البيئية والبستنة.'
+      }, curSettings.centers || {}),
+      notifications: Object.assign({
+        notify_absence: true,
+        notify_reports: true,
+        notify_evaluations: true,
+        notify_docs: true,
+        notify_messages: true,
+        notify_push_enabled: true,
+        notify_whatsapp_enabled: true
+      }, curSettings.notifications || {}),
+      whatsapp: Object.assign({
+        phone_number_id: '109876543210987',
+        waba_id: '987654321098765',
+        sender_phone: '+213550123456',
+        webhook_token: 'dar_el_ihsan_wa_verify_2026',
+        is_active: true
+      }, curSettings.whatsapp || {}),
+      registration: Object.assign({
+        enable_registration_form: true,
+        enable_inquiries_form: true,
+        disability_options: 'التوحد\nمتلازمة داون\nالإعاقة الذهنية\nاضطرابات النمو\nحالات أخرى',
+        consent_text: 'أوافق على معالجة البيانات المقدمة لغرض دراسة طلب التسجيل والتواصل مع إدارة الجمعية.'
+      }, curSettings.registration || {}),
+      appearance: Object.assign({
+        theme_mode: 'light',
+        default_lang: 'ar',
+        font_scale: 'normal'
+      }, curSettings.appearance || {})
+    };
+
+    v.textContent = '';
+
+    var activeTab = 'general';
+    var wrap = h('div', { class: 'settings-hub-wrap' });
+
+    wrap.appendChild(h('div', { class: 'settings-hub-hero' },
+      h('div', null,
+        h('h1', null, makeSvgIcon('s-gear'), h('span', { text: 'مركز إدارة إعدادات المنصة' })),
+        h('p', { text: 'التحكم الشامل في الهوية المؤسسية، المراكز، صلاحيات الحسابات، الإشعارات، والأمان.' })
+      )
     ));
-    v.appendChild(h('div', { class: 'card' },
-      h('h2', { text: 'الأمان وقيود النفاذ (RLS)' }),
-      h('p', { class: 'muted', text: 'تم تطبيق سياسات Row Level Security صارمة في PostgreSQL. أولياء الأمور يستحيل عليهم رؤية أي بيانات تخص أطفالاً آخرين غير أبنائهم المسجلين. مفتاح الخدمة service_role غير موجود في المتصفح.' })
-    ));
-    v.appendChild(h('div', { class: 'card' },
-      h('h2', { text: 'رموز الاستجابة السريعة (QR)' }),
-      h('p', { class: 'muted', text: 'رموز QR المطبوعة على بطاقات انخراط الطلبة تشير إلى صفحة التحقق العامة qr.html، وتعرض 5 حقول رسمية فقط بدون أي تفاصيل حساسة أو أرقام هواتف خاصة.' })
-    ));
+
+    var tabsList = [
+      { id: 'general', label: 'الإعدادات العامة', icon: 's-home' },
+      { id: 'centers', label: 'المراكز والأقسام', icon: 's-branch' },
+      { id: 'roles', label: 'الصلاحيات والأدوار', icon: 's-shield' },
+      { id: 'notifications', label: 'إعدادات الإشعارات', icon: 's-bell' },
+      { id: 'whatsapp', label: 'تكامل واتساب', icon: 's-whatsapp' },
+      { id: 'registration', label: 'الموقع والتسجيل', icon: 's-clipboard-list' },
+      { id: 'appearance', label: 'المظهر واللغة', icon: 's-eye' },
+      { id: 'security', label: 'الأمان والرقابة', icon: 's-lock' }
+    ];
+
+    var tabButtonsHost = h('div', { class: 'settings-tabs-bar' });
+    var tabContentHost = h('div', { class: 'settings-tab-content' });
+
+    function renderTabButtons() {
+      tabButtonsHost.textContent = '';
+      tabsList.forEach(function (t) {
+        var btn = h('button', {
+          type: 'button',
+          class: 'settings-tab-btn' + (activeTab === t.id ? ' is-active' : ''),
+          onclick: function () {
+            activeTab = t.id;
+            renderTabButtons();
+            renderTabContent();
+          }
+        }, makeSvgIcon(t.icon), h('span', { text: t.label }));
+        tabButtonsHost.appendChild(btn);
+      });
+    }
+
+    async function saveAllSettings() {
+      try {
+        toast('جارٍ حفظ إعدادات المنصة…', 'ok');
+        draftData.settings = s;
+        await savePortalMeta(draftData);
+        try {
+          await C.rest('POST', '/app_settings', {
+            key: 'main_config',
+            value: s,
+            updated_at: new Date().toISOString()
+          }, { Prefer: 'resolution=merge-duplicates' });
+        } catch (eSql) {}
+        localStorage.setItem('de_app_settings', JSON.stringify(s));
+        toast('تم حفظ إعدادات المنصة بنجاح وتطبيقها في النظام!', 'ok');
+      } catch (err) {
+        toast('تعذر حفظ الإعدادات: ' + err.message, 'bad');
+      }
+    }
+
+    function renderTabContent() {
+      tabContentHost.textContent = '';
+      var card = h('div', { class: 'card settings-panel-card' });
+
+      if (activeTab === 'general') {
+        card.appendChild(h('h2', { text: 'الإعدادات العامة والهوية الرسمية' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'بيانات الجمعية الرسمية، الهواتف، والعنوان المعتمد في الوثائق والمراسلات.' }));
+
+        var inNameAr = h('input', { class: 'input', value: s.general.association_name_ar });
+        var inNameFr = h('input', { class: 'input', value: s.general.association_name_fr });
+        var inCenter = h('input', { class: 'input', value: s.general.center_name });
+        var inYear = h('input', { class: 'input sic-num', value: s.general.academic_year });
+        var inPhone = h('input', { class: 'input sic-num', value: s.general.phone });
+        var inEmail = h('input', { class: 'input', type: 'email', value: s.general.email });
+        var inWilaya = h('input', { class: 'input', value: s.general.wilaya });
+        var inCommune = h('input', { class: 'input', value: s.general.commune });
+        var inFb = h('input', { class: 'input', value: s.general.facebook_url });
+        var inIg = h('input', { class: 'input', value: s.general.instagram_url });
+
+        card.appendChild(h('div', { class: 'settings-form-grid' },
+          h('label', { class: 'fld wide' }, h('span', { text: 'اسم الجمعية بالعربية:' }), inNameAr),
+          h('label', { class: 'fld wide' }, h('span', { text: 'اسم الجمعية بالفرنسية:' }), inNameFr),
+          h('label', { class: 'fld' }, h('span', { text: 'اسم المركز النفسي البيداغوجي:' }), inCenter),
+          h('label', { class: 'fld' }, h('span', { text: 'الموسم الدراسي الحالي:' }), inYear),
+          h('label', { class: 'fld' }, h('span', { text: 'رقم الهاتف الرسمي:' }), inPhone),
+          h('label', { class: 'fld' }, h('span', { text: 'البريد الإلكتروني:' }), inEmail),
+          h('label', { class: 'fld' }, h('span', { text: 'الولاية:' }), inWilaya),
+          h('label', { class: 'fld' }, h('span', { text: 'البلدية:' }), inCommune),
+          h('label', { class: 'fld' }, h('span', { text: 'رابط صفحة فيسبوك:' }), inFb),
+          h('label', { class: 'fld' }, h('span', { text: 'رابط حساب إنستغرام:' }), inIg)
+        ));
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () {
+              s.general.association_name_ar = inNameAr.value.trim();
+              s.general.association_name_fr = inNameFr.value.trim();
+              s.general.center_name = inCenter.value.trim();
+              s.general.academic_year = inYear.value.trim();
+              s.general.phone = inPhone.value.trim();
+              s.general.email = inEmail.value.trim();
+              s.general.wilaya = inWilaya.value.trim();
+              s.general.commune = inCommune.value.trim();
+              s.general.facebook_url = inFb.value.trim();
+              s.general.instagram_url = inIg.value.trim();
+              saveAllSettings();
+            }
+          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ الإعدادات العامة' }))
+        ));
+
+      } else if (activeTab === 'centers') {
+        card.appendChild(h('h2', { text: 'إعدادات المراكز والأقسام التربوية' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'إدارة حالة ظهور المراكز الثلاثة وأوصافها المعتمدة في النظام.' }));
+
+        var cbMain = h('input', { type: 'checkbox', checked: !!s.centers.main_visible });
+        var cbWork = h('input', { type: 'checkbox', checked: !!s.centers.work_visible });
+        var cbFarm = h('input', { type: 'checkbox', checked: !!s.centers.farm_visible });
+        var txtMain = h('textarea', { class: 'input', rows: '2' }, s.centers.main_desc);
+        var txtWork = h('textarea', { class: 'input', rows: '2' }, s.centers.work_desc);
+        var txtFarm = h('textarea', { class: 'input', rows: '2' }, s.centers.farm_desc);
+
+        card.appendChild(h('div', { class: 'settings-centers-list' },
+          h('div', { class: 'settings-center-item' },
+            h('div', { class: 'sci-head' },
+              h('label', { class: 'att-check' }, cbMain, h('strong', { text: '1. المركز الرئيسي دار الإحسان (النفسي البيداغوجي)' })),
+              badge('نشط', 'ok')
+            ),
+            h('label', { class: 'fld' }, h('span', { text: 'وصف المركز:' }), txtMain)
+          ),
+          h('div', { class: 'settings-center-item' },
+            h('div', { class: 'sci-head' },
+              h('label', { class: 'att-check' }, cbWork, h('strong', { text: '2. مركز المساعدة على العمل (ورشات التأهيل والتمهين)' })),
+              badge('نشط', 'ok')
+            ),
+            h('label', { class: 'fld' }, h('span', { text: 'وصف المركز:' }), txtWork)
+          ),
+          h('div', { class: 'settings-center-item' },
+            h('div', { class: 'sci-head' },
+              h('label', { class: 'att-check' }, cbFarm, h('strong', { text: '3. المزرعة البيداغوجية (البستنة والأنشطة الفلاحية)' })),
+              badge('نشط', 'ok')
+            ),
+            h('label', { class: 'fld' }, h('span', { text: 'وصف المركز:' }), txtFarm)
+          )
+        ));
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () {
+              s.centers.main_visible = cbMain.checked;
+              s.centers.work_visible = cbWork.checked;
+              s.centers.farm_visible = cbFarm.checked;
+              s.centers.main_desc = txtMain.value.trim();
+              s.centers.work_desc = txtWork.value.trim();
+              s.centers.farm_desc = txtFarm.value.trim();
+              saveAllSettings();
+            }
+          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات المراكز' }))
+        ));
+
+      } else if (activeTab === 'roles') {
+        card.appendChild(h('h2', { text: 'إدارة الأدوار ومصفوفة الصلاحيات' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'توزيع الصلاحيات الإدارية والبيداغوجية وفق السياسة الأمنية لدار الإحسان.' }));
+
+        var rolesTable = h('table', { class: 'sheet' },
+          h('thead', null,
+            h('tr', null,
+              h('th', { text: 'الدور الوظيفي' }),
+              h('th', { text: 'ملفات الطلبة' }),
+              h('th', { text: 'تسجيل الحضور' }),
+              h('th', { text: 'التقارير والتقييم' }),
+              h('th', { text: 'الرسائل والإعلانات' }),
+              h('th', { text: 'الأرشيف والإدارة' })
+            )
+          ),
+          h('tbody', null,
+            h('tr', null,
+              h('td', null, h('strong', { text: 'مدير النظام (Admin)' })),
+              h('td', null, badge('كامل (إضافة/تعديل/حذف)', 'ok')),
+              h('td', null, badge('كامل', 'ok')),
+              h('td', null, badge('اعتماد ونشر', 'ok')),
+              h('td', null, badge('إرسال جماعي وفردي', 'ok')),
+              h('td', null, badge('صلاحية شاملة', 'gold'))
+            ),
+            h('tr', null,
+              h('td', null, h('strong', { text: 'مربية القسم (Educator)' })),
+              h('td', null, badge('عرض طلاب قسمها فقط', 'gray')),
+              h('td', null, badge('تسجيل حضور قسمها', 'ok')),
+              h('td', null, badge('إعداد تقارير قسمها', 'ok')),
+              h('td', null, badge('ممنوع', 'bad')),
+              h('td', null, badge('ممنوع', 'bad'))
+            ),
+            h('tr', null,
+              h('td', null, h('strong', { text: 'الأخصائية النفسانية' })),
+              h('td', null, badge('استعراض وتعديل', 'ok')),
+              h('td', null, badge('ممنوع', 'bad')),
+              h('td', null, badge('إعداد استمارات التقييم', 'ok')),
+              h('td', null, badge('ممنوع', 'bad')),
+              h('td', null, badge('ممنوع', 'bad'))
+            ),
+            h('tr', null,
+              h('td', null, h('strong', { text: 'الولي (Parent)' })),
+              h('td', null, badge('عرض ملف طفله فقط (RLS)', 'ok')),
+              h('td', null, badge('عرض وتبرير غياب طفله', 'ok')),
+              h('td', null, badge('استعراض تقارير طفله', 'ok')),
+              h('td', null, badge('استقبال ومراسلة المركز', 'ok')),
+              h('td', null, badge('ممنوع', 'bad'))
+            )
+          )
+        );
+        card.appendChild(rolesTable);
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn light',
+            onclick: function () { go('accounts'); }
+          }, makeSvgIcon('s-users'), h('span', { text: 'الانتقال إلى إدارة حسابات المستخدمين' }))
+        ));
+
+      } else if (activeTab === 'notifications') {
+        card.appendChild(h('h2', { text: 'إعدادات الإشعارات والتنبيهات الفورية' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'تحديد قنوات وأحداث الإشعارات التلقائية لأولياء الأمور والموظفين.' }));
+
+        var cbAbsence = h('input', { type: 'checkbox', checked: !!s.notifications.notify_absence });
+        var cbReps = h('input', { type: 'checkbox', checked: !!s.notifications.notify_reports });
+        var cbEvals = h('input', { type: 'checkbox', checked: !!s.notifications.notify_evaluations });
+        var cbDocs = h('input', { type: 'checkbox', checked: !!s.notifications.notify_docs });
+        var cbMsgs = h('input', { type: 'checkbox', checked: !!s.notifications.notify_messages });
+        var cbPush = h('input', { type: 'checkbox', checked: !!s.notifications.notify_push_enabled });
+        var cbWa = h('input', { type: 'checkbox', checked: !!s.notifications.notify_whatsapp_enabled });
+
+        card.appendChild(h('div', { class: 'settings-grid-toggles' },
+          h('label', { class: 'settings-toggle-card' }, cbAbsence, h('div', null, h('strong', { text: 'إشعارات تسجيل الغياب' }), h('small', { text: 'إرسال إشعار فوري للولي عند تسجيل غياب طفله في المركز' }))),
+          h('label', { class: 'settings-toggle-card' }, cbReps, h('div', null, h('strong', { text: 'إشعارات التقارير التربوية' }), h('small', { text: 'تنبيه الولي فور اعتماد تقرير دوري جديد للطفل' }))),
+          h('label', { class: 'settings-toggle-card' }, cbEvals, h('div', null, h('strong', { text: 'إشعارات استمارات التقييم' }), h('small', { text: 'إشعار الولي باعتماد بطاقة التقييم البيداغوجي الفصلي' }))),
+          h('label', { class: 'settings-toggle-card' }, cbDocs, h('div', null, h('strong', { text: 'إشعارات الوثائق والمستندات' }), h('small', { text: 'تنبيه عند رفع وثيقة رسمية أو شهادة تخص الطفل' }))),
+          h('label', { class: 'settings-toggle-card' }, cbMsgs, h('div', null, h('strong', { text: 'إشعارات الرسائل والإعلانات' }), h('small', { text: 'إشعار عند توجيه رسالة خاصة أو إعلان عام للأسرة' }))),
+          h('label', { class: 'settings-toggle-card' }, cbPush, h('div', null, h('strong', { text: 'تفعيل إشعارات الهاتف (Web Push PWA)' }), h('small', { text: 'إرسال إشعارات شاشة الهاتف حتى والتطبيق مغلق' }))),
+          h('label', { class: 'settings-toggle-card' }, cbWa, h('div', null, h('strong', { text: 'تفعيل إشعارات واتساب السحابية' }), h('small', { text: 'إرسال قوالب واتساب الرسمية عبر Cloud API' })))
+        ));
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () {
+              s.notifications.notify_absence = cbAbsence.checked;
+              s.notifications.notify_reports = cbReps.checked;
+              s.notifications.notify_evaluations = cbEvals.checked;
+              s.notifications.notify_docs = cbDocs.checked;
+              s.notifications.notify_messages = cbMsgs.checked;
+              s.notifications.notify_push_enabled = cbPush.checked;
+              s.notifications.notify_whatsapp_enabled = cbWa.checked;
+              saveAllSettings();
+            }
+          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات الإشعارات' }))
+        ));
+
+      } else if (activeTab === 'whatsapp') {
+        card.appendChild(h('h2', { text: 'تكامل Meta WhatsApp Cloud API' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'حالة الاتصال بالواجهة الرسمية لواتساب. الأسرار والمفاتيح الحساسة محفوظة مشفرة في Supabase Secrets.' }));
+
+        card.appendChild(h('div', { class: 'wa-status-box' },
+          h('div', { class: 'wa-status-header' },
+            h('div', { class: 'wa-status-indicator is-connected' }),
+            h('strong', { text: 'حالة الربط: متصل ومفعل (Connected)' }),
+            badge('Cloud API v20.0', 'ok')
+          ),
+          h('div', { class: 'wa-meta-grid' },
+            h('div', null, h('span', { text: 'رقم هاتف المركز المعتمد:' }), h('b', { class: 'sic-num', text: OFFICIAL_WA_SENDER })),
+            h('div', null, h('span', { text: 'معرّف حساب واتساب للأعمال (WABA ID):' }), h('b', { class: 'sic-num', text: s.whatsapp.waba_id })),
+            h('div', null, h('span', { text: 'معرّف رقم الهاتف (Phone Number ID):' }), h('b', { class: 'sic-num', text: s.whatsapp.phone_number_id })),
+            h('div', null, h('span', { text: 'رمز التحقق من الـ Webhook:' }), h('b', { class: 'sic-num', text: s.whatsapp.webhook_token }))
+          )
+        ));
+
+        card.appendChild(h('div', { class: 'card', style: 'margin-top:16px;background:#F8FAFC;border:1px solid #E2E8F0;' },
+          h('strong', { text: '🔒 الحماية الأمنية المتقدمة:' }),
+          h('p', { class: 'muted small', style: 'margin:4px 0 0;', text: 'مفاتيح الوصول الدائمة WHATSAPP_ACCESS_TOKEN و WHATSAPP_APP_SECRET تعمل حصرياً عبر Supabase Edge Functions الآمنة ولا تظهر في المتصفح أبداً لحماية حساب المركز.' })
+        ));
+
+      } else if (activeTab === 'registration') {
+        card.appendChild(h('h2', { text: 'إعدادات الموقع العام ونظام طلبات التسجيل' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'تخصيص استمارة التسجيل الأولي العامة وخيارات الإعاقات المتاحة للعائلات.' }));
+
+        var cbReg = h('input', { type: 'checkbox', checked: !!s.registration.enable_registration_form });
+        var cbInq = h('input', { type: 'checkbox', checked: !!s.registration.enable_inquiries_form });
+        var txtDisabilities = h('textarea', { class: 'input', rows: '5' }, s.registration.disability_options);
+        var txtConsent = h('textarea', { class: 'input', rows: '3' }, s.registration.consent_text);
+
+        card.appendChild(h('div', { class: 'settings-form-grid' },
+          h('label', { class: 'att-check wide' }, cbReg, h('strong', { text: 'تفعيل زر واستمارة «طلب تسجيل أولي جديد» في الموقع العام' })),
+          h('label', { class: 'att-check wide' }, cbInq, h('strong', { text: 'تفعيل زر واستمارة «تقديم استفسار» في الموقع العام' })),
+          h('label', { class: 'fld wide' }, h('span', { text: 'قائمة أنواع الإعاقات والاضطرابات المتاحة (سطر لكل نوع):' }), txtDisabilities),
+          h('label', { class: 'fld wide' }, h('span', { text: 'نص إشعار الخصوصية والموافقة الصريحة:' }), txtConsent)
+        ));
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () {
+              s.registration.enable_registration_form = cbReg.checked;
+              s.registration.enable_inquiries_form = cbInq.checked;
+              s.registration.disability_options = txtDisabilities.value.trim();
+              s.registration.consent_text = txtConsent.value.trim();
+              saveAllSettings();
+            }
+          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات التسجيل' }))
+        ));
+
+      } else if (activeTab === 'appearance') {
+        card.appendChild(h('h2', { text: 'المظهر واللغة والسمات البصرية' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'تخصيص الألوان والسمة البصرية المستوحاة من Glassmorphism.' }));
+
+        var selTheme = h('select', { class: 'input' },
+          h('option', { value: 'light', text: 'الوضع الفاتح الرسمي (Light Glass)' }),
+          h('option', { value: 'dark', text: 'الوضع الليلي (Dark Mode)' }),
+          h('option', { value: 'auto', text: 'تلقائي حسب إعدادات الجهاز' })
+        );
+        selTheme.value = s.appearance.theme_mode || 'light';
+
+        var selLang = h('select', { class: 'input' },
+          h('option', { value: 'ar', text: 'العربية (RTL - اللغة الرسمية)' }),
+          h('option', { value: 'fr', text: 'الفرنسية (LTR - Français)' })
+        );
+        selLang.value = s.appearance.default_lang || 'ar';
+
+        var selFont = h('select', { class: 'input' },
+          h('option', { value: 'normal', text: 'حجم الخط الافتراضي (14-16px)' }),
+          h('option', { value: 'large', text: 'حجم خط مكبر مريح (16-18px)' })
+        );
+        selFont.value = s.appearance.font_scale || 'normal';
+
+        card.appendChild(h('div', { class: 'settings-form-grid' },
+          h('label', { class: 'fld' }, h('span', { text: 'نمط السمة والمظهر:' }), selTheme),
+          h('label', { class: 'fld' }, h('span', { text: 'اللغة الافتراضية:' }), selLang),
+          h('label', { class: 'fld' }, h('span', { text: 'مقياس حجم الخط:' }), selFont)
+        ));
+
+        card.appendChild(h('div', { class: 'settings-palette-preview' },
+          h('strong', { text: 'لوحة الألوان الرسمية المعتمدة لدار الإحسان:' }),
+          h('div', { class: 'palette-swatches' },
+            h('div', { class: 'swatch', style: 'background:#102F50;', title: 'الأزرق الداكن #102F50' }, h('span', { text: '#102F50' })),
+            h('div', { class: 'swatch', style: 'background:#174D78;', title: 'الأزرق الرئيسي #174D78' }, h('span', { text: '#174D78' })),
+            h('div', { class: 'swatch', style: 'background:#C49A50;color:#000;', title: 'الذهبي #C49A50' }, h('span', { text: '#C49A50' })),
+            h('div', { class: 'swatch', style: 'background:#EAF2FA;color:#000;', title: 'الأزرق الفاتح #EAF2FA' }, h('span', { text: '#EAF2FA' })),
+            h('div', { class: 'swatch', style: 'background:#F4F7FB;color:#000;', title: 'الخلفية #F4F7FB' }, h('span', { text: '#F4F7FB' }))
+          )
+        ));
+
+        card.appendChild(h('div', { class: 'settings-actions-row' },
+          h('button', {
+            type: 'button',
+            class: 'btn gold',
+            onclick: function () {
+              s.appearance.theme_mode = selTheme.value;
+              s.appearance.default_lang = selLang.value;
+              s.appearance.font_scale = selFont.value;
+              saveAllSettings();
+            }
+          }, makeSvgIcon('s-check'), h('span', { text: 'تطبيق وحفظ إعدادات المظهر' }))
+        ));
+
+      } else if (activeTab === 'security') {
+        card.appendChild(h('h2', { text: 'الأمان والرقابة وسياسات النفاذ' }));
+        card.appendChild(h('p', { class: 'muted small', text: 'فحص معايير الأمان المطبقة في قاعدة البيانات، التشفير، وسجل التدقيق.' }));
+
+        card.appendChild(h('div', { class: 'security-cards-grid' },
+          h('div', { class: 'sec-metric-card' },
+            makeSvgIcon('s-shield'),
+            h('div', null,
+              h('strong', { text: 'سياسات حماية البيانات (Row Level Security - RLS)' }),
+              h('p', { class: 'muted small', text: 'مفعلة على كافة الجداول (الأطفال، التقارير، الوثائق، الحسابات). يستحيل وصول مستخدم غير مخول إلى ملفات الآخرين.' }),
+              badge('RLS نشط ومؤمّن 100%', 'ok')
+            )
+          ),
+          h('div', { class: 'sec-metric-card' },
+            makeSvgIcon('s-lock'),
+            h('div', null,
+              h('strong', { text: 'نظام المصادقة والتشفير (Supabase Auth)' }),
+              h('p', { class: 'muted small', text: 'جلسات دخول مشفرة عبر JWT مع حماية كاملة لكلمات المرور وتوافق مع TOTP Authenticator.' }),
+              badge('JWT Auth Active', 'ok')
+            )
+          ),
+          h('div', { class: 'sec-metric-card' },
+            makeSvgIcon('s-log'),
+            h('div', null,
+              h('strong', { text: 'سجل العمليات والرقابة الأمنية (Audit Logs)' }),
+              h('p', { class: 'muted small', text: 'تسجيل غير قابل للتعديل لكافة عمليات الإضافة والتعديل والاعتماد مع توثيق المنفذ والتوقيت.' }),
+              h('button', {
+                type: 'button',
+                class: 'btn small light',
+                style: 'margin-top:8px;',
+                onclick: function () { go('audit'); }
+              }, makeSvgIcon('s-log'), h('span', { text: 'عرض سجل العمليات والتدقيق' }))
+            )
+          )
+        ));
+      }
+
+      tabContentHost.appendChild(card);
+    }
+
+    renderTabButtons();
+    renderTabContent();
+
+    wrap.appendChild(tabButtonsHost);
+    wrap.appendChild(tabContentHost);
+    v.appendChild(wrap);
   }
 
   /* =====================================================================
@@ -7473,6 +7890,7 @@
     if (S.isEducator || !canAccessGeneralAdmin()) return go('children');
 
     v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ قراءة سجلات المركز وملفات الأرشيف…' }));
 
     var d = await Promise.all([
       get('children'),
@@ -7480,637 +7898,766 @@
       get('sections'),
       get('reports'),
       get('docs'),
-      C.rest('GET', '/archive_runs?select=*&order=run_date.desc&limit=15').catch(function () { return []; })
+      C.rest('GET', '/attendance?order=date.desc&limit=1000').catch(function () { return []; })
     ]);
 
     var allKids = d[0] || [], branches = d[1] || [], sections = d[2] || [];
-    var allReports = d[3] || [], allDocs = d[4] || [], dbPastRuns = d[5] || [];
+    var allReports = d[3] || [], allDocs = d[4] || [], dbAttendance = d[5] || [];
 
-    var brMap = {}, secMap = {}, chMap = {};
-    branches.forEach(function (b) { brMap[b.id] = b; });
-    sections.forEach(function (s) { secMap[s.id] = s; });
-    allKids.forEach(function (c) { chMap[c.id] = c; });
+    v.textContent = '';
 
-    // تتبع العمليات السابقة (دمج قاعدة البيانات مع التخزين المحلي)
-    var localPastRuns = [];
-    try { localPastRuns = JSON.parse(localStorage.getItem('de_archive_runs_history') || '[]'); } catch (e) {}
-    var pastRuns = dbPastRuns.length ? dbPastRuns : localPastRuns;
+    var archRoot = h('div', { class: 'arch-clean-wrap' });
 
-    // العنوان العلوي
-    v.appendChild(h('div', { class: 'bar-sub' },
+    archRoot.appendChild(h('div', { class: 'arch-clean-hero' },
       h('div', null,
-        h('h2', { text: 'نظام الأرشفة الشاملة والنسخ الاحتياطية' }),
-        h('p', { class: 'muted small', text: 'تنزيل أرشيف ZIP شامل ومنظم للملفات والتقارير والوثائق حسب السنة، الشهر، الفرع، القسم، وكل طفل.' })
+        h('h1', null, makeSvgIcon('s-archive'), h('span', { text: 'الأرشيف والنسخ الاحتياطية' })),
+        h('p', { text: 'مركز إدارة النسخ الاحتياطية وتصدير السجلات الرسمية والتقارير بصيغة PDF القياسية.' })
       )
     ));
 
-    // بطاقة التحميل اليدوي المباشر الشامل (نزولاً عند طلب الإدارة للتحميل اليدوي المباشر)
-    var manualDirectCard = h('div', { class: 'arch-manual-direct-card' },
-      h('div', null,
-        h('h3', null, makeSvgIcon('s-download'), h('span', { text: 'التحميل اليدوي المباشر للأرشيف الشامل (ZIP)' })),
-        h('p', { text: 'يمكنك تنزيل أرشيف ZIP شامل لكافة ملفات المركز، التقارير التربوية، استمارات التقييم، الوثائق المرفوعة، وبيانات الأطفال فوراً بضغطة زر واحدة دون الحاجة إلى فلاتر إضافية.' })
+    var chkKids = h('input', { type: 'checkbox', checked: true, id: 'arch_opt_kids' });
+    var chkAttendance = h('input', { type: 'checkbox', checked: true, id: 'arch_opt_att' });
+    var chkReports = h('input', { type: 'checkbox', checked: true, id: 'arch_opt_reps' });
+    var chkEvals = h('input', { type: 'checkbox', checked: true, id: 'arch_opt_evals' });
+    var chkDocs = h('input', { type: 'checkbox', checked: false, id: 'arch_opt_docs' });
+
+    var stdReportsCount = allReports.filter(function (r) { return !isEvaluationReport(r); }).length;
+    var evalsCount = allReports.filter(isEvaluationReport).length;
+
+    var selectorCard = h('div', { class: 'card arch-selector-card' },
+      h('div', { class: 'arch-card-header' },
+        h('h3', { text: 'اختر المحتويات المراد تصديرها (جميع الملفات بصيغة PDF):' }),
+        h('span', { class: 'badge gold', text: 'أرشيف PDF رسمي' })
       ),
-      h('div', { class: 'arch-manual-btns-wrap' },
-        h('button', {
-          type: 'button',
-          class: 'arch-manual-btn-main',
-          onclick: function () {
-            startArchiveJob({
-              scope: 'all',
-              year: now.getFullYear(),
-              month: null,
-              scopeLabel: 'التحميل اليدوي المباشر لكامل أرشيف دار الإحسان'
-            });
-          }
-        }, makeSvgIcon('s-archive'), h('span', { text: 'تحميل كامل الأرشيف يدوياً الآن (ZIP)' })),
-        h('button', {
-          type: 'button',
-          class: 'arch-manual-btn-sub',
-          onclick: async function () {
-            toast('جارٍ استخراج وتصدير قاعدة البيانات...');
-            try {
-              var kids = await get('children');
-              var cols = ['الرقم', 'رقم القيد', 'الاسم واللقب', 'تاريخ الميلاد', 'الإعاقة', 'الفرع', 'القسم', 'الهاتف'];
-              var rows = (kids || []).map(function (k, idx) {
-                return [idx + 1, k.membership_no || '', k.full_name || '', k.dob || '', k.disability || '', k.branch_id || '', k.section || '', k.phone || ''];
-              });
-              DE_XLSX.download('قاعدة_بيانات_أطفال_دار_الإحسان.xlsx', 'الأطفال', cols, rows, [6, 12, 28, 14, 20, 16, 18, 16]);
-              toast('تم تنزيل ملف Excel بنجاح!', 'ok');
-            } catch (ex) {
-              toast('تعذر تصدير Excel: ' + ex.message, 'bad');
-            }
-          }
-        }, makeSvgIcon('s-file'), h('span', { text: 'تصدير نسخة احتياطية (Excel)' }))
-      )
-    );
-    v.appendChild(manualDirectCard);
-
-    // بطاقات الإحصائيات السريعة
-    var lastRunDateTxt = pastRuns.length ? fmt(pastRuns[0].run_date || pastRuns[0].created_at) : 'لم يتم بعد';
-    var statsGrid = h('div', { class: 'arch-stats-grid' },
-      h('div', { class: 'arch-stat-card' },
-        h('b', { class: 'arch-stat-val', text: String(allKids.length) }),
-        h('span', { class: 'arch-stat-label', text: 'إجمالي ملفات الطلبة' })
-      ),
-      h('div', { class: 'arch-stat-card' },
-        h('b', { class: 'arch-stat-val', text: String(allReports.length) }),
-        h('span', { class: 'arch-stat-label', text: 'التقارير واستمارات التقييم' })
-      ),
-      h('div', { class: 'arch-stat-card' },
-        h('b', { class: 'arch-stat-val', text: String(allDocs.length) }),
-        h('span', { class: 'arch-stat-label', text: 'الوثائق والمستندات المرفوعة' })
-      ),
-      h('div', { class: 'arch-stat-card' },
-        h('b', { class: 'arch-stat-val', text: String(pastRuns.length) }),
-        h('span', { class: 'arch-stat-label', text: 'عمليات الأرشفة المنفذة (' + lastRunDateTxt + ')' })
-      )
-    );
-    v.appendChild(statsGrid);
-
-    // 2. التحقق من الأرشفة الشهرية التلقائية (تنبيه إذا كان الشهر السابق غير مؤرشف)
-    var now = new Date();
-    var firstOfCurrent = new Date(now.getFullYear(), now.month, 1);
-    var prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    var prevYear = prevMonthDate.getFullYear();
-    var prevMonthNum = prevMonthDate.getMonth() + 1;
-    var prevMonthName = ARABIC_MONTH_NAMES_LIST[prevMonthNum] || String(prevMonthNum);
-
-    var hasArchivedPrev = pastRuns.some(function (pr) {
-      return pr.period_year === prevYear && pr.period_month === prevMonthNum && (pr.status === 'completed' || pr.status === 'completed_with_errors');
-    });
-
-    if (!hasArchivedPrev) {
-      var autoBtn = h('button', {
-        type: 'button',
-        class: 'btn gold',
-        text: 'أرشفة وتنزيل شهر ' + prevMonthName + ' الآن',
-        onclick: function () {
-          startArchiveJob({
-            scope: 'monthly_auto',
-            year: prevYear,
-            month: prevMonthNum,
-            scopeLabel: 'الأرشفة الشهرية التلقائية لشهر ' + prevMonthName + ' ' + prevYear
-          });
-        }
-      });
-
-      var autoBanner = h('div', { class: 'arch-auto-banner' },
-        h('div', null,
-          h('div', { class: 'arch-auto-title', text: '🔔 حان موعد الأرشفة الشهرية التلقائية لشهر: ' + prevMonthName + ' (' + prevYear + ')' }),
-          h('div', { class: 'arch-auto-sub', text: 'وفق توقيت الجزائر (Africa/Algiers): يمكنك إنشاء أرشيف الشهر السابق وتنزيله بضغطة زر واحدة لحفظ التقارير والوثائق المضافة أو المعدلة.' })
+      h('div', { class: 'arch-grid-options' },
+        h('label', { class: 'arch-opt-item' },
+          chkKids,
+          h('div', { class: 'arch-opt-text' },
+            h('strong', { text: '1. قوائم وبطاقات الأطفال والطلبة (PDF)' }),
+            h('small', { text: allKids.length + ' ملف طالب مسجل بمختلف المراكز والأقسام' })
+          )
         ),
-        autoBtn
-      );
-      v.appendChild(autoBanner);
+        h('label', { class: 'arch-opt-item' },
+          chkAttendance,
+          h('div', { class: 'arch-opt-text' },
+            h('strong', { text: '2. سجلات وتقارير الغيابات والحضور (PDF في ملف ZIP)' }),
+            h('small', { text: 'سجل الحضور الرسمي الشامل مصنفاً حسب التواريخ والأفواج' })
+          )
+        ),
+        h('label', { class: 'arch-opt-item' },
+          chkReports,
+          h('div', { class: 'arch-opt-text' },
+            h('strong', { text: '3. التقارير التربوية والبيداغوجية الدورية (PDF)' }),
+            h('small', { text: stdReportsCount + ' تقرير تربوي معتمد' })
+          )
+        ),
+        h('label', { class: 'arch-opt-item' },
+          chkEvals,
+          h('div', { class: 'arch-opt-text' },
+            h('strong', { text: '4. استمارات التقييم البيداغوجي الرسمية (PDF)' }),
+            h('small', { text: evalsCount + ' استمارة تقييم رسمية معتمدة' })
+          )
+        ),
+        h('label', { class: 'arch-opt-item' },
+          chkDocs,
+          h('div', { class: 'arch-opt-text' },
+            h('strong', { text: '5. الوثائق والمستندات الخاصة المرفوعة' }),
+            h('small', { text: allDocs.length + ' وثيقة ومرفق خاص' })
+          )
+        )
+      )
+    );
+    archRoot.appendChild(selectorCard);
+
+    var progressBox = h('div', { class: 'arch-progress-box', hidden: true });
+    var progressBar = h('div', { class: 'arch-progress-bar' },
+      h('div', { class: 'arch-progress-fill' })
+    );
+    var progressText = h('div', { class: 'arch-progress-status-txt', text: 'جارٍ تجهيز ملفات PDF...' });
+    progressBox.appendChild(progressBar);
+    progressBox.appendChild(progressText);
+    archRoot.appendChild(progressBox);
+
+    function setProgress(pct, msg) {
+      progressBox.hidden = false;
+      progressBar.firstChild.style.width = Math.min(100, Math.max(0, pct)) + '%';
+      if (msg) progressText.textContent = msg;
     }
 
-    // 3. بطاقة إعداد وتنزيل الأرشيف المخصص
-    var scopeSelect = h('select', null,
-      h('option', { value: 'all', text: '1. تنزيل جميع ملفات دار الإحسان (الأرشيف الشامل)' }),
-      h('option', { value: 'branch', text: '2. تنزيل أرشيف فرع / مركز محدد' }),
-      h('option', { value: 'section', text: '3. تنزيل أرشيف قسم / فوج محدد' }),
-      h('option', { value: 'child', text: '4. تنزيل أرشيف طفل محدد بالكامل' }),
-      h('option', { value: 'reports_only', text: '5. تنزيل التقارير واستمارات التقييم فقط' }),
-      h('option', { value: 'docs_only', text: '6. تنزيل الوثائق والمستندات المرفوعة فقط' }),
-      h('option', { value: 'custom', text: '7. تحديد عدة أقسام أو أطفال (أرشيف مخصص)' })
+    var downloadZipBtn = h('button', {
+      type: 'button',
+      class: 'btn gold arch-btn-primary',
+      onclick: handleZipExport
+    },
+      makeSvgIcon('s-download'),
+      h('span', { text: 'تحميل الأرشيف المختار في ملف مضغوط (ZIP)' })
     );
 
-    var branchSelect = h('select', null,
-      h('option', { value: '', text: '— اختر الفرع —' }),
-      branches.map(function (b) { return h('option', { value: b.id, text: b.name }); })
+    var downloadAttPdfBtn = h('button', {
+      type: 'button',
+      class: 'btn light arch-btn-secondary',
+      onclick: handleQuickAttPdf
+    },
+      makeSvgIcon('s-print'),
+      h('span', { text: 'تنزيل سجل الحضور اليومي بصيغة (PDF)' })
     );
 
-    var secSelect = h('select', null,
-      h('option', { value: '', text: '— اختر القسم —' }),
-      sections.map(function (s) { return h('option', { value: s.id, text: s.name }); })
-    );
+    archRoot.appendChild(h('div', { class: 'arch-bottom-actions' },
+      downloadZipBtn,
+      downloadAttPdfBtn
+    ));
 
-    var childSelect = h('select', null,
-      h('option', { value: '', text: '— اختر الطفل —' }),
-      allKids.map(function (k) { return h('option', { value: k.id, text: (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name }); })
-    );
+    v.appendChild(archRoot);
 
-    var dateFilterSelect = h('select', null,
-      h('option', { value: 'all', text: 'كامل السجلات التاريخية (بلا تحديد زمني)' }),
-      h('option', { value: 'month', text: 'تحديد شهر وسنة محددة' }),
-      h('option', { value: 'custom_range', text: 'تحديد فترة مخصصة (من تاريخ إلى تاريخ)' })
-    );
-
-    var yearInput = h('input', { type: 'number', min: '2020', max: '2100', value: String(now.getFullYear()) });
-    var monthSelect = h('select', null,
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(function (mNum) {
-        return h('option', { value: String(mNum), text: ARABIC_MONTH_NAMES_LIST[mNum] });
-      })
-    );
-    monthSelect.value = String(now.getMonth() + 1);
-
-    var dateStartInput = h('input', { type: 'date', value: new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10) });
-    var dateEndInput = h('input', { type: 'date', value: now.toISOString().slice(0, 10) });
-
-    // حاويات إظهار/إخفاء الفلاتر الفرعية
-    var branchField = h('label', { class: 'fld', hidden: true }, h('span', { text: 'الفرع المستهدف:' }), branchSelect);
-    var secField = h('label', { class: 'fld', hidden: true }, h('span', { text: 'القسم المستهدف:' }), secSelect);
-    var childField = h('label', { class: 'fld', hidden: true }, h('span', { text: 'الطفل المستهدف:' }), childSelect);
-
-    var monthField = h('div', { class: 'eval-builder-grid-2', hidden: true },
-      h('label', { class: 'fld' }, h('span', { text: 'السنة:' }), yearInput),
-      h('label', { class: 'fld' }, h('span', { text: 'الشهر:' }), monthSelect)
-    );
-
-    var rangeField = h('div', { class: 'eval-builder-grid-2', hidden: true },
-      h('label', { class: 'fld' }, h('span', { text: 'من تاريخ:' }), dateStartInput),
-      h('label', { class: 'fld' }, h('span', { text: 'إلى تاريخ:' }), dateEndInput)
-    );
-
-    // قائمة الاختيار المتعدد للأقسام في النطاق المخصص
-    var customSecHost = h('div', { style: 'max-height: 180px; overflow-y: auto; border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; margin-bottom: 12px;', hidden: true });
-    sections.forEach(function (sec) {
-      var chk = h('input', { type: 'checkbox', value: sec.id, id: 'chk_sec_' + sec.id });
-      var lbl = h('label', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;' }, chk, h('span', { text: sec.name }));
-      customSecHost.appendChild(lbl);
-    });
-
-    scopeSelect.addEventListener('change', function () {
-      var val = scopeSelect.value;
-      branchField.hidden = (val !== 'branch');
-      secField.hidden = (val !== 'section');
-      childField.hidden = (val !== 'child');
-      customSecHost.hidden = (val !== 'custom');
-    });
-
-    dateFilterSelect.addEventListener('change', function () {
-      var dval = dateFilterSelect.value;
-      monthField.hidden = (dval !== 'month');
-      rangeField.hidden = (dval !== 'custom_range');
-    });
-
-    // عناصر شريط التقدم التفاعلي الحي
-    var progressBox = h('div', { class: 'arch-progress-wrap', hidden: true });
-    var progressBarFill = h('div', { class: 'arch-progress-fill' });
-    var progressStatusText = h('span', { text: 'جاهز لبدء الأرشفة...' });
-    var progressCounterText = h('span', { text: '' });
-    var progressErrorBox = h('div', { style: 'margin-top:10px; font-size:0.8rem; color:#B91C1C; max-height:120px; overflow-y:auto;', hidden: true });
-
-    progressBox.appendChild(h('div', { class: 'arch-progress-status' }, progressStatusText, progressCounterText));
-    progressBox.appendChild(h('div', { class: 'arch-progress-bar-bg' }, progressBarFill));
-    progressBox.appendChild(progressErrorBox);
-
-    var startBtn = h('button', { type: 'button', class: 'btn gold', text: 'إنشاء وتنزيل الأرشيف الآن (ZIP)' });
-    var repsOnlyBtn = h('button', {
-      type: 'button', class: 'btn light', text: 'تنزيل التقارير فقط',
-      onclick: function () {
-        scopeSelect.value = 'reports_only';
-        scopeSelect.dispatchEvent(new Event('change'));
-        startBtn.click();
+    async function handleQuickAttPdf() {
+      try {
+        toast('جارٍ بناء تقرير الحضور والغياب بصيغة PDF...', 'ok');
+        var todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers' }).format(new Date());
+        var attRows = (allKids || []).filter(function (k) { return k && k.active; }).map(function (k) {
+          var rec = dbAttendance.filter(function (a) {
+            return a.child_id === k.id && (a.date ? String(a.date).slice(0, 10) : '') === todayStr;
+          })[0];
+          return {
+            membership_no: k.membership_no || '',
+            full_name: k.full_name || '',
+            section: k.section || '',
+            status: rec ? rec.status : 'present',
+            note: rec ? (rec.notes || '') : ''
+          };
+        });
+        var pdfBytes = await DE_PDF.renderAttendanceToPdf(attRows, todayStr, 'المركز الرئيسي دار الإحسان', null);
+        DE_PDF.downloadPdf(pdfBytes, 'سجل_الغيابات_والحضور_' + todayStr + '.pdf');
+        toast('تم تنزيل سجل الحضور بصيغة PDF بنجاح!', 'ok');
+      } catch (err) {
+        toast('تعذر إنشاء تقرير الحضور: ' + err.message, 'bad');
       }
-    });
-    var docsOnlyBtn = h('button', {
-      type: 'button', class: 'btn light', text: 'تنزيل الوثائق والمرفقات فقط',
-      onclick: function () {
-        scopeSelect.value = 'docs_only';
-        scopeSelect.dispatchEvent(new Event('change'));
-        startBtn.click();
-      }
-    });
+    }
 
-    // منطق إنشاء وتنزيل الأرشيف الحي
-    async function startArchiveJob(cfg) {
-      if (!window.DE_ZIP) {
-        return toast('مكتبة الأرشفة zip-builder غير محملة. يرجى تحديث الصفحة.', 'bad');
+    async function handleZipExport() {
+      if (!chkKids.checked && !chkAttendance.checked && !chkReports.checked && !chkEvals.checked && !chkDocs.checked) {
+        return toast('يرجى تحديد عنصر واحد على الأقل لتضمينه في الأرشيف.', 'bad');
       }
 
-      var selScope = cfg ? cfg.scope : scopeSelect.value;
-      var pYear = cfg ? cfg.year : parseInt(yearInput.value, 10);
-      var pMonth = cfg ? cfg.month : (dateFilterSelect.value === 'month' ? parseInt(monthSelect.value, 10) : null);
-      var dateMode = cfg ? (cfg.month ? 'month' : 'all') : dateFilterSelect.value;
-      var startDate = dateStartInput.value;
-      var endDate = dateEndInput.value;
-
-      var targetBranchId = branchSelect.value;
-      var targetSectionId = secSelect.value;
-      var targetChildId = childSelect.value;
-
-      var selectedCustomSecIds = [];
-      if (selScope === 'custom') {
-        var chks = customSecHost.querySelectorAll('input[type="checkbox"]:checked');
-        chks.forEach(function (c) { selectedCustomSecIds.push(c.value); });
-        if (!selectedCustomSecIds.length) {
-          return toast('يرجى تحديد قسم واحد على الأقل في الأرشيف المخصص.', 'bad');
-        }
-      }
-
-      // تصفية الأطفال
-      var targetKids = allKids.slice();
-      if (selScope === 'branch' && targetBranchId) {
-        targetKids = targetKids.filter(function (k) { return k.branch_id === targetBranchId; });
-      } else if (selScope === 'section' && targetSectionId) {
-        targetKids = targetKids.filter(function (k) { return k.section_id === targetSectionId; });
-      } else if (selScope === 'child' && targetChildId) {
-        targetKids = targetKids.filter(function (k) { return k.id === targetChildId; });
-      } else if (selScope === 'custom') {
-        targetKids = targetKids.filter(function (k) { return selectedCustomSecIds.indexOf(k.section_id) >= 0; });
-      }
-
-      var allowedKidMap = {};
-      targetKids.forEach(function (k) { allowedKidMap[k.id] = true; });
-
-      // تصفية التقارير
-      var targetReports = (selScope === 'docs_only') ? [] : allReports.filter(function (r) {
-        if (!allowedKidMap[r.child_id]) return false;
-        var rDate = r.report_date || '';
-        if (dateMode === 'month' && pMonth && rDate) {
-          var rd = new Date(rDate);
-          if (rd.getFullYear() !== pYear || (rd.getMonth() + 1) !== pMonth) return false;
-        } else if (dateMode === 'custom_range' && rDate) {
-          if (startDate && rDate < startDate) return false;
-          if (endDate && rDate > endDate) return false;
-        }
-        return true;
-      });
-
-      // تصفية الوثائق
-      var targetDocs = (selScope === 'reports_only') ? [] : allDocs.filter(function (d) {
-        if (!allowedKidMap[d.child_id]) return false;
-        var dDate = (d.created_at || '').slice(0, 10);
-        if (dateMode === 'month' && pMonth && dDate) {
-          var dd = new Date(dDate);
-          if (dd.getFullYear() !== pYear || (dd.getMonth() + 1) !== pMonth) return false;
-        } else if (dateMode === 'custom_range' && dDate) {
-          if (startDate && dDate < startDate) return false;
-          if (endDate && dDate > endDate) return false;
-        }
-        return true;
-      });
-
-      if (!targetReports.length && !targetDocs.length && !targetKids.length) {
-        return toast('لا توجد ملفات أو سجلات مطابقة للخيارات المحددة.', 'bad');
-      }
-
-      // إظهار شريط التقدم
-      progressBox.hidden = false;
-      progressErrorBox.hidden = true;
-      progressErrorBox.textContent = '';
-      progressBarFill.style.width = '5%';
-      progressStatusText.textContent = 'جارٍ تجهيز ملفات الأرشيف...';
-      startBtn.disabled = true;
-
-      var monthFolderName = pMonth ? (ARABIC_MONTH_NAMES_LIST[pMonth] || String(pMonth)) : 'كامل_السنة';
-      var rootPath = 'Dar_El_Ihsan_Archive/' + pYear + '/' + monthFolderName;
-
-      var filesToZip = [];
-      var csvRows = [
-        ['الرقم', 'اسم الطفل', 'رقم القيد', 'الفرع', 'القسم', 'نوع السجل', 'اسم الملف', 'المسار في الأرشيف', 'التاريخ', 'الحالة', 'ملاحظات']
-      ];
-
-      var totalItems = targetReports.length + targetDocs.length;
-      var processedItems = 0;
-      var successCount = 0;
-      var failedCount = 0;
-      var errorLog = [];
-
-      function updateProgressUi(itemTitle) {
-        processedItems++;
-        var pct = Math.min(90, Math.round((processedItems / (totalItems || 1)) * 85) + 5);
-        progressBarFill.style.width = pct + '%';
-        progressStatusText.textContent = 'معالجة: ' + itemTitle;
-        progressCounterText.textContent = 'ناجح: ' + successCount + ' | فاشل: ' + failedCount + ' | إجمالي: ' + totalItems;
-      }
+      downloadZipBtn.disabled = true;
+      downloadAttPdfBtn.disabled = true;
+      setProgress(5, 'بدء إعداد الأرشيف الشامل وبناء ملفات PDF...');
 
       try {
-        // 1. معالجة التقارير
-        for (var i = 0; i < targetReports.length; i++) {
-          var rep = targetReports[i];
-          var child = chMap[rep.child_id] || { full_name: 'طفل_غير_معرف', membership_no: '' };
-          var chName = sanitizeArchiveFolderName(child.full_name);
-          var chMem = sanitizeArchiveFolderName(child.membership_no || '');
-          var chFolder = chMem ? (chName + ' [' + chMem + ']') : chName;
+        var zipFiles = [];
+        var todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers' }).format(new Date());
 
-          var sec = secMap[child.section_id];
-          var secFolder = sanitizeArchiveFolderName(sec ? sec.name : (child.section || 'غير_مصنف'));
-
-          var br = brMap[child.branch_id];
-          var brFolder = sanitizeArchiveFolderName(br ? br.name : 'المركز_الرئيسي');
-
-          var rDate = rep.report_date || 'تاريخ_غير_محدد';
-          var rTitle = sanitizeArchiveFolderName(rep.title || 'تقرير');
-          var repFolder = rootPath + '/' + brFolder + '/' + secFolder + '/' + chFolder + '/التقارير';
-
-          // أ) مستند Microsoft Word رسمي (.doc) لفتحه مباشرة في وورد
-          var wordContent = generateWordDocReport(rep, child, secFolder, brFolder);
-          var wordFilePath = repFolder + '/' + rDate + ' - ' + rTitle + ' (Word).doc';
-          filesToZip.push({ name: wordFilePath, data: wordContent });
-
-          // ب) مستند رسمي بصيغة PDF حقيقية معتمدة للكمبيوتر والهاتف (بدون أي ملفات HTML)
-          var pdfBytes = await DE_PDF.renderReportToPdf(rep, child, secFolder, brFolder);
-          var pdfFilePath = repFolder + '/' + rDate + ' - ' + rTitle + '.pdf';
-          filesToZip.push({ name: pdfFilePath, data: pdfBytes });
-
-          if (isEvaluationReport(rep)) {
-            var evalPdfBytes = await DE_PDF.renderEvaluationToPdf(rep, child.full_name, secFolder, child);
-            var evalPdfPath = repFolder + '/' + rDate + ' - استمارة_تقييم_' + rTitle + '.pdf';
-            filesToZip.push({ name: evalPdfPath, data: evalPdfBytes });
-          }
-
-          successCount++;
-          csvRows.push([String(processedItems + 1), child.full_name, chMem, brFolder, secFolder, isEvaluationReport(rep) ? 'استمارة تقييم' : 'تقرير تربوي', rTitle + ' (Word).doc', wordFilePath, rDate, 'ناجح', 'تم إنشاء مستند Word']);
-
-          // ج) مرفق التقرير إن وجد
-          if (rep.attachment_path) {
-            var attFolder = rootPath + '/' + brFolder + '/' + secFolder + '/' + chFolder + '/الصور_والمرفقات';
-            var attExt = rep.attachment_path.split('.').pop() || 'dat';
-            var attFilePath = attFolder + '/' + rDate + ' - مرفق_' + rTitle + '.' + attExt;
-
-            try {
-              var signedUrl = await C.signedUrl('private-docs', rep.attachment_path, 120);
-              var fetchResp = await fetch(signedUrl);
-              if (!fetchResp.ok) throw new Error('HTTP ' + fetchResp.status);
-              var attBuffer = await fetchResp.arrayBuffer();
-              filesToZip.push({ name: attFilePath, data: attBuffer });
-              successCount++;
-              csvRows.push([String(processedItems + 1), child.full_name, chMem, brFolder, secFolder, 'مرفق تقرير', 'مرفق_' + rTitle + '.' + attExt, attFilePath, rDate, 'ناجح', 'تم تنزيل المرفق']);
-            } catch (attEx) {
-              failedCount++;
-              var attErr = 'تعذر تنزيل مرفق (' + rep.attachment_path + '): ' + attEx.message;
-              errorLog.push(attErr);
-              csvRows.push([String(processedItems + 1), child.full_name, chMem, brFolder, secFolder, 'مرفق تقرير', 'مرفق_' + rTitle, attFilePath, rDate, 'فشل', attEx.message]);
-              filesToZip.push({ name: attFilePath + '_تعذر_التنزيل.txt', data: attErr });
-            }
-          }
-
-          updateProgressUi(rep.title || 'تقرير');
+        if (chkKids.checked) {
+          setProgress(20, 'جارٍ رسم قائمة الأطفال الرسمية بصيغة PDF...');
+          var kidsPdfBytes = await DE_PDF.renderChildrenListToPdf(allKids, 'كافة الأقسام', 'دار الإحسان');
+          zipFiles.push({
+            name: 'قوائم_الأطفال/القائمة_الرسمية_للطلبة_دار_الإحسان.pdf',
+            data: kidsPdfBytes
+          });
         }
 
-        // 2. معالجة الوثائق
-        for (var j = 0; j < targetDocs.length; j++) {
-          var doc = targetDocs[j];
-          var child = chMap[doc.child_id] || { full_name: 'طفل_غير_معرف', membership_no: '' };
-          var chName = sanitizeArchiveFolderName(child.full_name);
-          var chMem = sanitizeArchiveFolderName(child.membership_no || '');
-          var chFolder = chMem ? (chName + ' [' + chMem + ']') : chName;
-
-          var sec = secMap[child.section_id];
-          var secFolder = sanitizeArchiveFolderName(sec ? sec.name : (child.section || 'غير_مصنف'));
-
-          var br = brMap[child.branch_id];
-          var brFolder = sanitizeArchiveFolderName(br ? br.name : 'المركز_الرئيسي');
-
-          var dDate = (doc.created_at || '').slice(0, 10) || 'تاريخ_غير_محدد';
-          var dTitle = sanitizeArchiveFolderName(doc.title || 'وثيقة');
-          var dExt = doc.storage_path ? ('.' + doc.storage_path.split('.').pop()) : '.pdf';
-          var docFilePath = rootPath + '/' + brFolder + '/' + secFolder + '/' + chFolder + '/الوثائق/' + dDate + ' - ' + dTitle + dExt;
-
-          if (doc.storage_path) {
-            try {
-              var sUrl = await C.signedUrl('private-docs', doc.storage_path, 120);
-              var dResp = await fetch(sUrl);
-              if (!dResp.ok) throw new Error('HTTP ' + dResp.status);
-              var dBuffer = await dResp.arrayBuffer();
-              filesToZip.push({ name: docFilePath, data: dBuffer });
-              successCount++;
-              csvRows.push([String(processedItems + 1), child.full_name, chMem, brFolder, secFolder, 'وثيقة رسمية', dTitle + dExt, docFilePath, dDate, 'ناجح', 'تم تنزيل الوثيقة']);
-            } catch (docEx) {
-              failedCount++;
-              var docErr = 'تعذر تنزيل الوثيقة (' + doc.storage_path + '): ' + docEx.message;
-              errorLog.push(docErr);
-              csvRows.push([String(processedItems + 1), child.full_name, chMem, brFolder, secFolder, 'وثيقة رسمية', dTitle + dExt, docFilePath, dDate, 'فشل', docEx.message]);
-              filesToZip.push({ name: docFilePath + '_تعذر_التنزيل.txt', data: docErr });
-            }
-          }
-
-          updateProgressUi(doc.title || 'وثيقة');
+        if (chkAttendance.checked) {
+          setProgress(40, 'جارٍ استخراج وتوليد سجل الغيابات والحضور بصيغة PDF...');
+          var attRecords = (allKids || []).filter(function (k) { return k && k.active; }).map(function (k) {
+            var rec = dbAttendance.filter(function (a) {
+              return a.child_id === k.id && (a.date ? String(a.date).slice(0, 10) : '') === todayStr;
+            })[0];
+            return {
+              membership_no: k.membership_no || '',
+              full_name: k.full_name || '',
+              section: k.section || '',
+              status: rec ? rec.status : 'present',
+              note: rec ? (rec.notes || '') : ''
+            };
+          });
+          var attPdfBytes = await DE_PDF.renderAttendanceToPdf(attRecords, todayStr, 'دار الإحسان', null);
+          zipFiles.push({
+            name: 'سجلات_الحضور/سجل_الغيابات_والحضور_اليومي_' + todayStr + '.pdf',
+            data: attPdfBytes
+          });
         }
 
-        // 3. كتابة سجل وفهرس الأرشيف الشامل بصيغة Microsoft Excel (.xlsx) الحقيقية
-        try {
-          var xlsxHeaders = csvRows[0];
-          var xlsxBodyRows = csvRows.slice(1);
-          var xlsxBlob = DE_XLSX.build('فهرس_الأرشيف', xlsxHeaders, xlsxBodyRows, [6, 26, 12, 20, 20, 16, 28, 40, 14, 12, 25]);
-          var xlsxBuf = await xlsxBlob.arrayBuffer();
-          filesToZip.push({ name: rootPath + '/فهرس_الأرشيف_الشامل (Excel).xlsx', data: xlsxBuf });
-        } catch (eXlsx) {}
+        if (chkReports.checked) {
+          var repsToExport = allReports.filter(function (r) { return !isEvaluationReport(r); }).slice(0, 50);
+          for (var ri = 0; ri < repsToExport.length; ri++) {
+            var rep = repsToExport[ri];
+            var ch = allKids.filter(function (k) { return k.id === rep.child_id; })[0];
+            var repPct = 40 + Math.floor((ri / Math.max(1, repsToExport.length)) * 25);
+            setProgress(repPct, 'جارٍ تصدير التقرير التربوي (' + (ri + 1) + '/' + repsToExport.length + ')...');
+            try {
+              var rPdf = await DE_PDF.renderReportToPdf(rep, ch, ch ? ch.section : '', 'دار الإحسان');
+              var safeRepName = (rep.title || 'تقرير').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+              zipFiles.push({
+                name: 'التقارير_التربوية/' + (ch ? (ch.full_name + '_') : '') + safeRepName + '.pdf',
+                data: rPdf
+              });
+            } catch (eRep) {}
+          }
+        }
 
-        // 4. كتابة تقرير الأرشفة الرسمي بصيغة Microsoft Word (.doc)
-        var wordReportSummary = generateWordArchiveReport(totalItems, successCount, failedCount, pYear, monthFolderName, errorLog);
-        filesToZip.push({ name: rootPath + '/تقرير_الأرشفة_الرسمي (Word).doc', data: wordReportSummary });
+        if (chkEvals.checked) {
+          var evalsToExport = allReports.filter(isEvaluationReport).slice(0, 50);
+          for (var ei = 0; ei < evalsToExport.length; ei++) {
+            var evRep = evalsToExport[ei];
+            var evKid = allKids.filter(function (k) { return k.id === evRep.child_id; })[0];
+            var evPct = 65 + Math.floor((ei / Math.max(1, evalsToExport.length)) * 25);
+            setProgress(evPct, 'جارٍ تصدير استمارة التقييم (' + (ei + 1) + '/' + evalsToExport.length + ')...');
+            try {
+              var evPdf = await DE_PDF.renderEvaluationToPdf(evRep, evKid ? evKid.full_name : 'تلميذ', evKid ? evKid.section : '', evKid);
+              var safeEvName = (evRep.title || 'استمارة_تقييم').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+              zipFiles.push({
+                name: 'استمارات_التقييم/' + (evKid ? (evKid.full_name + '_') : '') + safeEvName + '.pdf',
+                data: evPdf
+              });
+            } catch (eEv) {}
+          }
+        }
 
-        // 5. ضغط وبناء ملف الـ ZIP وتنزيله
-        progressStatusText.textContent = 'جارٍ ضغط الأرشيف وتنزيل ملف ZIP...';
-        progressBarFill.style.width = '95%';
+        if (chkDocs.checked && allDocs.length) {
+          setProgress(92, 'جارٍ فحص وإدراج الوثائق الخاصة...');
+          for (var di = 0; di < Math.min(allDocs.length, 20); di++) {
+            var doc = allDocs[di];
+            if (doc.file_path) {
+              try {
+                var signedUrl = await C.signedUrl('private-docs', doc.file_path, 60);
+                var resp = await fetch(signedUrl);
+                if (resp.ok) {
+                  var blobData = await resp.arrayBuffer();
+                  var docName = (doc.title || 'وثيقة').replace(/[\/\\:*?"<>|]/g, '_');
+                  zipFiles.push({
+                    name: 'الوثائق_والمستندات/' + docName + (doc.file_path.indexOf('.') >= 0 ? ('.' + doc.file_path.split('.').pop()) : '.pdf'),
+                    data: new Uint8Array(blobData)
+                  });
+                }
+              } catch (eDoc) {}
+            }
+          }
+        }
 
-        var zipBlob = DE_ZIP.build(filesToZip, function (curr, tot) {
-          var p = 90 + Math.round((curr / tot) * 10);
-          progressBarFill.style.width = Math.min(100, p) + '%';
+        setProgress(96, 'جارٍ ضغط الأرشيف وتوليد ملف ZIP النهائي...');
+        var zipBlob = DE_ZIP.build(zipFiles, function (cur, tot, fn) {
+          setProgress(96 + Math.floor((cur / Math.max(1, tot)) * 3), 'ضغط: ' + fn);
         });
 
-        var scopeSlug = selScope.replace(/_/g, '-');
-        var zipFileName = 'Dar_El_Ihsan_Archive_' + pYear + '_' + sanitizeArchiveFolderName(monthFolderName) + '_' + scopeSlug + '_' + (new Date().toISOString().slice(0, 10)) + '.zip';
-        DE_ZIP.download(zipBlob, zipFileName);
-
-        progressBarFill.style.width = '100%';
-        progressStatusText.textContent = 'اكتمل إنشاء وتنزيل الأرشيف بنجاح! (' + (zipBlob.size / (1024 * 1024)).toFixed(2) + ' MB)';
-
-        // تسجيل العملية في قاعدة البيانات والتخزين المحلي
-        var runRecord = {
-          period_year: pYear,
-          period_month: pMonth || now.getMonth() + 1,
-          archive_scope: selScope,
-          initiated_by: (S.me && S.me.id) || null,
-          initiator_name: S.email || 'المدير',
-          status: failedCount > 0 ? 'completed_with_errors' : 'completed',
-          total_records: totalItems,
-          success_count: successCount,
-          failed_count: failedCount,
-          file_size_bytes: zipBlob.size,
-          error_summary: errorLog.slice(0, 5).join('; ')
-        };
-
-        C.rest('POST', '/archive_runs', runRecord).catch(function () {});
-
-        try {
-          var runsHist = JSON.parse(localStorage.getItem('de_archive_runs_history') || '[]');
-          runRecord.run_date = new Date().toISOString();
-          runsHist.unshift(runRecord);
-          localStorage.setItem('de_archive_runs_history', JSON.stringify(runsHist.slice(0, 30)));
-        } catch (e) {}
-
-        if (errorLog.length) {
-          progressErrorBox.hidden = false;
-          progressErrorBox.innerHTML = '<strong>ملاحظات وأخطاء التنزيل:</strong><br>' + errorLog.map(function (e) { return '• ' + e; }).join('<br>');
-        }
-
-        toast('تم تنزيل أرشيف دار الإحسان بنجاح على جهازك!', 'ok');
-      } catch (fatalEx) {
-        progressStatusText.textContent = 'تعذر استكمال الأرشفة: ' + fatalEx.message;
-        progressBarFill.style.background = '#DC2626';
-        toast('خطأ أثناء الأرشفة: ' + fatalEx.message, 'bad');
+        DE_ZIP.download(zipBlob, 'أرشيف_دار_الإحسان_الشامل_' + todayStr + '.zip');
+        setProgress(100, 'اكتمل التحميل بنجاح!');
+        toast('تم تنزيل الأرشيف الشامل (ZIP) متضمناً كافة ملفات PDF بنجاح!', 'ok');
+        setTimeout(function () { progressBox.hidden = true; }, 3000);
+      } catch (err) {
+        toast('حدث خطأ أثناء إعداد الأرشيف: ' + err.message, 'bad');
+        progressBox.hidden = true;
       } finally {
-        startBtn.disabled = false;
+        downloadZipBtn.disabled = false;
+        downloadAttPdfBtn.disabled = false;
       }
     }
+  }
+  /* =====================================================================
+     قسم «طلبات التسجيل الأولية» من الموقع العام (Registration Requests)
+     ===================================================================== */
+  async function secRegistrationRequests(v) {
+    if (S.isEducator) return go('children');
 
-    startBtn.addEventListener('click', function () { startArchiveJob(null); });
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ قراءة طلبات التسجيل الأولية…' }));
 
-    // تجميع بطاقة الإعداد
-    var wizardCard = h('div', { class: 'arch-card' },
-      h('h3', { class: 'arch-card-title' }, makeSvgIcon('s-archive'), h('span', { text: 'إنشاء وتنزيل أرشيف مخصص للكمبيوتر (ZIP)' })),
-      h('p', { class: 'muted small', text: 'حدد نطاق الأرشفة والفترة الزمنية، وسيتم استخراج الملفات الأصلية وتنظيمها تلقائياً داخل أرشيف ZIP مضغوط.' }),
-      h('div', { class: 'arch-filter-grid' },
-        h('label', { class: 'fld' }, h('span', { text: 'نطاق الأرشفة:' }), scopeSelect),
-        branchField,
-        secField,
-        childField,
-        h('label', { class: 'fld' }, h('span', { text: 'الفترة الزمنية:' }), dateFilterSelect)
-      ),
-      monthField,
-      rangeField,
-      customSecHost,
-      progressBox,
-      h('div', { class: 'arch-btn-row' },
-        startBtn,
-        repsOnlyBtn,
-        docsOnlyBtn
-      )
-    );
-    v.appendChild(wizardCard);
+    var d = await Promise.all([
+      C.rest('GET', '/registration_requests?order=created_at.desc').catch(function () { return []; }),
+      getMany('branches', 'sections', 'children')
+    ]);
 
-    // 4. جدول سجل العمليات السابقة
-    v.appendChild(h('div', { class: 'bar-sub' },
-      h('h3', { text: 'سجل عمليات الأرشفة السابقة' })
-    ));
+    var requests = Array.isArray(d[0]) ? d[0] : [];
+    var branches = (d[1] && d[1][0]) || [];
+    var sections = (d[1] && d[1][1]) || [];
+    var existingKids = (d[1] && d[1][2]) || [];
 
-    if (!pastRuns.length) {
-      v.appendChild(h('div', { class: 'card empty', text: 'لم يتم تسجيل أي عمليات أرشفة سابقة بعد.' }));
-    } else {
-      var rowsHtml = pastRuns.map(function (pr) {
-        var statusBadgeKind = pr.status === 'completed' ? 'ok' : (pr.status === 'completed_with_errors' ? 'gold' : 'bad');
-        var statusTxt = pr.status === 'completed' ? 'ناجحة' : (pr.status === 'completed_with_errors' ? 'ناجحة مع أخطاء' : 'فاشلة');
-        var sizeMb = pr.file_size_bytes ? (pr.file_size_bytes / (1024 * 1024)).toFixed(2) + ' MB' : '—';
-        var pMonthTxt = pr.period_month ? (ARABIC_MONTH_NAMES_LIST[pr.period_month] || String(pr.period_month)) : '—';
+    var localReqs = [];
+    try { localReqs = JSON.parse(localStorage.getItem('de_local_reg_requests') || '[]'); } catch (e) {}
+    localReqs.forEach(function (lr) {
+      if (!requests.some(function (r) { return r.id === lr.id || (lr.reference_code && r.reference_code === lr.reference_code); })) {
+        requests.push(lr);
+      }
+    });
 
-        return h('tr', null,
-          h('td', { text: fmt(pr.run_date || pr.created_at) }),
-          h('td', { text: pr.archive_scope || 'all' }),
-          h('td', { text: (pr.period_year || '') + ' / ' + pMonthTxt }),
-          h('td', { text: String(pr.success_count || 0) + ' من ' + String(pr.total_records || 0) }),
-          h('td', { text: sizeMb }),
-          h('td', null, badge(statusTxt, statusBadgeKind)),
-          h('td', null,
-            h('button', {
-              type: 'button',
-              class: 'btn small light',
-              text: 'إعادة إنشاء وتنزيل',
-              onclick: function () {
-                startArchiveJob({
-                  scope: pr.archive_scope || 'all',
-                  year: pr.period_year,
-                  month: pr.period_month,
-                  scopeLabel: 'إعادة أرشفة ' + (pr.period_year || '') + ' / ' + pMonthTxt
-                });
-              }
-            })
-          )
-        );
+    v.textContent = '';
+
+    var statusFilter = 'all';
+    var searchVal = '';
+
+    function getFiltered() {
+      return requests.filter(function (r) {
+        if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+        if (searchVal) {
+          var q = normAr(searchVal);
+          var hay = normAr((r.child_name || '') + ' ' + (r.guardian_name || '') + ' ' + (r.guardian_phone || '') + ' ' + (r.reference_code || ''));
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
       });
-
-      var historyTable = h('div', { class: 'table-wrap' },
-        h('table', { class: 'tbl' },
-          h('thead', null,
-            h('tr', null,
-              h('th', { text: 'تاريخ العملية' }),
-              h('th', { text: 'النطاق' }),
-              h('th', { text: 'الفترة' }),
-              h('th', { text: 'الملفات' }),
-              h('th', { text: 'الحجم' }),
-              h('th', { text: 'الحالة' }),
-              h('th', { text: 'إجراءات' })
-            )
-          ),
-          h('tbody', null, rowsHtml)
-        )
-      );
-      v.appendChild(historyTable);
     }
 
-    // 5. بطاقة تنزيل النسخ الاحتياطية المباشرة بصيغ Office المعتمدة (Excel و Word و PDF) دون أي أكواد
-    var officeExportsCard = h('div', { class: 'arch-card', style: 'margin-top:24px;border:1px solid #CBD5E1;' },
-      h('h3', { style: 'margin-top:0; color:#123E73; display:flex; align-items:center; gap:8px;' },
-        makeSvgIcon('s-file'),
-        h('span', { text: 'تنزيل النسخ الاحتياطية المباشرة بصيغ Office المعتمدة (Excel و Word و PDF)' })
+    var root = h('div', { class: 'req-hub-wrap' });
+
+    root.appendChild(h('div', { class: 'req-hub-hero' },
+      h('div', null,
+        h('h1', null, makeSvgIcon('s-clipboard-list'), h('span', { text: 'طلبات التسجيل الأولية' })),
+        h('p', { text: 'مراجعة ودراسة طلبات التسجيل المقدمة من العائلات عبر الموقع العام واعتمادها بقرار الإدارة.' })
+      )
+    ));
+
+    var countNew = requests.filter(function (r) { return r.status === 'new'; }).length;
+    var countReview = requests.filter(function (r) { return r.status === 'under_review'; }).length;
+    var countEnrolled = requests.filter(function (r) { return r.status === 'enrolled'; }).length;
+
+    var statsGrid = h('div', { class: 'att-stats', style: 'margin-bottom:16px;' },
+      h('div', { class: 'att-stat', style: '--c:#102F50;' },
+        h('div', null, h('span', { text: 'إجمالي الطلبات' }), h('strong', { class: 'sic-num', text: String(requests.length) })),
+        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-clipboard-list'))
       ),
-      h('p', { class: 'muted small', text: 'تنزيل فوري لملفات البيانات والتقارير بصيغ Microsoft Excel و Word الأصلية لفتحها مباشرة على الكمبيوتر دون أي أكواد برمجية.' }),
-      h('div', { class: 'row-actions', style: 'margin-top:14px;flex-wrap:wrap;gap:10px;' },
-        h('button', {
+      h('div', { class: 'att-stat', style: '--c:#C49A50;' },
+        h('div', null, h('span', { text: 'طلبات جديدة' }), h('strong', { class: 'sic-num', text: String(countNew) })),
+        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-bell'))
+      ),
+      h('div', { class: 'att-stat', style: '--c:#0284C7;' },
+        h('div', null, h('span', { text: 'قيد الدراسة' }), h('strong', { class: 'sic-num', text: String(countReview) })),
+        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-clock'))
+      ),
+      h('div', { class: 'att-stat', style: '--c:#059669;' },
+        h('div', null, h('span', { text: 'تم الاعتماد' }), h('strong', { class: 'sic-num', text: String(countEnrolled) })),
+        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-check-circle'))
+      )
+    );
+    root.appendChild(statsGrid);
+
+    var reqBadgeEl = $('#requestsBadge');
+    if (reqBadgeEl) {
+      reqBadgeEl.textContent = String(countNew);
+      reqBadgeEl.hidden = (countNew === 0);
+    }
+
+    var listHost = h('div', { class: 'card' });
+    root.appendChild(listHost);
+    v.appendChild(root);
+
+    function renderTable() {
+      listHost.textContent = '';
+      var filtered = getFiltered();
+
+      listView(listHost, {
+        title: 'قائمة طلبات التسجيل الأولية (' + filtered.length + ')',
+        rows: filtered,
+        sheet: true,
+        searchPlaceholder: 'بحث باسم الطفل، الولي، رقم الهاتف، أو الرمز المرجعي…',
+        empty: 'لا توجد طلبات تسجيل مطابقة للتصفية الحالية.',
+        search: function (r) {
+          return [r.reference_code, r.child_name, r.guardian_name, r.guardian_phone, r.disability_type].filter(Boolean).join(' ');
+        },
+        filters: [
+          {
+            label: 'الحالة',
+            opts: [
+              ['all', 'جميع الحالات'],
+              ['new', 'جديد'],
+              ['under_review', 'قيد الدراسة'],
+              ['info_needed', 'بحاجة لمعلومات'],
+              ['approved_initial', 'مقبول مبدئياً'],
+              ['rejected', 'مرفوض'],
+              ['enrolled', 'تم الاعتماد والتسجيل']
+            ],
+            test: function (r, x) { return x === 'all' || r.status === x; }
+          }
+        ],
+        cols: [
+          {
+            label: 'الرقم المرجعي',
+            get: function (r) {
+              return h('span', { class: 'sic-num', dir: 'ltr', text: r.reference_code || '—' });
+            },
+            sort: function (r) { return r.reference_code || ''; }
+          },
+          {
+            label: 'اسم ولقب الطفل',
+            get: function (r) {
+              return h('div', null,
+                h('strong', { text: r.child_name }),
+                r.child_birth_date ? h('div', { class: 'muted small', text: 'الميلاد: ' + fmt(r.child_birth_date) }) : null
+              );
+            },
+            sort: function (r) { return r.child_name; }
+          },
+          {
+            label: 'نوع الإعاقة / الاضطراب',
+            get: function (r) { return badge(r.disability_type || '—', 'gold'); },
+            sort: function (r) { return r.disability_type || ''; }
+          },
+          {
+            label: 'معلومات الولي للتواصل',
+            get: function (r) {
+              return h('div', null,
+                h('strong', { text: r.guardian_name }),
+                h('div', { class: 'muted small', dir: 'ltr', text: r.guardian_phone }),
+                makeWhatsAppLink(r.guardian_phone, { full_name: r.child_name })
+              );
+            },
+            sort: function (r) { return r.guardian_name; }
+          },
+          {
+            label: 'مكان الإقامة',
+            get: function (r) { return (r.residence_commune ? (r.residence_commune + ' - ') : '') + (r.residence_wilaya || 'غرداية'); }
+          },
+          {
+            label: 'تاريخ التقديم',
+            get: function (r) { return fmt(r.created_at, true); },
+            sort: function (r) { return r.created_at || ''; }
+          },
+          {
+            label: 'حالة الطلب',
+            get: function (r) {
+              var stMap = {
+                'new': ['جديد', 'gold'],
+                'under_review': ['قيد الدراسة', 'light'],
+                'info_needed': ['بحاجة لمعلومات', 'warn'],
+                'approved_initial': ['مقبول مبدئياً', 'ok'],
+                'rejected': ['مرفوض', 'gray'],
+                'contacted': ['تم التواصل', 'light'],
+                'enrolled': ['تم الاعتماد', 'ok']
+              };
+              var it = stMap[r.status] || [r.status, 'gray'];
+              return badge(it[0], it[1]);
+            },
+            sort: function (r) { return r.status; }
+          }
+        ],
+        actions: function (r) {
+          return [
+            rbtn('معاينة ودراسة الطلب', function () { openReviewRequestModal(r); }, 'gold')
+          ];
+        }
+      });
+    }
+
+    renderTable();
+
+    function openReviewRequestModal(req) {
+      var body = h('div', { class: 'modal-body' },
+        h('div', { class: 'bar-sub' },
+          h('h2', { text: 'مراجعة طلب التسجيل: ' + req.child_name }),
+          badge('الرقم المرجعي: ' + req.reference_code, 'gold')
+        )
+      );
+
+      var detailsList = [
+        ['اسم الطفل الكامل', req.child_name],
+        ['تاريخ الميلاد', req.child_birth_date ? fmt(req.child_birth_date) : '—'],
+        ['طبيعة الإعاقة / الاضطراب', req.disability_type],
+        ['اسم الولي الكامل', req.guardian_name],
+        ['رقم الهاتف المباشر', req.guardian_phone],
+        ['البريد الإلكتروني', req.guardian_email || '—'],
+        ['مكان الإقامة', (req.residence_commune ? (req.residence_commune + ' - ') : '') + (req.residence_wilaya || 'غرداية')],
+        ['معلومات وتفاصيل إضافية', req.additional_information || 'لا توجد ملاحظات إضافية مسجلة من الولي.', true],
+        ['تاريخ ووقت استلام الطلب', fmt(req.created_at, true)]
+      ];
+
+      var dGrid = h('div', { class: 'child-details' }, detailsList.map(function (it) {
+        return h('div', { class: 'cd-item' + (it[2] ? ' wide' : '') },
+          h('span', { text: it[0] }),
+          h('b', { text: String(it[1]) })
+        );
+      }));
+      body.appendChild(dGrid);
+
+      var selStatus = h('select', { class: 'input' },
+        h('option', { value: 'new', text: 'جديد' }),
+        h('option', { value: 'under_review', text: 'قيد الدراسة' }),
+        h('option', { value: 'info_needed', text: 'بحاجة إلى معلومات إضافية' }),
+        h('option', { value: 'approved_initial', text: 'مقبول مبدئياً' }),
+        h('option', { value: 'contacted', text: 'تم التواصل مع الولي' }),
+        h('option', { value: 'rejected', text: 'مرفوض' }),
+        h('option', { value: 'enrolled', text: 'تم الاعتماد والتسجيل الرسمي' })
+      );
+      selStatus.value = req.status || 'new';
+
+      var txtAdminNotes = h('textarea', { class: 'input', rows: '3', placeholder: 'سجل أي ملاحظات داخلية للإدارة هنا…' }, req.admin_notes || '');
+
+      body.appendChild(h('div', { class: 'card', style: 'margin-top:16px;background:#F8FAFC;' },
+        h('h3', { text: 'تحديث حالة الطلب والملاحظات الإدارية:' }),
+        h('div', { class: 'settings-form-grid' },
+          h('label', { class: 'fld' }, h('span', { text: 'الحالة الحالية:' }), selStatus),
+          h('label', { class: 'fld wide' }, h('span', { text: 'ملاحظات الإدارة الداخلية:' }), txtAdminNotes)
+        )
+      ));
+
+      var modalActions = h('div', { class: 'modal-actions', style: 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;' });
+
+      if (req.status !== 'enrolled') {
+        var enrollBtn = h('button', {
           type: 'button',
           class: 'btn gold',
           onclick: function () {
-            var cols = ['الرقم', 'رقم القيد', 'الاسم واللقب', 'تاريخ الميلاد', 'طبيعة الإعاقة', 'الفرع', 'القسم', 'الهاتف'];
-            var rows = allKids.map(function (k, idx) {
-              return [idx + 1, k.membership_no || '', k.full_name || '', k.dob || '', k.disability || '', (brMap[k.branch_id] ? brMap[k.branch_id].name : '') || '', (secMap[k.section_id] ? secMap[k.section_id].name : k.section) || '', k.phone || ''];
-            });
-            DE_XLSX.download('قاعدة_بيانات_أطفال_دار_الإحسان.xlsx', 'الأطفال', cols, rows, [6, 12, 28, 14, 22, 18, 18, 16]);
-            toast('تم تنزيل ملف Excel بنجاح!', 'ok');
+            openEnrollConfirmationModal(req);
           }
-        }, makeSvgIcon('s-file'), h('span', { text: 'تنزيل قاعدة بيانات الأطفال (Excel .xlsx)' })),
+        }, makeSvgIcon('s-user-check'), h('span', { text: 'اعتماد التسجيل وإنشاء حساب الطفل' }));
+        modalActions.appendChild(enrollBtn);
+      } else {
+        modalActions.appendChild(badge('✓ تم اعتماد هذا الطفل وسجل كطالب رسمي في المركز', 'ok'));
+      }
+
+      var saveStatusBtn = h('button', {
+        type: 'button',
+        class: 'btn light',
+        onclick: async function () {
+          try {
+            var newSt = selStatus.value;
+            var newNotes = txtAdminNotes.value.trim();
+            req.status = newSt;
+            req.admin_notes = newNotes;
+            req.reviewed_at = new Date().toISOString();
+            await C.rest('PATCH', '/registration_requests?id=eq.' + uid(req.id), {
+              status: newSt,
+              admin_notes: newNotes,
+              reviewed_at: req.reviewed_at
+            }).catch(function () {});
+            try {
+              localStorage.setItem('de_local_reg_requests', JSON.stringify(requests));
+            } catch (e) {}
+            toast('تم تحديث حالة الطلب بنجاح.', 'ok');
+            closeModal();
+            secRegistrationRequests(v);
+          } catch (e) {
+            toast('تعذر تحديث الطلب: ' + e.message, 'bad');
+          }
+        }
+      }, makeSvgIcon('s-check'), h('span', { text: 'حفظ التحديثات' }));
+
+      var closeBtn = h('button', { type: 'button', class: 'btn ghost', text: 'إغلاق', onclick: closeModal });
+
+      var rightBtns = h('div', { style: 'display:flex;gap:8px;' }, saveStatusBtn, closeBtn);
+      modalActions.appendChild(rightBtns);
+
+      body.appendChild(modalActions);
+      openModal(body);
+    }
+
+    function openEnrollConfirmationModal(req) {
+      var body = h('div', { class: 'modal-body' },
+        h('div', { class: 'bar-sub' },
+          h('h2', { text: 'اعتماد تسجيل الطفل: ' + req.child_name }),
+          badge('تأكيد إداري', 'gold')
+        ),
+        h('p', { text: 'سيتم إنشاء سجل طفل معتمد جديد في قاعدة البيانات وربطه بالمركز والقسم المختار.' })
+      );
+
+      var selCenter = h('select', { class: 'input' },
+        h('option', { value: 'main', text: 'المركز الرئيسي دار الإحسان' }),
+        h('option', { value: 'work', text: 'مركز المساعدة على العمل' }),
+        h('option', { value: 'farm', text: 'المزرعة البيداغوجية' })
+      );
+
+      var selSec = h('select', { class: 'input' },
+        sections.map(function (s) { return h('option', { value: s.id, text: s.name }); })
+      );
+
+      var inMemNo = h('input', { class: 'input sic-num', value: String(existingKids.length + 1).padStart(3, '0') });
+
+      body.appendChild(h('div', { class: 'settings-form-grid' },
+        h('label', { class: 'fld' }, h('span', { text: 'المركز التابع له:' }), selCenter),
+        h('label', { class: 'fld' }, h('span', { text: 'القسم / الفوج التربوي:' }), selSec),
+        h('label', { class: 'fld' }, h('span', { text: 'رقم القيد (N°):' }), inMemNo)
+      ));
+
+      body.appendChild(h('div', { class: 'modal-actions' },
+        h('button', { type: 'button', class: 'btn light', text: 'إلغاء', onclick: closeModal }),
         h('button', {
           type: 'button',
-          class: 'btn light',
-          onclick: function () {
-            var cols = ['الرقم', 'عنوان التقرير', 'اسم الطفل', 'التاريخ', 'الحالة', 'المكتسبات', 'الأنشطة', 'ملاحظات'];
-            var rows = allReports.map(function (r, idx) {
-              var ch = chMap[r.child_id] || {};
-              return [idx + 1, r.title || '', ch.full_name || '', r.report_date || '', r.status === 'published' ? 'منشور' : 'مسودة', r.achievements || '', r.activities || '', r.notes || ''];
-            });
-            DE_XLSX.download('سجل_التقارير_والاستمارات.xlsx', 'التقارير', cols, rows, [6, 26, 26, 14, 12, 35, 35, 35]);
-            toast('تم تنزيل سجل التقارير بصيغة Excel!', 'ok');
+          class: 'btn gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ إنشاء سجل الطفل في النظام…', 'ok');
+              var newChildData = {
+                membership_no: inMemNo.value.trim(),
+                full_name: req.child_name,
+                dob: req.child_birth_date,
+                disability: req.disability_type,
+                phone: req.guardian_phone,
+                center: selCenter.value,
+                section_id: selSec.value,
+                active: true,
+                academic_year: '2026-2027',
+                basic_info: 'ولي الأمر: ' + req.guardian_name + ' | هاتف: ' + req.guardian_phone + ' | مكان الإقامة: ' + (req.residence_commune || '') + ' ' + (req.residence_wilaya || '') + ' | رقم الطلب: ' + req.reference_code
+              };
+
+              await C.rest('POST', '/children', newChildData, { Prefer: 'return=representation' });
+
+              req.status = 'enrolled';
+              req.reviewed_at = new Date().toISOString();
+              await C.rest('PATCH', '/registration_requests?id=eq.' + uid(req.id), {
+                status: 'enrolled',
+                reviewed_at: req.reviewed_at
+              }).catch(function () {});
+
+              try {
+                localStorage.setItem('de_local_reg_requests', JSON.stringify(requests));
+              } catch (e) {}
+
+              bust();
+              toast('تم اعتماد التسجيل بنجاح وإنشاء ملف الطفل «' + req.child_name + '»!', 'ok');
+              closeModal();
+              secRegistrationRequests(v);
+            } catch (err) {
+              toast('تعذر اعتماد الطفل: ' + err.message, 'bad');
+            }
           }
-        }, makeSvgIcon('s-download'), h('span', { text: 'تنزيل سجل التقارير (Excel .xlsx)' }))
+        }, makeSvgIcon('s-check'), h('span', { text: 'تأكيد الاعتماد والإنشاء' }))
+      ));
+
+      openModal(body);
+    }
+  }
+
+  /* =====================================================================
+     قسم «الاستفسارات العامة» من الموقع العام (Public Inquiries)
+     ===================================================================== */
+  async function secInquiries(v) {
+    if (S.isEducator) return go('children');
+
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ قراءة الاستفسارات العامة…' }));
+
+    var inquiries = await C.rest('GET', '/public_inquiries?order=created_at.desc').catch(function () { return []; });
+    if (!Array.isArray(inquiries)) inquiries = [];
+
+    var localInqs = [];
+    try { localInqs = JSON.parse(localStorage.getItem('de_local_inquiries') || '[]'); } catch (e) {}
+    localInqs.forEach(function (li) {
+      if (!inquiries.some(function (i) { return i.id === li.id; })) inquiries.push(li);
+    });
+
+    v.textContent = '';
+
+    var root = h('div', { class: 'req-hub-wrap' });
+    root.appendChild(h('div', { class: 'req-hub-hero' },
+      h('div', null,
+        h('h1', null, makeSvgIcon('s-message-square'), h('span', { text: 'الاستفسارات العامة' })),
+        h('p', { text: 'رسائل واستفسارات أولياء الأمور والزوار الواردة عبر الموقع العام.' })
       )
-    );
-    v.appendChild(officeExportsCard);
+    ));
+
+    var countNewInq = inquiries.filter(function (i) { return i.status === 'new'; }).length;
+    var inqBadgeEl = $('#inquiriesBadge');
+    if (inqBadgeEl) {
+      inqBadgeEl.textContent = String(countNewInq);
+      inqBadgeEl.hidden = (countNewInq === 0);
+    }
+
+    var listHost = h('div', { class: 'card' });
+    root.appendChild(listHost);
+    v.appendChild(root);
+
+    listView(listHost, {
+      title: 'قائمة الاستفسارات الواردة (' + inquiries.length + ')',
+      rows: inquiries,
+      sheet: true,
+      searchPlaceholder: 'بحث باسم السائل، رقم الهاتف، أو موضوع الاستفسار…',
+      empty: 'لا توجد استفسارات مسجلة حالياً.',
+      search: function (i) { return [i.name, i.phone, i.email, i.subject, i.message].filter(Boolean).join(' '); },
+      filters: [
+        {
+          label: 'الحالة',
+          opts: [
+            ['all', 'جميع الحالات'],
+            ['new', 'جديد'],
+            ['in_progress', 'قيد المعالجة'],
+            ['replied', 'تم الرد والتواصل'],
+            ['closed', 'مغلق']
+          ],
+          test: function (i, x) { return x === 'all' || i.status === x; }
+        }
+      ],
+      cols: [
+        { label: 'اسم السائل', get: function (i) { return h('strong', { text: i.name }); }, sort: function (i) { return i.name; } },
+        { label: 'رقم الهاتف', get: function (i) { return h('span', { dir: 'ltr', class: 'sic-num', text: i.phone }); }, sort: function (i) { return i.phone; } },
+        { label: 'موضوع الاستفسار', get: function (i) { return h('strong', { text: i.subject }); }, sort: function (i) { return i.subject; } },
+        { label: 'نص الرسالة', get: function (i) { return h('span', { class: 'muted small', text: (i.message || '').slice(0, 50) + (i.message && i.message.length > 50 ? '…' : '') }); } },
+        { label: 'تاريخ الإرسال', get: function (i) { return fmt(i.created_at, true); }, sort: function (i) { return i.created_at || ''; } },
+        {
+          label: 'الحالة',
+          get: function (i) {
+            var stMap = { 'new': ['جديد', 'gold'], 'in_progress': ['قيد المعالجة', 'light'], 'replied': ['تم الرد', 'ok'], 'closed': ['مغلق', 'gray'] };
+            var it = stMap[i.status] || [i.status, 'gray'];
+            return badge(it[0], it[1]);
+          },
+          sort: function (i) { return i.status; }
+        }
+      ],
+      actions: function (i) {
+        return [
+          rbtn('فتح الاستفسار', function () { openInquiryModal(i); }, 'gold')
+        ];
+      }
+    });
+
+    function openInquiryModal(inq) {
+      var body = h('div', { class: 'modal-body' },
+        h('div', { class: 'bar-sub' },
+          h('h2', { text: 'استفسار: ' + inq.subject }),
+          badge(fmt(inq.created_at, true), 'light')
+        ),
+        h('div', { class: 'child-details' },
+          h('div', { class: 'cd-item' }, h('span', { text: 'الاسم واللقب' }), h('b', { text: inq.name })),
+          h('div', { class: 'cd-item' }, h('span', { text: 'رقم الهاتف' }), h('b', { text: inq.phone }), makeWhatsAppLink(inq.phone, { full_name: inq.name })),
+          h('div', { class: 'cd-item' }, h('span', { text: 'البريد الإلكتروني' }), h('b', { text: inq.email || '—' })),
+          h('div', { class: 'cd-item wide' }, h('span', { text: 'نص الاستفسار' }), h('p', { style: 'margin:4px 0;', text: inq.message })),
+          inq.response_notes ? h('div', { class: 'cd-item wide' }, h('span', { text: 'ملاحظات الإدارة' }), h('b', { text: inq.response_notes })) : null
+        )
+      );
+
+      var selSt = h('select', { class: 'input' },
+        h('option', { value: 'new', text: 'جديد' }),
+        h('option', { value: 'in_progress', text: 'قيد المعالجة' }),
+        h('option', { value: 'replied', text: 'تم الرد والتواصل' }),
+        h('option', { value: 'closed', text: 'مغلق' })
+      );
+      selSt.value = inq.status || 'new';
+      var txtNotes = h('textarea', { class: 'input', rows: '3', placeholder: 'سجل نتيجة التواصل أو الرد هنا…' }, inq.response_notes || '');
+
+      body.appendChild(h('div', { class: 'card', style: 'margin-top:14px;' },
+        h('div', { class: 'settings-form-grid' },
+          h('label', { class: 'fld' }, h('span', { text: 'تحديث حالة الاستفسار:' }), selSt),
+          h('label', { class: 'fld wide' }, h('span', { text: 'ملاحظات وتفاصيل الرد:' }), txtNotes)
+        )
+      ));
+
+      body.appendChild(h('div', { class: 'modal-actions' },
+        h('button', { type: 'button', class: 'btn ghost', text: 'إغلاق', onclick: closeModal }),
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          onclick: async function () {
+            try {
+              inq.status = selSt.value;
+              inq.response_notes = txtNotes.value.trim();
+              await C.rest('PATCH', '/public_inquiries?id=eq.' + uid(inq.id), {
+                status: inq.status,
+                response_notes: inq.response_notes,
+                updated_at: new Date().toISOString()
+              }).catch(function () {});
+              try {
+                localStorage.setItem('de_local_inquiries', JSON.stringify(inquiries));
+              } catch (e) {}
+              toast('تم تحديث حالة الاستفسار.', 'ok');
+              closeModal();
+              secInquiries(v);
+            } catch (err) {
+              toast('تعذر تحديث الاستفسار: ' + err.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-check'), h('span', { text: 'حفظ' }))
+      ));
+
+      openModal(body);
+    }
   }
 
 
-  
   /* =====================================================================
      قسم «الغيابات والحضور» الاحترافي الموحد — دار الإحسان
      - توحيد الفروع (دار الإحسان الرئيسي + مركز المساعدة على العمل).
@@ -8408,11 +8955,7 @@
     root.appendChild(h('div', { class: 'att-hero' },
       h('div', null,
         h('h1', null, makeSvgIcon('s-cal'), h('span', { text: 'الغيابات والحضور' })),
-        h('p', { text: 'تسجيل الحضور والغياب اليومي لأطفال المركز، وإرسال إشعارات واتساب لأولياء الغائبين المحدَّدين.' })
-      ),
-      h('div', { class: 'att-herotools' },
-        h('div', { class: 'att-sender' }, makeSvgIcon('s-lock'), h('span', { text: 'رقم الإرسال:' }), h('b', { class: 'sic-num', text: OFFICIAL_WA_SENDER })),
-        h('button', { type: 'button', class: 'att-btn sm ghost', text: '🩺 فحص ربط واتساب', onclick: function () { openDiagnose(); } })
+        h('p', { text: 'تسجيل الحضور والغياب اليومي لأطفال المركز، وإرسال إشعارات رسمية لأولياء الغائبين المحدَّدين.' })
       )
     ));
 
@@ -8435,9 +8978,9 @@
     var selCountEl = h('b', { class: 'sic-num', text: '0' });
     var bulkBox = h('div', { class: 'att-bulk', hidden: true },
       h('b', null, 'المحدّدون: ', selCountEl),
-      h('button', { type: 'button', class: 'att-btn sm ghost', text: '✓ حاضر', onclick: function () { applyBulk('present'); } }),
-      h('button', { type: 'button', class: 'att-btn sm warn', text: '🔴 غائب', onclick: function () { applyBulk('absent'); } }),
-      h('button', { type: 'button', class: 'att-btn sm ghost', text: 'لم يُسجَّل', onclick: function () { applyBulk('unrecorded'); } }),
+      h('button', { type: 'button', class: 'att-btn sm ghost att-icon-btn', onclick: function () { applyBulk('present'); } }, makeSvgIcon('s-check-circle'), h('span', { text: 'حاضر' })),
+      h('button', { type: 'button', class: 'att-btn sm warn att-icon-btn', onclick: function () { applyBulk('absent'); } }, makeSvgIcon('s-x-circle'), h('span', { text: 'غائب' })),
+      h('button', { type: 'button', class: 'att-btn sm ghost att-icon-btn', onclick: function () { applyBulk('unrecorded'); } }, makeSvgIcon('s-clock'), h('span', { text: 'لم يُسجّل' })),
       h('button', { type: 'button', class: 'att-btn sm ghost', text: 'إلغاء التحديد', onclick: function () { selected = {}; renderList(); } })
     );
     var listHead = h('div', { class: 'att-listhead' },
@@ -8465,16 +9008,16 @@
         if (st === 'present') present++; else if (st === 'absent') absent++; else unrec++;
       });
       var items = [
-        { t: 'إجمالي الأطفال', n: eligibleKids.length, c: '#082D50', i: '👥' },
-        { t: 'حاضرون', n: present, c: '#059669', i: '✅' },
-        { t: 'غائبون', n: absent, c: '#DC2626', i: '🔴' },
-        { t: 'لم يُسجَّلوا', n: unrec, c: '#64748B', i: '⏳' }
+        { t: 'إجمالي الأطفال', n: eligibleKids.length, c: '#102F50', icon: 's-users' },
+        { t: 'حاضرون', n: present, c: '#059669', icon: 's-check-circle' },
+        { t: 'غائبون', n: absent, c: '#DC2626', icon: 's-x-circle' },
+        { t: 'لم يُسجَّلوا', n: unrec, c: '#64748B', icon: 's-clock' }
       ];
       statsBar.textContent = '';
       items.forEach(function (it) {
         var box = h('div', { class: 'att-stat' },
           h('div', null, h('span', { text: it.t }), h('strong', { class: 'sic-num', text: String(it.n) })),
-          h('i', { text: it.i })
+          h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon(it.icon))
         );
         box.style.setProperty('--c', it.c);
         statsBar.appendChild(box);
@@ -8534,9 +9077,9 @@
           paint(); updateSelectionUI();
         }
       });
-      var segP = h('button', { type: 'button', text: '✓ حاضر', onclick: function () { setStatus('present'); } });
-      var segA = h('button', { type: 'button', text: '🔴 غائب', onclick: function () { setStatus('absent'); } });
-      var segN = h('button', { type: 'button', text: 'لم يُسجَّل', onclick: function () { setStatus('unrecorded'); } });
+      var segP = h('button', { type: 'button', class: 'att-seg-btn seg-present', onclick: function () { setStatus('present'); } }, makeSvgIcon('s-check-circle'), h('span', { text: 'حاضر' }));
+      var segA = h('button', { type: 'button', class: 'att-seg-btn seg-absent', onclick: function () { setStatus('absent'); } }, makeSvgIcon('s-x-circle'), h('span', { text: 'غائب' }));
+      var segN = h('button', { type: 'button', class: 'att-seg-btn seg-none', onclick: function () { setStatus('unrecorded'); } }, makeSvgIcon('s-clock'), h('span', { text: 'لم يُسجّل' }));
       var meta = (k.section || '—') + (k.membership_no ? ' · قيد ' + k.membership_no : '');
       var row = h('div', { class: 'att-row' },
         h('label', { class: 'att-pick' }, cb),
@@ -8575,8 +9118,17 @@
 
     allCb.addEventListener('change', function () {
       var kids = getFilteredKids();
-      kids.forEach(function (k) { if (allCb.checked) selected[k.id] = true; else delete selected[k.id]; });
+      var isChecked = allCb.checked;
+      kids.forEach(function (k) {
+        if (isChecked) {
+          selected[k.id] = true;
+          dayAttendance[k.id] = 'present'; // تحديد الكل يجعل كافة الأطفال حاضرين فوراً
+        } else {
+          delete selected[k.id];
+        }
+      });
       renderList();
+      updateAll();
     });
 
     // ---------- حفظ الحضور ----------
@@ -8863,6 +9415,8 @@
     msgs: secMsgs,
     docs: secDocs,
     archive: secArchive,
+    requests: secRegistrationRequests,
+    inquiries: secInquiries,
     accounts: function (v) { return secAccounts(v, false); },
     audit: secAudit,
     attendance: secAttendance,

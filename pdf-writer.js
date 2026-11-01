@@ -887,12 +887,244 @@
     return buildPdfBinary(jpegPages);
   }
 
+
+  async function renderAttendanceToPdf(records, dateStr, secName, stats) {
+    var logoImg = await loadLogoImage();
+    var W = 1240, H = 1754, M = 56, CW = W - M * 2;
+    var rows = Array.isArray(records) ? records : [];
+    var rowsPerPage = 20;
+    var totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+    var pages = [];
+
+    for (var p = 0; p < totalPages; p++) {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      drawOfficialHeader(ctx, W, 'سجل الغيابات والحضور اليومي — دار الإحسان', logoImg);
+
+      // شريط المعلومات
+      ctx.fillStyle = '#F4F7FB';
+      ctx.fillRect(M, 205, CW, 70);
+      ctx.strokeStyle = '#102F50';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(M, 205, CW, 70);
+
+      ctx.fillStyle = '#102F50';
+      ctx.font = 'bold 18px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.direction = 'rtl';
+      ctx.fillText('التاريخ: ' + (dateStr || new Date().toISOString().slice(0, 10)), W - M - 20, 245);
+      ctx.fillText('القسم / الفوج: ' + (secName || 'كافة الأقسام المعتمدة'), W - M - 320, 245);
+
+      if (stats) {
+        ctx.font = '16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillStyle = '#059669';
+        ctx.fillText('الحاضرون: ' + (stats.present || 0), W - M - 680, 245);
+        ctx.fillStyle = '#DC2626';
+        ctx.fillText('الغائبون: ' + (stats.absent || 0), W - M - 840, 245);
+        ctx.fillStyle = '#174D78';
+        ctx.fillText('الإجمالي: ' + (rows.length || 0), W - M - 980, 245);
+      }
+
+      // رأس الجدول
+      var y = 295;
+      var colW = [60, 140, 360, 220, 160, CW - (60 + 140 + 360 + 220 + 160)];
+      var colX = [];
+      var curX = M;
+      for (var ci = 0; ci < colW.length; ci++) { colX.push(curX); curX += colW[ci]; }
+      var headers = ['#', 'رقم القيد', 'اسم ولقب التلميذ(ة)', 'الفوج / القسم', 'الحالة', 'ملاحظات وتوجيهات'];
+
+      ctx.fillStyle = '#102F50';
+      ctx.fillRect(M, y, CW, 38);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.textAlign = 'center';
+      for (var hi = 0; hi < headers.length; hi++) {
+        ctx.fillText(headers[hi], colX[hi] + colW[hi] / 2, y + 25);
+      }
+      y += 38;
+
+      var startIdx = p * rowsPerPage;
+      var endIdx = Math.min(rows.length, startIdx + rowsPerPage);
+      for (var i = startIdx; i < endIdx; i++) {
+        var r = rows[i];
+        var isEven = (i % 2 === 0);
+        ctx.fillStyle = isEven ? '#FFFFFF' : '#F8FAFC';
+        ctx.fillRect(M, y, CW, 36);
+        ctx.strokeStyle = '#E2E8F0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(M, y, CW, 36);
+
+        ctx.fillStyle = '#26364A';
+        ctx.font = '15px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(String(i + 1), colX[0] + colW[0] / 2, y + 23);
+        ctx.fillText(r.membership_no ? ('N° ' + r.membership_no) : '—', colX[1] + colW[1] / 2, y + 23);
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 15px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(r.full_name || '—', colX[2] + colW[2] - 14, y + 23);
+
+        ctx.textAlign = 'center';
+        ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(r.section || secName || '—', colX[3] + colW[3] / 2, y + 23);
+
+        // شارة الحالة
+        var st = r.status || 'present';
+        var isP = (st === 'present' || st === 'حاضر');
+        var isA = (st === 'absent' || st === 'غائب');
+        ctx.fillStyle = isP ? '#ECFDF5' : (isA ? '#FEF2F2' : '#F1F5F9');
+        drawRoundedRect(ctx, colX[4] + 20, y + 5, colW[4] - 40, 26, 6);
+        ctx.fill();
+        ctx.fillStyle = isP ? '#059669' : (isA ? '#DC2626' : '#64748B');
+        ctx.font = 'bold 14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(isP ? 'حاضر' : (isA ? 'غائب' : 'لم يُسجّل'), colX[4] + colW[4] / 2, y + 22);
+
+        ctx.fillStyle = '#64748B';
+        ctx.font = '13px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(r.note || '—', colX[5] + colW[5] / 2, y + 23);
+
+        y += 36;
+      }
+
+      // التذييل والختم في الصفحة الأخيرة
+      if (p === totalPages - 1) {
+        var signY = 1530;
+        ctx.fillStyle = '#F4F7FB';
+        ctx.fillRect(M, signY, CW, 120);
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.strokeRect(M, signY, CW, 120);
+
+        ctx.fillStyle = '#102F50';
+        ctx.font = 'bold 16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('توقيع المربي(ة) المشرف(ة)', M + 240, signY + 35);
+        ctx.fillText('ختم وتأشيرة إدارة المركز', W - M - 240, signY + 35);
+
+        ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('....................................', M + 240, signY + 80);
+        ctx.fillText('....................................', W - M - 240, signY + 80);
+      }
+
+      ctx.fillStyle = '#64748B';
+      ctx.textAlign = 'center';
+      ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.fillText('الصفحة ' + (p + 1) + ' من ' + totalPages + ' — جمعية دار الإحسان لرعاية وتأهيل ذوي الاحتياجات الخاصة (العطف - غرداية)', W / 2, 1702);
+
+      pages.push({ canvas: c, ctx: ctx });
+    }
+
+    var jpegPages = [];
+    for (var k = 0; k < pages.length; k++) {
+      var jpgBytes = await canvasToJpegBytes(pages[k].canvas, 0.94);
+      jpegPages.push({ data: jpgBytes, width: W, height: H });
+    }
+    return buildPdfBinary(jpegPages);
+  }
+
+  async function renderChildrenListToPdf(kids, secName, branchName) {
+    var logoImg = await loadLogoImage();
+    var W = 1240, H = 1754, M = 56, CW = W - M * 2;
+    var rows = Array.isArray(kids) ? kids : [];
+    var rowsPerPage = 22;
+    var totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+    var pages = [];
+
+    for (var p = 0; p < totalPages; p++) {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      drawOfficialHeader(ctx, W, 'القائمة الرسمية للطلبة والأطفال — دار الإحسان', logoImg);
+
+      // شريط المعلومات
+      ctx.fillStyle = '#F4F7FB';
+      ctx.fillRect(M, 205, CW, 65);
+      ctx.strokeStyle = '#102F50';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(M, 205, CW, 65);
+
+      ctx.fillStyle = '#102F50';
+      ctx.font = 'bold 18px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.direction = 'rtl';
+      ctx.fillText('المركز / الفرع: ' + (branchName || 'دار الإحسان - المركز الرئيسي'), W - M - 20, 245);
+      ctx.fillText('القسم: ' + (secName || 'كافة الأقسام التربوية'), W - M - 480, 245);
+      ctx.fillText('العدد الإجمالي: ' + rows.length + ' تلميذ', W - M - 880, 245);
+
+      // رأس الجدول
+      var y = 290;
+      var colW = [50, 110, 310, 140, 180, 150, 188];
+      var colX = [];
+      var curX = M;
+      for (var ci = 0; ci < colW.length; ci++) { colX.push(curX); curX += colW[ci]; }
+      var headers = ['#', 'رقم القيد', 'اسم ولقب التلميذ(ة)', 'تاريخ الميلاد', 'طبيعة الإعاقة', 'القسم', 'رقم هاتف الولي'];
+
+      ctx.fillStyle = '#102F50';
+      ctx.fillRect(M, y, CW, 38);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.textAlign = 'center';
+      for (var hi = 0; hi < headers.length; hi++) {
+        ctx.fillText(headers[hi], colX[hi] + colW[hi] / 2, y + 25);
+      }
+      y += 38;
+
+      var startIdx = p * rowsPerPage;
+      var endIdx = Math.min(rows.length, startIdx + rowsPerPage);
+      for (var i = startIdx; i < endIdx; i++) {
+        var k = rows[i];
+        var isEven = (i % 2 === 0);
+        ctx.fillStyle = isEven ? '#FFFFFF' : '#F8FAFC';
+        ctx.fillRect(M, y, CW, 34);
+        ctx.strokeStyle = '#E2E8F0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(M, y, CW, 34);
+
+        ctx.fillStyle = '#26364A';
+        ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(String(i + 1), colX[0] + colW[0] / 2, y + 22);
+        ctx.fillText(k.membership_no ? ('N° ' + k.membership_no) : '—', colX[1] + colW[1] / 2, y + 22);
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(k.full_name || '—', colX[2] + colW[2] - 12, y + 22);
+
+        ctx.textAlign = 'center';
+        ctx.font = '13.5px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(k.dob || '—', colX[3] + colW[3] / 2, y + 22);
+        ctx.fillText(k.disability || '—', colX[4] + colW[4] / 2, y + 22);
+        ctx.fillText(k.section || secName || '—', colX[5] + colW[5] / 2, y + 22);
+
+        ctx.font = '13.5px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(k.phone || '—', colX[6] + colW[6] / 2, y + 22);
+
+        y += 34;
+      }
+
+      ctx.fillStyle = '#64748B';
+      ctx.textAlign = 'center';
+      ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      ctx.fillText('الصفحة ' + (p + 1) + ' من ' + totalPages + ' — المركز النفسي البيداغوجي دار الإحسان (العطف - غرداية)', W / 2, 1702);
+
+      pages.push({ canvas: c, ctx: ctx });
+    }
+
+    var jpegPages = [];
+    for (var k = 0; k < pages.length; k++) {
+      var jpgBytes = await canvasToJpegBytes(pages[k].canvas, 0.94);
+      jpegPages.push({ data: jpgBytes, width: W, height: H });
+    }
+    return buildPdfBinary(jpegPages);
+  }
+
   root.DE_PDF = {
     buildPdfBinary: buildPdfBinary,
     canvasToJpegBytes: canvasToJpegBytes,
     downloadPdf: downloadPdf,
     renderReportToPdf: renderReportToPdf,
-    renderEvaluationToPdf: renderEvaluationToPdf
+    renderEvaluationToPdf: renderEvaluationToPdf,
+    renderAttendanceToPdf: renderAttendanceToPdf,
+    renderChildrenListToPdf: renderChildrenListToPdf
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);
