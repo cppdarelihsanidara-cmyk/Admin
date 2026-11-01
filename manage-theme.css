@@ -2497,3 +2497,391 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   width: 15px;
   height: 15px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   DAR EL IHSAN — MODERN SAAS SETTINGS, SECTIONS & ATTENDANCE THEME
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Settings SaaS Layout */
+.settings-saas-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.settings-saas-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: flex-start;
+}
+@media (max-width: 900px) {
+  .settings-saas-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-saas-sidebar {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(16, 47, 80, 0.04);
+  position: sticky;
+  top: 86px;
+}
+.settings-search-box {
+  margin-bottom: 14px;
+}
+.settings-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: #F8FAFC;
+  outline: none;
+  transition: all 0.2s;
+}
+.settings-search-input:focus {
+  border-color: #174D78;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(23, 77, 120, 0.1);
+}
+
+.settings-saas-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #26364A;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: right;
+  width: 100%;
+}
+.settings-nav-item svg {
+  width: 20px;
+  height: 20px;
+  color: #174D78;
+  flex-shrink: 0;
+}
+.settings-nav-item:hover {
+  background: #F1F5F9;
+  color: #102F50;
+}
+.settings-nav-item.is-active {
+  background: #EAF2FA;
+  border-color: #C49A50;
+  color: #102F50;
+  font-weight: 700;
+}
+.settings-nav-item.is-active svg {
+  color: #C49A50;
+}
+.sni-label {
+  flex: 1;
+}
+.sni-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 47, 80, 0.08);
+  color: #174D78;
+}
+
+.settings-saas-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.settings-group-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  padding: 24px 28px;
+  box-shadow: 0 4px 14px rgba(16, 47, 80, 0.04);
+}
+.sgc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+.sgc-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #102F50;
+}
+.sgc-header p {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: #64748B;
+}
+
+.setting-entry-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+.setting-entry-row:last-of-type {
+  border-bottom: none;
+}
+@media (max-width: 650px) {
+  .setting-entry-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.ser-info {
+  flex: 1;
+}
+.ser-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ser-title {
+  font-size: 0.95rem;
+  color: #102F50;
+}
+.ser-desc {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  color: #64748B;
+  line-height: 1.4;
+}
+.ser-control {
+  min-width: 240px;
+  max-width: 380px;
+}
+@media (max-width: 650px) {
+  .ser-control {
+    min-width: 100%;
+    margin-top: 8px;
+  }
+}
+
+.search-result-group {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 14px;
+}
+.search-result-group h4 {
+  margin: 0 0 6px;
+  color: #102F50;
+}
+.search-result-group p {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: #64748B;
+}
+
+/* Sections SaaS Cards */
+.branches-saas-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.branches-hub-hero {
+  background: linear-gradient(135deg, #102F50, #174D78);
+  border-radius: 16px;
+  padding: 24px 28px;
+  color: #FFFFFF;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.branches-hub-hero h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.branches-hub-hero p {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  opacity: 0.9;
+}
+.sections-filter-toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  flex-wrap: wrap;
+}
+.sft-fld {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 240px;
+}
+.sft-fld label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #26364A;
+  white-space: nowrap;
+}
+
+.sections-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+.section-saas-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(16, 47, 80, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.section-saas-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 47, 80, 0.08);
+  border-color: #CBD5E1;
+}
+.ssc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ssc-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #102F50;
+}
+.ssc-branch {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #174D78;
+  font-weight: 600;
+}
+.ssc-badge-box {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ssc-desc {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #64748B;
+  line-height: 1.5;
+  flex: 1;
+}
+.ssc-footer {
+  border-top: 1px solid #F1F5F9;
+  padding-top: 12px;
+}
+.ssc-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Attendance Enhanced Child Card & Direct WhatsApp Button */
+.att-card-child {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  transition: all 0.2s;
+}
+.att-card-child.is-present {
+  border-color: #059669;
+  background: #F0FDF4;
+}
+.att-card-child.is-absent {
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+.att-child-name {
+  font-size: 1.05rem;
+  color: #102F50;
+}
+.att-sec-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #EAF2FA;
+  color: #174D78;
+  font-weight: 600;
+  margin-right: 8px;
+}
+.att-seg-group {
+  display: flex;
+  gap: 6px;
+}
+.att-wa-action-wrap {
+  margin-right: auto;
+}
+.att-wa-direct-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #25D366;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);
+  transition: transform 0.15s, background 0.15s;
+}
+.att-wa-direct-btn:hover {
+  background: #1EBE5D;
+  transform: translateY(-1px);
+}
+.att-wa-direct-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.att-no-phone-tag {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: #64748B;
+  background: #F1F5F9;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
