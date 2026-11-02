@@ -2885,3 +2885,146 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   border-radius: 999px;
   font-weight: 600;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   الأقسام والأطفال — التصميم المؤسساتي الحديث
+   ═══════════════════════════════════════════════════════════════════ */
+.children-saas-hero {
+  background: linear-gradient(135deg, #102F50, #174D78);
+  border-radius: 18px;
+  padding: 24px 28px;
+  color: #FFFFFF;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px rgba(16, 47, 80, 0.15);
+}
+.csh-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.csh-badges-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.csh-title {
+  margin: 0;
+  font-size: 1.6rem;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.csh-sub {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  color: #EAF2FA;
+  opacity: 0.95;
+  max-width: 720px;
+}
+.csh-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* شريط الأقسام المطور التفاعلي */
+.class-sections-hub-bar {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 14px rgba(16, 47, 80, 0.04);
+}
+.cshb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 10px;
+}
+.cshb-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cshb-title-group svg {
+  width: 22px;
+  height: 22px;
+  color: #C49A50;
+}
+.cshb-title-group h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #102F50;
+  font-weight: 700;
+}
+.cshb-count-tag {
+  background: #EAF2FA;
+  color: #174D78;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.cshb-pills {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.cshb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  color: #26364A;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.cshb-pill:hover {
+  background: #EAF2FA;
+  border-color: #CBD5E1;
+  transform: translateY(-1px);
+}
+.cshb-pill.is-active {
+  background: linear-gradient(135deg, #102F50, #174D78);
+  border-color: #102F50;
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(16, 47, 80, 0.25);
+}
+.cshb-pill-name {
+  font-size: 0.92rem;
+}
+.cshb-pill-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #E2E8F0;
+  color: #174D78;
+}
+.cshb-pill.is-active .cshb-pill-num {
+  background: #C49A50;
+  color: #102F50;
+}

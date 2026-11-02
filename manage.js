@@ -308,7 +308,7 @@
     hub: 'لوحة الإدارة',
     hub_accounts: 'الحسابات الخاصة بجميع المراكز',
     dash: 'لوحة التحكم',
-    children: 'الأطفال والطلبة والأقسام',
+    children: 'الأقسام والأطفال',
     branches: 'الفروع والأقسام التربوية',
     educators: 'قسم المربيات',
     programs: 'البرامج التربوية للأقسام',
@@ -878,23 +878,23 @@
       }
       if (isEdu) {
         btn.hidden = !allowedForEdu[secKey];
-        if (secKey === 'children') setNavBtnLabel(btn, 'قسم الطلبة (' + (S.eduSectionName || 'فوجي') + ')');
+        if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال (' + (S.eduSectionName || 'فوجي') + ')');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
       } else if (isSpec) {
         btn.hidden = !allowedForSpec[secKey];
-        if (secKey === 'children') setNavBtnLabel(btn, 'الأطفال والطلبة');
+        if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
         if (secKey === 'archive') setNavBtnLabel(btn, 'الأرشيف والنسخ الاحتياطية');
       } else if (isWorkOrFarm) {
         btn.hidden = !allowedForWorkOrFarm[secKey];
-        if (secKey === 'children') setNavBtnLabel(btn, 'الطلبة');
+        if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال');
         if (secKey === 'accounts') setNavBtnLabel(btn, S.activeCenter === 'work' ? 'الحسابات الخاصة بمركز المساعدة على العمل' : 'الحسابات الخاصة بالمزرعة البيداغوجية');
         if (secKey === 'archive') setNavBtnLabel(btn, 'الأرشيف والنسخ الاحتياطية');
       } else {
         btn.hidden = false;
-        if (secKey === 'children') setNavBtnLabel(btn, 'الأطفال والطلبة');
+        if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
         if (secKey === 'accounts') setNavBtnLabel(btn, 'حسابات المركز الرئيسي');
@@ -1989,44 +1989,50 @@
       }
     }
 
+        var totalKidsAll = centerRows.length;
+    var curFilteredKids = rows.length;
+    var selectedSecName = '';
+    if (S.filterSectionId) {
+      var matchSec = allSections.filter(function (s) { return s.id === S.filterSectionId; })[0];
+      selectedSecName = matchSec ? matchSec.name : '';
+    }
+
     if (S.isEducator) {
       v.appendChild(h('div', { class: 'card edu-banner-card' },
-        h('strong', { text: (isFarmSession() ? 'فضاء مربي المزرعة البيداغوجية: ' : 'فضاء المربية: ') + (S.eduProfile && S.eduProfile.full_name || S.me && S.me.email || '') + ' — القسم المسند: ' + (S.eduSectionName || 'غير محدد') }),
-        h('p', { class: 'muted small', text: isFarmSession() ? 'يظهر لك هنا طلاب قسم المزرعة البستنة للاطلاع على ملفاتهم وبطاقاتهم.' : 'يظهر لكِ هنا طلاب قسمكِ فقط. يمكنكِ الاطلاع على ملفاتهم وإضافة التقارير واستمارات التقييم البيداغوجي الخاصة بهم.' })
+        h('strong', { text: (isFarmSession() ? 'فضاء مربي المزرعة البيداغوجية: ' : 'فضاء المربية: ') + (S.eduProfile && S.eduProfile.full_name || S.me && S.me.email || '') + ' — الفوج المسند: ' + (S.eduSectionName || 'غير محدد') }),
+        h('p', { class: 'muted small', text: 'يظهر لكِ هنا طلاب وقسمكِ التربوي المعتمد. يمكنكِ الاطلاع على ملفاتهم وإضافة التقارير واستمارات التقييم البيداغوجي الخاصة بهم.' })
       ));
     } else {
       var activeKidsCount = centerRows.filter(function (k) { return !!k.active; }).length;
-      v.appendChild(h('div', { class: 'dash-hero-banner' },
-        h('div', { class: 'dash-hero-top' },
+
+      var heroBanner = h('div', { class: 'children-saas-hero' },
+        h('div', { class: 'csh-top' },
           h('div', null,
-            h('span', { class: 'dash-hero-kicker', text: cm.icon + ' ' + cm.badge }),
-            h('h1', { class: 'dash-hero-title', text: S.activeCenter === 'farm' ? 'المزرعة البيداغوجية — طلاب البستنة' : S.activeCenter === 'work' ? 'مركز المساعدة على العمل — الطلاب والأقسام' : 'المركز الرئيسي دار الإحسان — الطلاب والأقسام' }),
-            h('p', { class: 'dash-hero-sub', text: S.activeCenter === 'farm' ? 'قائمة طلاب قسم البستنة بالمزرعة البيداغوجية مع إمكانية إدارة ملفاتهم وبطاقاتهم.' : S.activeCenter === 'work' ? 'قائمة طلاب وأقسام مركز المساعدة على العمل (قسم التمهين م م ع والأقسام المهنية).' : 'قائمة طلاب وأقسام المركز الرئيسي دار الإحسان.' })
+            h('div', { class: 'csh-badges-row' },
+              badge(cm.name, 'gold'),
+              selectedSecName ? badge('القسم المحدد: ' + selectedSecName, 'ok') : badge('كافة الأقسام التربوية (' + (centerSections.length || 1) + ')', 'light'),
+              badge('الموسم 2026/2027', 'gray')
+            ),
+            h('h1', { class: 'csh-title', text: 'الأقسام والأطفال' }),
+            h('p', { class: 'csh-sub', text: selectedSecName ? ('عرض ملفات وتفاصيل الأطفال المسجلين في «' + selectedSecName + '» (' + curFilteredKids + ' طالب).') : ('إدارة ملفات وبطاقات جميع الأطفال والتلاميذ وتوزيعهم على الأقسام التربوية المعتمدة (' + totalKidsAll + ' طالب).') })
           ),
-          h('div', { class: 'row-actions' },
-            (S.activeCenter === 'work' || S.activeCenter === 'farm') ? h('button', {
+          h('div', { class: 'csh-actions' },
+            (!S.isEducator && !S.isSpecialist) ? h('button', {
               type: 'button',
-              class: 'dash-hero-btn',
-              text: S.activeCenter === 'work' ? 'الحسابات الخاصة بمركز المساعدة على العمل' : 'الحسابات الخاصة بالمزرعة البيداغوجية',
-              onclick: function () { go('accounts'); }
-            }) : h('button', {
+              class: 'btn gold',
+              onclick: function () { editChild(null); }
+            }, makeSvgIcon('s-plus'), h('span', { text: 'إضافة طالب جديد' })) : null,
+            (!S.isEducator && !S.isSpecialist) ? h('button', {
               type: 'button',
-              class: 'dash-hero-btn',
-              text: 'لوحة تحكم المركز الرئيسي',
-              onclick: function () { go('dash'); }
-            }),
-            h('button', {
-              type: 'button',
-              class: 'dash-hero-btn',
-              text: 'العودة إلى لوحة الإدارة',
-              onclick: function () { go('hub'); }
-            })
+              class: 'btn light',
+              onclick: function () { openAddSectionForCenterModal(S.activeCenter, branches, function () { go('children'); }); }
+            }, makeSvgIcon('s-branch'), h('span', { text: 'إضافة قسم جديد' })) : null
           )
         ),
-        h('div', { class: 'dash-hero-stats' },
+        h('div', { class: 'dash-hero-stats', style: 'margin-top:16px;' },
           h('div', { class: 'dash-hero-stat' },
-            h('b', { text: String(centerRows.length) }),
-            h('span', { text: S.activeCenter === 'farm' ? 'إجمالي طلاب البستنة' : 'إجمالي طلاب المركز' })
+            h('b', { text: String(totalKidsAll) }),
+            h('span', { text: 'إجمالي أطفال المركز' })
           ),
           h('div', { class: 'dash-hero-stat' },
             h('b', { text: String(activeKidsCount) }),
@@ -2034,75 +2040,71 @@
           ),
           h('div', { class: 'dash-hero-stat' },
             h('b', { text: String(centerSections.length || 1) }),
-            h('span', { text: 'أقسام المركز' })
+            h('span', { text: 'الأقسام التربوية' })
           ),
           h('div', { class: 'dash-hero-stat' },
-            h('b', { text: '2026/2027' }),
-            h('span', { text: 'الموسم الدراسي' })
+            h('b', { text: String(curFilteredKids) }),
+            h('span', { text: selectedSecName ? 'الطلاب المعروضون' : 'كافة الطلاب' })
           )
         )
-      ));
+      );
+      v.appendChild(heroBanner);
 
-      // شريط أقسام المركز المدمج (يعرض أقسام المركز وعدد طلاب كل قسم مع إمكانية التصفية الفورية أو إضافة قسم)
-      var pillsRow = h('div', { class: 'csp-pills' });
-      pillsRow.appendChild(h('button', {
-        type: 'button',
-        class: 'csp-pill' + (!S.filterSectionId ? ' active' : ''),
-        onclick: function () { S.filterSectionId = ''; go('children'); }
-      },
-        h('span', { text: 'الكل في ' + cm.shortName }),
-        h('span', { class: 'csp-pill-count', text: String(centerRows.length) })
-      ));
-
-      centerSections.forEach(function (sec) {
-        var cnt = centerRows.filter(function (k) { return childMatchesSection(k, sec.id, sec.name, allSections); }).length;
-        var isSel = S.filterSectionId === sec.id;
-        pillsRow.appendChild(h('button', {
-          type: 'button',
-          class: 'csp-pill' + (isSel ? ' active' : ''),
-          onclick: function () { S.filterSectionId = isSel ? '' : sec.id; go('children'); }
-        },
-          h('span', { text: sec.name }),
-          h('span', { class: 'csp-pill-count', text: String(cnt) })
-        ));
-      });
-
-      var secPanelEl = h('div', { class: 'center-sections-panel' + (S.hideSectionsBar ? ' is-collapsed' : '') });
-      var toggleSecLabel = h('span', { text: S.hideSectionsBar ? 'إظهار قائمة الأقسام (' + centerSections.length + ')' : 'إخفاء قائمة الأقسام' });
-      var toggleSecBtn = h('button', {
-        type: 'button',
-        class: 'csp-toggle-btn',
-        title: 'إظهار أو إخفاء قائمة الأقسام',
-        onclick: function () {
-          S.hideSectionsBar = !S.hideSectionsBar;
-          secPanelEl.classList.toggle('is-collapsed', !!S.hideSectionsBar);
-          toggleSecLabel.textContent = S.hideSectionsBar ? ('إظهار قائمة الأقسام (' + centerSections.length + ')') : 'إخفاء قائمة الأقسام';
-        }
-      }, ico('s-menu'), toggleSecLabel);
-
-      secPanelEl.appendChild(h('div', { class: 'csp-head' },
-        h('strong', { text: 'أقسام ' + cm.name + ' (اضغط على القسم لعرض طلابه):' }),
-        h('div', { class: 'csp-head-actions' },
-          toggleSecBtn,
-          h('button', {
+      // نظام عرض واختيار الأقسام المطور التفاعلي (دائماً ظاهر وواضح لسهولة التصفية والتنقل)
+      var sectionsHubBar = h('div', { class: 'class-sections-hub-bar' },
+        h('div', { class: 'cshb-header' },
+          h('div', { class: 'cshb-title-group' },
+            makeSvgIcon('s-branch'),
+            h('h3', { text: 'الأقسام والأفواج التربوية — ' + cm.name }),
+            h('span', { class: 'cshb-count-tag', text: (centerSections.length || 1) + ' أقسام معتمدة' })
+          ),
+          S.filterSectionId ? h('button', {
             type: 'button',
             class: 'btn small light',
-            text: 'إضافة قسم في هذا المركز',
-            onclick: function () { openAddSectionForCenterModal(S.activeCenter, branches, function () { go('children'); }); }
-          })
+            onclick: function () { S.filterSectionId = ''; go('children'); }
+          }, h('span', { text: 'إلغاء التصفية (عرض كافة الأقسام)' })) : null
+        ),
+        h('div', { class: 'cshb-pills' },
+          (function () {
+            var pills = [];
+            var allPill = h('button', {
+              type: 'button',
+              class: 'cshb-pill' + (!S.filterSectionId ? ' is-active' : ''),
+              onclick: function () { S.filterSectionId = ''; go('children'); }
+            },
+              h('span', { class: 'cshb-pill-name', text: 'جميع الأقسام' }),
+              h('span', { class: 'cshb-pill-num', text: String(totalKidsAll) })
+            );
+            pills.push(allPill);
+
+            centerSections.forEach(function (sec) {
+              var cnt = centerRows.filter(function (k) { return childMatchesSection(k, sec.id, sec.name, allSections); }).length;
+              var isAct = (S.filterSectionId === sec.id);
+              var pBtn = h('button', {
+                type: 'button',
+                class: 'cshb-pill' + (isAct ? ' is-active' : ''),
+                onclick: function () {
+                  S.filterSectionId = isAct ? '' : sec.id;
+                  go('children');
+                }
+              },
+                h('span', { class: 'cshb-pill-name', text: sec.name }),
+                h('span', { class: 'cshb-pill-num', text: String(cnt) })
+              );
+              pills.push(pBtn);
+            });
+            return pills;
+          })()
         )
-      ));
-      secPanelEl.appendChild(pillsRow);
-      v.appendChild(secPanelEl);
+      );
+      v.appendChild(sectionsHubBar);
     }
 
     var listTitle = S.isEducator
-      ? ('قائمة طلاب قسم: ' + (S.eduSectionName || 'فوجي'))
-      : S.activeCenter === 'farm'
-        ? 'قائمة طلاب البستنة — المزرعة البيداغوجية'
-        : S.activeCenter === 'work'
-          ? 'قائمة طلاب وأقسام مركز المساعدة على العمل'
-          : 'الأقسام والأطفال — المركز الرئيسي دار الإحسان';
+      ? ('الأقسام والأطفال — قسم ' + (S.eduSectionName || 'فوجي'))
+      : selectedSecName
+        ? ('الأقسام والأطفال — قسم: ' + selectedSecName + ' (' + curFilteredKids + ' طالب)')
+        : ('الأقسام والأطفال — ' + cm.name + ' (' + totalKidsAll + ' طالب)');
 
     function openChildReportsModal(child) {
       var childReps = (allReports || []).filter(function (rep) {
@@ -8730,6 +8732,12 @@
     } catch (e) {
       return [];
     }
+  }
+
+  function setLocalWaLogs(list) {
+    try {
+      localStorage.setItem('de_wa_logs_v3', JSON.stringify(Array.isArray(list) ? list : []));
+    } catch (e) {}
   }
 
   function appendLocalWaLog(logEntry) {
