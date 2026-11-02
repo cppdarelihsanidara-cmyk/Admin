@@ -1713,199 +1713,94 @@
       S.activeCenter = allowedList[0] || 'main';
     }
     var cm = getCenterMeta(S.activeCenter);
-
-    v.textContent = '';
-    v.appendChild(h('div', { class: 'empty', text: 'جارٍ جلب إحصائيات لوحة المعلومات الحية…' }));
-
     var d = await Promise.all([
+      C.rpc('admin_family_counts').catch(function () { return {}; }),
       get('children'),
       get('branches'),
-      get('sections'),
-      get('reports'),
-      get('docs'),
-      get('msgs'),
-      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=200').catch(function () { return []; }),
-      get('audit')
+      get('sections')
     ]);
-
-    var allKids = d[0] || [], branches = d[1] || [], sections = d[2] || [];
-    var reports = d[3] || [], docs = d[4] || [], msgs = d[5] || [];
-    var dbAttendance = d[6] || [], waLogs = d[7] || [], auditList = d[8] || [];
-
-    v.textContent = '';
+    var c = d[0] || {}, allKids = d[1] || [], branches = d[2] || [], sections = d[3] || [];
 
     var centerKids = allKids.filter(function (k) { return childCenterKey(k, branches, sections) === S.activeCenter; });
     var activeCenterKids = centerKids.filter(function (k) { return !!k.active; });
     var centerSections = sections.filter(function (s) { return sectionCenterKey(s, branches) === S.activeCenter; });
 
-    // حساب إحصائيات حضور اليوم
-    var todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers' }).format(new Date());
-    var todayAtt = dbAttendance.filter(function (a) { return (a.date ? String(a.date).slice(0, 10) : '') === todayStr; });
-    var presentCount = 0, absentCount = 0;
-    centerKids.forEach(function (k) {
-      var match = todayAtt.filter(function (a) { return a.child_id === k.id; })[0];
-      if (match && match.status === 'present') presentCount++;
-      else if (match && match.status === 'absent') absentCount++;
-    });
-    var unrecordedCount = Math.max(0, centerKids.length - (presentCount + absentCount));
-    var attRate = centerKids.length > 0 ? Math.round((presentCount / centerKids.length) * 100) : 0;
-
-    // إحصائيات واتساب
-    var deliveredWa = waLogs.filter(function (l) { return l.status === 'delivered' || l.status === 'read' || l.status === 'sent'; }).length;
-    var failedWa = waLogs.filter(function (l) { return l.status === 'failed'; }).length;
-
-    // Bento Grid Layout
-    var bento = h('div', { class: 'bento-grid' });
-
-    // 1. Bento Hero Card
-    var heroCard = h('div', { class: 'bento-card bento-hero' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-home'), h('span', { text: 'مرحبًا بك في ' + cm.name })),
-        badge(cm.badge, 'gold')
-      ),
-      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;' },
+    // 1. البانر الأخضر الترحيبي العلوي مع بطاقات الإحصائيات الشفافة الـ 4 داخله (مطابق للصورة المرفقة)
+    var hero = h('div', { class: 'dash-hero-banner' },
+      h('div', { class: 'dash-hero-top' },
         h('div', null,
-          h('div', { style: 'font-size:2.4rem;font-weight:800;color:#FFFFFF;', text: String(centerKids.length) }),
-          h('div', { style: 'font-size:0.95rem;color:#EAF2FA;margin-top:4px;', text: 'إجمالي الطلبة المسجلين (' + activeCenterKids.length + ' طالب نشط)' })
+          h('span', { class: 'dash-hero-kicker', text: 'ADMIN DASHBOARD • ' + cm.badge }),
+          h('h1', { class: 'dash-hero-title', text: 'مرحبًا بك في ' + cm.name }),
+          h('p', { class: 'dash-hero-sub', text: 'إحصائيات حية ومباشرة وإجراءات سريعة لإدارة ' + cm.name + '.' })
         ),
         h('button', {
           type: 'button',
-          class: 'btn gold',
+          class: 'dash-hero-btn',
+          text: 'المركز وملحقاته (تبديل المركز)',
           onclick: function () { go('hub'); }
-        }, makeSvgIcon('s-branch'), h('span', { text: 'تبديل المركز' }))
-      )
-    );
-    bento.appendChild(heroCard);
-
-    // 2. Bento Attendance Card
-    var attCard = h('div', { class: 'bento-card bento-att' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-cal'), h('span', { text: 'حضور اليوم' })),
-        badge(attRate + '% نسبة الحضور', 'ok')
-      ),
-      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin:12px 0;' },
-        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#059669;', text: String(presentCount) }), h('div', { class: 'muted small', text: 'حاضر' })),
-        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#DC2626;', text: String(absentCount) }), h('div', { class: 'muted small', text: 'غائب' })),
-        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#64748B;', text: String(unrecordedCount) }), h('div', { class: 'muted small', text: 'لم يسجل' }))
-      ),
-      h('button', {
-        type: 'button',
-        class: 'btn small light',
-        style: 'margin-top:auto;',
-        onclick: function () { go('attendance'); }
-      }, makeSvgIcon('s-check-circle'), h('span', { text: 'تسجيل الحضور الفوري' }))
-    );
-    bento.appendChild(attCard);
-
-    // 3. Bento WhatsApp Pulse Card
-    var waCard = h('div', { class: 'bento-card bento-wa' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-whatsapp'), h('span', { text: 'حالة إشعارات واتساب' })),
-        badge('Cloud API v20', 'ok')
-      ),
-      h('div', { style: 'display:flex;gap:12px;margin:12px 0;' },
-        h('div', { style: 'flex:1;background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);text-align:center;' },
-          h('b', { style: 'color:#059669;font-size:1.2rem;', text: String(deliveredWa) }),
-          h('div', { class: 'muted small', text: 'تم التسليم' })
-        ),
-        h('div', { style: 'flex:1;background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);text-align:center;' },
-          h('b', { style: 'color:#DC2626;font-size:1.2rem;', text: String(failedWa) }),
-          h('div', { class: 'muted small', text: 'فشل الإرسال' })
-        )
-      ),
-      h('button', {
-        type: 'button',
-        class: 'btn small ghost',
-        style: 'margin-top:auto;',
-        onclick: function () { go('attendance'); }
-      }, h('span', { text: 'فتح سجل إرسال الرسائل' }))
-    );
-    bento.appendChild(waCard);
-
-    // 4. Bento Centers Distribution
-    var mainKids = allKids.filter(function (k) { return (k.center || 'main') === 'main'; }).length;
-    var workKids = allKids.filter(function (k) { return (k.center || '') === 'work'; }).length;
-    var farmKids = allKids.filter(function (k) { return (k.center || '') === 'farm'; }).length;
-
-    var centersCard = h('div', { class: 'bento-card bento-centers' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-branch'), h('span', { text: 'المراكز الثلاثة' })),
-        badge(allKids.length + ' طالب إجمالي', 'gold')
-      ),
-      h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin:8px 0;' },
-        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'المركز الرئيسي دار الإحسان' }), h('strong', { text: mainKids + ' طالب' })),
-        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'مركز المساعدة على العمل' }), h('strong', { text: workKids + ' طالب' })),
-        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'المزرعة البيداغوجية' }), h('strong', { text: farmKids + ' طالب' }))
-      ),
-      h('button', {
-        type: 'button',
-        class: 'btn small light',
-        style: 'margin-top:auto;',
-        onclick: function () { go('branches'); }
-      }, h('span', { text: 'إدارة المراكز والأقسام' }))
-    );
-    bento.appendChild(centersCard);
-
-    // 5. Bento Audit Stream
-    var recentAudits = (auditList || []).slice(0, 4);
-    var auditCard = h('div', { class: 'bento-card bento-audit' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-log'), h('span', { text: 'آخر النشاطات' })),
-        h('button', { class: 'btn-text-gold', type: 'button', text: 'سجل العمليات', onclick: function () { go('audit'); } })
-      ),
-      h('div', { style: 'display:flex;flex-direction:column;gap:8px;' },
-        recentAudits.map(function (a) {
-          return h('div', { style: 'font-size:0.82rem;padding:6px 0;border-bottom:1px solid var(--border);' },
-            h('strong', { text: a.actor_email ? a.actor_email.split('@')[0] : 'إداري' }),
-            h('span', { class: 'muted', text: ' • ' + (a.action || 'عملية') }),
-            h('div', { class: 'muted small', text: fmt(a.at, true) })
-          );
         })
-      )
-    );
-    bento.appendChild(auditCard);
-
-    // 6. Bento Recent Notifications
-    var topNotifs = ((typeof NOTIF_STATE !== "undefined" && NOTIF_STATE && NOTIF_STATE.items) || []).slice(0, 3);
-    var notifsCard = h('div', { class: 'bento-card bento-notifs' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-bell'), h('span', { text: 'آخر الإشعارات' })),
-        h('button', { class: 'btn-text-gold', type: 'button', text: 'عرض الكل', onclick: function () { go('notifications'); } })
       ),
-      h('div', { style: 'display:flex;flex-direction:column;gap:8px;' },
-        topNotifs.length ? topNotifs.map(function (n) {
-          return h('div', { style: 'display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);' },
-            h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-bell')),
-            h('div', { style: 'flex:1;' },
-              h('strong', { style: 'font-size:0.88rem;', text: n.title }),
-              h('p', { class: 'muted small', style: 'margin:2px 0 0;', text: n.body })
-            )
-          );
-        }) : h('div', { class: 'empty', style: 'padding:16px;', text: 'لا توجد إشعارات حديثة' })
+      h('div', { class: 'dash-hero-stats' },
+        h('div', { class: 'dash-hero-stat' },
+          h('b', { text: String(centerKids.length) }),
+          h('span', { text: 'إجمالي الطلبة بالمركز' })
+        ),
+        h('div', { class: 'dash-hero-stat' },
+          h('b', { text: String(activeCenterKids.length) }),
+          h('span', { text: 'الطلبة النشطون' })
+        ),
+        h('div', { class: 'dash-hero-stat' },
+          h('b', { text: String(centerSections.length || 1) }),
+          h('span', { text: 'الأقسام والأفواج' })
+        ),
+        h('div', { class: 'dash-hero-stat' },
+          h('b', { text: String(c.reports_published == null ? 0 : c.reports_published) }),
+          h('span', { text: 'التقارير المعتمدة' })
+        )
       )
     );
-    bento.appendChild(notifsCard);
+    v.appendChild(hero);
 
-    // 7. Bento Quick Actions
-    var actionsCard = h('div', { class: 'bento-card bento-actions' },
-      h('div', { class: 'bento-card-hdr' },
-        h('h3', null, makeSvgIcon('s-wand'), h('span', { text: 'الإجراءات السريعة' }))
-      ),
-      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;' },
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('children'); } }, makeSvgIcon('s-child'), h('span', { text: 'الأقسام والطلبة' })),
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('attendance'); } }, makeSvgIcon('s-cal'), h('span', { text: 'الحضور والغياب' })),
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('reports'); } }, makeSvgIcon('s-report'), h('span', { text: 'التقارير' })),
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('notifications'); } }, makeSvgIcon('s-bell'), h('span', { text: 'الإشعارات' })),
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('msgs'); } }, makeSvgIcon('s-mail'), h('span', { text: 'الرسائل' })),
-        h('button', { type: 'button', class: 'btn light', onclick: function () { go('settings'); } }, makeSvgIcon('s-gear'), h('span', { text: 'الإعدادات' }))
-      )
-    );
-    bento.appendChild(actionsCard);
+    // 2. شبكة الإجراءات السريعة (Quick Actions) ببطاقات بيضاء وأيقونات خضراء ناعمة (مطابقة للصورة المرفقة)
+    v.appendChild(h('div', { class: 'qa-section-hdr' },
+      h('h2', { class: 'qa-section-title', text: 'الإجراءات السريعة (Quick Actions)' })
+    ));
 
-    v.appendChild(bento);
+    var qaItems = [
+      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأقسام والأطفال', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
+      { sec: 'attendance', icon: 's-cal', title: 'الغيابات والحضور', sub: 'تسجيل الحضور والغياب اليومي وإرسال الإشعارات للأولياء' },
+      { sec: 'educators', icon: 's-users', title: 'المربيات', sub: 'إدارة المربيات وإسناد الأفواج وحساباتهن' },
+      { sec: 'programs', icon: 's-book', title: 'البرامج التربوية', sub: 'إعداد وتصدير الجداول الأسبوعية للأقسام' },
+      S.activeCenter !== 'farm' ? { sec: 'reports', icon: 's-report', title: 'التقارير التربوية', sub: 'التقارير الدورية ومرفقات ملفات الطلبة' } : null,
+      S.activeCenter !== 'farm' ? { sec: 'evaluations', icon: 's-card', title: 'استمارات التقييم', sub: 'استمارات التقييم البيداغوجي وفق النموذج الرسمي' } : null,
+      { sec: 'appts', icon: 's-cal', title: 'المواعيد والأنشطة', sub: 'برمجة مواعيد المتابعة والأنشطة' },
+      { sec: 'msgs', icon: 's-mail', title: 'الرسائل والإعلانات', sub: 'إرسال الإعلانات والرسائل للأولياء' },
+      { sec: 'docs', icon: 's-file', title: 'الوثائق والملفات', sub: 'أرشيف الوثائق الخاصة والآمنة للطلبة' },
+      { sec: 'hub', icon: 's-branch', title: 'المركز وملحقاته', sub: 'التنقل بين المراكز الثلاثة وقسم الإدارة' }
+    ];
+
+    if (canAccessGeneralAdmin()) {
+      qaItems.push(
+        { sec: 'archive', icon: 's-archive', title: 'الأرشيف والنسخ الاحتياطية', sub: 'تنزيل أرشيف ZIP شامل ومنظم للأطفال والتقارير' },
+        { sec: 'accounts', icon: 's-shield', title: 'قسم الإدارة والصلاحيات', sub: 'حسابات الإدارة وإذن الدخول لكل مركز' },
+        { sec: 'audit', icon: 's-log', title: 'سجل العمليات', sub: 'متابعة النشاط والرقابة الأمنية' },
+        { sec: 'settings', icon: 's-gear', title: 'الأمان والإعدادات', sub: 'المصادقة الثنائية وإعدادات النظام' }
+      );
+    }
+
+    var qaGrid = h('div', { class: 'quick-actions-grid' }, qaItems.filter(Boolean).map(function (item) {
+      return h('button', {
+        type: 'button',
+        class: 'qa-card',
+        onclick: function () { go(item.sec); }
+      },
+        h('span', { class: 'qa-icon' }, makeSvgIcon(item.icon)),
+        h('strong', { class: 'qa-title', text: item.title }),
+        h('span', { class: 'qa-sub', text: item.sub })
+      );
+    }));
+    v.appendChild(qaGrid);
   }
-
 
   /* =====================================================================
      2. إدارة الأطفال والطلبة + أقسام المركز المدمجة + بطاقة الانخراط + رمز التسجيل
@@ -9872,7 +9767,7 @@
         })();
       }
 
-      var startSec = (S.isEducator || S.isSpecialist) ? 'children' : 'hub';
+      var startSec = (S.isEducator || S.isSpecialist) ? 'children' : 'dash';
       S.navStack = [];
       S._lastCenter = S.activeCenter;
       S._lastFilterSec = '';
@@ -10051,39 +9946,24 @@
   /* ══════════════════════════════════════════════════════════════════════════════
      DAR EL IHSAN — FOREST GREEN PREMIUM THEME ENGINE (LIGHT & DARK MODE)
      ══════════════════════════════════════════════════════════════════════════════ */
-  function initThemeEngine() {
-    var saved = localStorage.getItem('de_theme');
-    var theme = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    applyTheme(theme);
-
-    var btn = document.getElementById('themeToggleBtn');
-    if (btn && !btn._themeBound) {
-      btn._themeBound = true;
-      btn.addEventListener('click', toggleTheme);
-    }
+    function initThemeEngine() {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.classList.remove('theme-dark');
+    try {
+      localStorage.setItem('de_theme', 'light');
+    } catch (e) {}
   }
 
   function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('theme-dark');
-    } else {
-      document.documentElement.classList.remove('theme-dark');
-    }
-    localStorage.setItem('de_theme', theme);
-
-    var btn = document.getElementById('themeToggleBtn');
-    if (btn) {
-      btn.setAttribute('aria-label', theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن');
-      btn.title = theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن';
-      var u = btn.querySelector('use');
-      if (u) u.setAttribute('href', theme === 'dark' ? '#s-sun' : '#s-moon');
-    }
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.classList.remove('theme-dark');
+    try {
+      localStorage.setItem('de_theme', 'light');
+    } catch (e) {}
   }
 
   function toggleTheme() {
-    var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-    applyTheme(cur === 'dark' ? 'light' : 'dark');
+    applyTheme('light');
   }
 
   /* ══════════════════════════════════════════════════════════════════════════════
