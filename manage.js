@@ -1725,58 +1725,74 @@
     var activeCenterKids = centerKids.filter(function (k) { return !!k.active; });
     var centerSections = sections.filter(function (s) { return sectionCenterKey(s, branches) === S.activeCenter; });
 
-    // 1. البانر الأخضر الترحيبي العلوي مع بطاقات الإحصائيات الشفافة الـ 4 داخله (مطابق للصورة المرفقة)
-    var hero = h('div', { class: 'dash-hero-banner' },
-      h('div', { class: 'dash-hero-top' },
+    v.textContent = '';
+
+    // 1. البانر الترحيبي العصري الفاتح (Light Glass Banner) — بدون ألوان سوداء أو كتل داكنة
+    var hero = h('div', { class: 'dash-light-hero' },
+      h('div', { class: 'dash-light-hero-top' },
         h('div', null,
-          h('span', { class: 'dash-hero-kicker', text: 'ADMIN DASHBOARD • ' + cm.badge }),
-          h('h1', { class: 'dash-hero-title', text: 'مرحبًا بك في ' + cm.name }),
-          h('p', { class: 'dash-hero-sub', text: 'إحصائيات حية ومباشرة وإجراءات سريعة لإدارة ' + cm.name + '.' })
+          h('div', { class: 'dash-light-badge' },
+            makeSvgIcon('s-shield'),
+            h('span', { text: 'لوحة التحكم المركزية • ' + cm.badge })
+          ),
+          h('h1', { class: 'dash-light-title', text: 'مرحبًا بك في ' + cm.name }),
+          h('p', { class: 'dash-light-sub', text: 'إحصائيات مباشرة ومتابعة شاملة لكافة العمليات والأفواج في ' + cm.name + '.' })
         ),
         h('button', {
           type: 'button',
-          class: 'dash-hero-btn',
-          text: 'المركز وملحقاته (تبديل المركز)',
+          class: 'dash-light-btn-switch',
           onclick: function () { go('hub'); }
-        })
+        }, makeSvgIcon('s-branch'), h('span', { text: 'تبديل المركز' }))
       ),
-      h('div', { class: 'dash-hero-stats' },
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(centerKids.length) }),
-          h('span', { text: 'إجمالي الطلبة بالمركز' })
+      h('div', { class: 'dash-light-stats-grid' },
+        h('div', { class: 'dash-stat-light-card' },
+          h('div', { class: 'dsl-icon' }, makeSvgIcon('s-child')),
+          h('div', null,
+            h('b', { class: 'dsl-num', text: String(centerKids.length) }),
+            h('span', { class: 'dsl-label', text: 'إجمالي الطلبة بالمركز' })
+          )
         ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(activeCenterKids.length) }),
-          h('span', { text: 'الطلبة النشطون' })
+        h('div', { class: 'dash-stat-light-card' },
+          h('div', { class: 'dsl-icon ok' }, makeSvgIcon('s-check-circle')),
+          h('div', null,
+            h('b', { class: 'dsl-num', text: String(activeCenterKids.length) }),
+            h('span', { class: 'dsl-label', text: 'الطلبة النشطون' })
+          )
         ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(centerSections.length || 1) }),
-          h('span', { text: 'الأقسام والأفواج' })
+        h('div', { class: 'dash-stat-light-card' },
+          h('div', { class: 'dsl-icon info' }, makeSvgIcon('s-users')),
+          h('div', null,
+            h('b', { class: 'dsl-num', text: String(centerSections.length || 1) }),
+            h('span', { class: 'dsl-label', text: 'الأقسام والأفواج' })
+          )
         ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(c.reports_published == null ? 0 : c.reports_published) }),
-          h('span', { text: 'التقارير المعتمدة' })
+        h('div', { class: 'dash-stat-light-card' },
+          h('div', { class: 'dsl-icon gold' }, makeSvgIcon('s-report')),
+          h('div', null,
+            h('b', { class: 'dsl-num', text: String(c.reports_published == null ? 0 : c.reports_published) }),
+            h('span', { class: 'dsl-label', text: 'التقارير المعتمدة' })
+          )
         )
       )
     );
     v.appendChild(hero);
 
-    // 2. شبكة الإجراءات السريعة (Quick Actions) ببطاقات بيضاء وأيقونات خضراء ناعمة (مطابقة للصورة المرفقة)
+    // 2. شبكة الإجراءات السريعة (Quick Actions) — بطاقات بيضاء نقية بأيقونات خضراء أنيقة بدون قسم الأقسام والمراكز الزائد
     v.appendChild(h('div', { class: 'qa-section-hdr' },
-      h('h2', { class: 'qa-section-title', text: 'الإجراءات السريعة (Quick Actions)' })
+      h('h2', { class: 'qa-section-title', text: 'الإجراءات السريعة' })
     ));
 
     var qaItems = [
-      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأقسام والأطفال', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
-      { sec: 'attendance', icon: 's-cal', title: 'الغيابات والحضور', sub: 'تسجيل الحضور والغياب اليومي وإرسال الإشعارات للأولياء' },
-      { sec: 'educators', icon: 's-users', title: 'المربيات', sub: 'إدارة المربيات وإسناد الأفواج وحساباتهن' },
+      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأقسام والأطفال', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات الرسمية' },
+      { sec: 'attendance', icon: 's-cal', title: 'الغيابات والحضور', sub: 'تسجيل الحضور والغياب اليومي وإرسال الإشعارات' },
+      { sec: 'educators', icon: 's-users', title: 'قسم المربيات', sub: 'إدارة المربيات وإسناد الأفواج' },
       { sec: 'programs', icon: 's-book', title: 'البرامج التربوية', sub: 'إعداد وتصدير الجداول الأسبوعية للأقسام' },
       S.activeCenter !== 'farm' ? { sec: 'reports', icon: 's-report', title: 'التقارير التربوية', sub: 'التقارير الدورية ومرفقات ملفات الطلبة' } : null,
       S.activeCenter !== 'farm' ? { sec: 'evaluations', icon: 's-card', title: 'استمارات التقييم', sub: 'استمارات التقييم البيداغوجي وفق النموذج الرسمي' } : null,
       { sec: 'appts', icon: 's-cal', title: 'المواعيد والأنشطة', sub: 'برمجة مواعيد المتابعة والأنشطة' },
       { sec: 'msgs', icon: 's-mail', title: 'الرسائل والإعلانات', sub: 'إرسال الإعلانات والرسائل للأولياء' },
       { sec: 'docs', icon: 's-file', title: 'الوثائق والملفات', sub: 'أرشيف الوثائق الخاصة والآمنة للطلبة' },
-      { sec: 'hub', icon: 's-branch', title: 'المركز وملحقاته', sub: 'التنقل بين المراكز الثلاثة وقسم الإدارة' }
+      { sec: 'hub', icon: 's-branch', title: 'تبديل المركز', sub: 'الانتقال بين المراكز الثلاثة وقسم الإدارة' }
     ];
 
     if (canAccessGeneralAdmin()) {
@@ -1784,7 +1800,7 @@
         { sec: 'archive', icon: 's-archive', title: 'الأرشيف والنسخ الاحتياطية', sub: 'تنزيل أرشيف ZIP شامل ومنظم للأطفال والتقارير' },
         { sec: 'accounts', icon: 's-shield', title: 'قسم الإدارة والصلاحيات', sub: 'حسابات الإدارة وإذن الدخول لكل مركز' },
         { sec: 'audit', icon: 's-log', title: 'سجل العمليات', sub: 'متابعة النشاط والرقابة الأمنية' },
-        { sec: 'settings', icon: 's-gear', title: 'الأمان والإعدادات', sub: 'المصادقة الثنائية وإعدادات النظام' }
+        { sec: 'settings', icon: 's-gear', title: 'إعدادات النظام', sub: 'التحكم العام في الهوية والخيارات والأمان' }
       );
     }
 
@@ -1802,9 +1818,6 @@
     v.appendChild(qaGrid);
   }
 
-  /* =====================================================================
-     2. إدارة الأطفال والطلبة + أقسام المركز المدمجة + بطاقة الانخراط + رمز التسجيل
-     ===================================================================== */
   async function secChildren(v) {
     var d = await getMany('children', 'branches', 'sections', 'codes', 'reports');
     var allRows = d[0] || [], branches = d[1] || [], allSections = d[2] || [], codes = d[3] || [], allReports = d[4] || [];
@@ -7284,7 +7297,7 @@
 
     var draftData = await loadPortalMeta();
     var curSettings = (draftData && draftData.settings) || {};
-    
+
     var s = {
       general: Object.assign({
         association_name_ar: 'جمعية أولياء الأطفال المعاقين ذهنيًا — دار الإحسان',
@@ -7295,585 +7308,275 @@
         phone: '029 88 55 22',
         email: 'contact@darelihsan.org',
         academic_year: '2026-2027',
-        facebook_url: 'https://facebook.com/darelihsan',
-        instagram_url: 'https://instagram.com/darelihsan'
+        working_hours: 'من الأحد إلى الخميس: 08:00 صباحًا إلى 16:00 مساءً'
       }, curSettings.general || {}),
-      centers: Object.assign({
-        main_visible: true,
-        work_visible: true,
-        farm_visible: true,
-        main_desc: 'المركز الرئيسي النفسي البيداغوجي — التكفل والمرافقة التربوية والنفسية المتخصصة.',
-        work_desc: 'مركز المساعدة على العمل — ورشات التأهيل المهني والتمهين الحرفي.',
-        farm_desc: 'المزرعة البيداغوجية — التأهيل الزراعي والأنشطة البيئية والبستنة.'
-      }, curSettings.centers || {}),
+      attendance: Object.assign({
+        auto_wipe_old_records: false,
+        retention_days: '30',
+        enable_whatsapp_auto_alert: true,
+        default_presence_mode: 'manual'
+      }, curSettings.attendance || {}),
       notifications: Object.assign({
         notify_absence: true,
         notify_reports: true,
         notify_evaluations: true,
         notify_docs: true,
         notify_messages: true,
-        notify_push_enabled: true,
         notify_whatsapp_enabled: true
       }, curSettings.notifications || {}),
-      whatsapp: Object.assign({
-        phone_number_id: '109876543210987',
-        waba_id: '987654321098765',
-        sender_phone: '+213550123456',
-        webhook_token: 'dar_el_ihsan_wa_verify_2026',
-        is_active: true
-      }, curSettings.whatsapp || {}),
       registration: Object.assign({
         enable_registration_form: true,
         enable_inquiries_form: true,
-        disability_options: 'التوحد\nمتلازمة داون\nالإعاقة الذهنية\nاضطرابات النمو\nحالات أخرى',
         consent_text: 'أوافق على معالجة البيانات المقدمة لغرض دراسة طلب التسجيل والتواصل مع إدارة الجمعية.'
-      }, curSettings.registration || {}),
-      appearance: Object.assign({
-        theme_mode: 'light',
-        default_lang: 'ar',
-        font_scale: 'normal'
-      }, curSettings.appearance || {})
+      }, curSettings.registration || {})
     };
 
     v.textContent = '';
 
-    var activeCat = 'general';
+    var activeTab = 'general';
     var searchQuery = '';
 
-    var root = h('div', { class: 'settings-saas-root' });
+    var root = h('div', { class: 'settings-light-root' });
 
-    root.appendChild(h('div', { class: 'settings-hub-hero' },
-      h('div', null,
-        h('h1', null, makeSvgIcon('s-gear'), h('span', { text: 'مركز إدارة إعدادات المنصة' })),
-        h('p', { text: 'التحكم المركزي في هوية المؤسسة، المراكز، صلاحيات الحسابات، الإشعارات، والأمان.' })
+    // ترويسة الإعدادات الفاتحة والأنيقة
+    var hero = h('div', { class: 'settings-light-banner' },
+      h('div', { class: 'slb-top' },
+        h('div', null,
+          h('div', { class: 'slb-badge' }, makeSvgIcon('s-gear'), h('span', { text: 'لوحة الإعدادات العامة' })),
+          h('h1', { class: 'slb-title', text: 'إعدادات المنصة والنظام' }),
+          h('p', { class: 'slb-sub', text: 'تحكم متكامل في هوية المؤسسة، ضوابط الحضور، الإشعارات، وخصوصية التسجيل.' })
+        ),
+        h('button', {
+          type: 'button',
+          class: 'btn-slb-save',
+          onclick: function () { saveAllSettings(true); }
+        }, makeSvgIcon('s-check'), h('span', { text: 'حفظ جميع التغييرات' }))
       )
-    ));
+    );
+    root.appendChild(hero);
 
-    var layout = h('div', { class: 'settings-saas-layout' });
+    // شريط البحث والتبويبات الفاتحة
+    var searchBox = h('div', { class: 'settings-search-wrap' },
+      h('input', {
+        type: 'search',
+        class: 'input settings-search-fld',
+        placeholder: '🔍 ابحث في خيارات الإعدادات…',
+        oninput: function (e) {
+          searchQuery = e.target.value.trim().toLowerCase();
+          renderContent();
+        }
+      })
+    );
+    root.appendChild(searchBox);
 
-    var sidebar = h('div', { class: 'settings-saas-sidebar' });
-    
-    var searchInput = h('input', {
-      type: 'search',
-      class: 'input settings-search-input',
-      placeholder: '🔍 بحث في الإعدادات…',
-      oninput: function () {
-        searchQuery = searchInput.value.trim().toLowerCase();
-        renderMainContent();
-      }
-    });
-    sidebar.appendChild(h('div', { class: 'settings-search-box' }, searchInput));
-
-    var categories = [
-      { id: 'general', title: 'الإعدادات العامة', icon: 's-home', badge: 'أساسي' },
-      { id: 'centers', title: 'المراكز والفروع', icon: 's-branch', badge: '3 مراكز' },
-      { id: 'roles', title: 'الصلاحيات والأدوار', icon: 's-shield', badge: '4 أدوار' },
-      { id: 'notifications', title: 'الإشعارات والتنبيهات', icon: 's-bell', badge: 'نشطة' },
-      { id: 'whatsapp', title: 'تكامل واتساب', icon: 's-whatsapp', badge: 'Cloud API' },
-      { id: 'registration', title: 'الموقع والتسجيل', icon: 's-clipboard-list', badge: 'العام' },
-      { id: 'appearance', title: 'المظهر واللغة', icon: 's-eye', badge: 'RTL/LTR' },
-      { id: 'security', title: 'الأمان والرقابة', icon: 's-lock', badge: 'RLS 100%' }
+    var tabsBar = h('div', { class: 'settings-pill-tabs' });
+    var tabs = [
+      { id: 'general', title: 'بيانات المؤسسة', icon: 's-home' },
+      { id: 'attendance', title: 'الغياب والحضور', icon: 's-cal' },
+      { id: 'notifications', title: 'الإشعارات والتنبيهات', icon: 's-bell' },
+      { id: 'registration', title: 'الموقع والتسجيل', icon: 's-file' }
     ];
 
-    var navList = h('div', { class: 'settings-saas-nav' });
-    sidebar.appendChild(navList);
+    tabs.forEach(function (tb) {
+      var btn = h('button', {
+        type: 'button',
+        class: 'settings-pill-btn' + (tb.id === activeTab ? ' is-active' : ''),
+        onclick: function () {
+          activeTab = tb.id;
+          tabsBar.querySelectorAll('.settings-pill-btn').forEach(function (b) { b.classList.remove('is-active'); });
+          btn.classList.add('is-active');
+          renderContent();
+        }
+      }, makeSvgIcon(tb.icon), h('span', { text: tb.title }));
+      tabsBar.appendChild(btn);
+    });
+    root.appendChild(tabsBar);
 
-    function renderNav() {
-      navList.textContent = '';
-      categories.forEach(function (cat) {
-        var btn = h('button', {
-          type: 'button',
-          class: 'settings-nav-item' + (activeCat === cat.id && !searchQuery ? ' is-active' : ''),
-          onclick: function () {
-            activeCat = cat.id;
-            searchQuery = '';
-            searchInput.value = '';
-            renderNav();
-            renderMainContent();
-          }
-        },
-          makeSvgIcon(cat.icon),
-          h('span', { class: 'sni-label', text: cat.title }),
-          cat.badge ? h('span', { class: 'sni-badge', text: cat.badge }) : null
-        );
-        navList.appendChild(btn);
-      });
-    }
+    var contentHost = h('div', { class: 'settings-content-host' });
+    root.appendChild(contentHost);
 
-    var contentArea = h('div', { class: 'settings-saas-content' });
+    function renderContent() {
+      contentHost.textContent = '';
 
-    async function saveAllSettings() {
-      try {
-        toast('جارٍ حفظ إعدادات المنصة…', 'ok');
-        draftData.settings = s;
-        await savePortalMeta(draftData);
-        try {
-          await C.rest('POST', '/app_settings', {
-            key: 'main_config',
-            value: s,
-            updated_at: new Date().toISOString()
-          }, { Prefer: 'resolution=merge-duplicates' });
-        } catch (eSql) {}
-        localStorage.setItem('de_app_settings', JSON.stringify(s));
-        toast('تم حفظ إعدادات المنصة بنجاح وتطبيقها في النظام!', 'ok');
-        renderMainContent();
-      } catch (err) {
-        toast('تعذر حفظ الإعدادات: ' + err.message, 'bad');
-      }
-    }
-
-    function createSettingItem(label, inputEl, desc, statusText, statusType) {
-      return h('div', { class: 'setting-entry-row' },
-        h('div', { class: 'ser-info' },
-          h('div', { class: 'ser-title-wrap' },
-            h('strong', { class: 'ser-title', text: label }),
-            statusText ? badge(statusText, statusType || 'ok') : null
+      if (activeTab === 'general' || searchQuery) {
+        var cardGen = h('div', { class: 'settings-card' },
+          h('div', { class: 'sc-header' },
+            h('h3', null, makeSvgIcon('s-home'), h('span', { text: 'بيانات الجمعية والمركز الرئيسي' }))
           ),
-          desc ? h('p', { class: 'ser-desc', text: desc }) : null
-        ),
-        h('div', { class: 'ser-control' }, inputEl)
-      );
-    }
-
-    function renderMainContent() {
-      contentArea.textContent = '';
-
-      if (searchQuery) {
-        var resultsCard = h('div', { class: 'card settings-group-card' },
-          h('h3', { text: 'نتائج البحث عن: «' + searchQuery + '»' })
+          h('div', { class: 'sc-body' },
+            h('div', { class: 'form-grid-2' },
+              h('label', { class: 'fld' },
+                h('span', { text: 'اسم الجمعية بالعربية:' }),
+                h('input', { class: 'input', value: s.general.association_name_ar, oninput: function (e) { s.general.association_name_ar = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'اسم الجمعية بالفرنسية:' }),
+                h('input', { class: 'input', dir: 'ltr', value: s.general.association_name_fr, oninput: function (e) { s.general.association_name_fr = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'اسم المركز النفسي البيداغوجي:' }),
+                h('input', { class: 'input', value: s.general.center_name, oninput: function (e) { s.general.center_name = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'الموسم الدراسي المعتمد:' }),
+                h('input', { class: 'input', value: s.general.academic_year, oninput: function (e) { s.general.academic_year = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'الولاية:' }),
+                h('input', { class: 'input', value: s.general.wilaya, oninput: function (e) { s.general.wilaya = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'البلدية:' }),
+                h('input', { class: 'input', value: s.general.commune, oninput: function (e) { s.general.commune = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'الهاتف الرسمي:' }),
+                h('input', { class: 'input', dir: 'ltr', value: s.general.phone, oninput: function (e) { s.general.phone = e.target.value; } })
+              ),
+              h('label', { class: 'fld' },
+                h('span', { text: 'البريد الإلكتروني للتواصل:' }),
+                h('input', { class: 'input', dir: 'ltr', value: s.general.email, oninput: function (e) { s.general.email = e.target.value; } })
+              )
+            ),
+            h('label', { class: 'fld', style: 'margin-top:12px;' },
+              h('span', { text: 'أوقات العمل واستقبال الأولياء:' }),
+              h('input', { class: 'input', value: s.general.working_hours, oninput: function (e) { s.general.working_hours = e.target.value; } })
+            )
+          )
         );
-        var foundCount = 0;
-
-        if ('اسم الجمعية بالعربية والفرنسية المركز الهاتف البريد العنوان'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'الإعدادات العامة' }),
-            h('p', { text: 'اسم الجمعية: ' + s.general.association_name_ar + ' • الهاتف: ' + s.general.phone + ' • البريد: ' + s.general.email }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'general'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if ('المراكز الفروع المزرعة التمهين ورشات التأهيل'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'إعدادات المراكز والفروع' }),
-            h('p', { text: 'المراكز الثلاثة: المركز الرئيسي، مركز المساعدة على العمل، المزرعة البيداغوجية.' }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'centers'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if ('الإشعارات الغياب التقارير الرسائل تنبيهات هاتف push whatsapp'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'إعدادات الإشعارات' }),
-            h('p', { text: 'قنوات وتنبيهات الغياب، التقارير الدورية، إشعارات الويب PWA، ورسائل واتساب.' }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'notifications'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if ('واتساب whatsapp cloud api رقم هاتف webhook'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'تكامل Meta WhatsApp Cloud API' }),
-            h('p', { text: 'رقم هاتف المركز المعتمد، معرفات WABA، والـ Webhook.' }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'whatsapp'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if ('الموقع العام طلبات التسجيل استفسارات توحد إعاقات'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'الموقع العام ونظام طلبات التسجيل' }),
-            h('p', { text: 'إدارة استمارة التسجيل الأولي العامة وخيارات الإعاقات المتاحة.' }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'registration'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if ('المظهر اللغة داكن فاتح خطوط rtl ltr فرنسية'.indexOf(searchQuery) >= 0) {
-          foundCount++;
-          resultsCard.appendChild(h('div', { class: 'search-result-group' },
-            h('h4', { text: 'المظهر واللغة والسمات البصرية' }),
-            h('p', { text: 'الوضع الفاتح/الداكن، تفضيلات اللغة والخطوط.' }),
-            h('button', { class: 'btn small light', type: 'button', text: 'الانتقال للقسم', onclick: function () { activeCat = 'appearance'; searchQuery = ''; searchInput.value = ''; renderNav(); renderMainContent(); } })
-          ));
-        }
-
-        if (!foundCount) {
-          resultsCard.appendChild(h('p', { class: 'muted', text: 'لم يتم العثور على إعدادات مطابقة لبحثك. تصفح الفئات من القائمة الجانبية.' }));
-        }
-
-        contentArea.appendChild(resultsCard);
-        return;
+        contentHost.appendChild(cardGen);
       }
 
-      var card = h('div', { class: 'card settings-group-card' });
-
-      if (activeCat === 'general') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'الإعدادات العامة والهوية الرسمية' }),
-            h('p', { class: 'muted small', text: 'بيانات الجمعية الرسمية، الهواتف، والعنوان المعتمد في الوثائق والمراسلات.' })
+      if (activeTab === 'attendance' || searchQuery) {
+        var cardAtt = h('div', { class: 'settings-card' },
+          h('div', { class: 'sc-header' },
+            h('h3', null, makeSvgIcon('s-cal'), h('span', { text: 'ضوابط الغياب والحضور اليومي' }))
           ),
-          badge('معتمدة رسمياً', 'ok')
-        ));
-
-        var inNameAr = h('input', { class: 'input', value: s.general.association_name_ar });
-        var inNameFr = h('input', { class: 'input', value: s.general.association_name_fr });
-        var inCenter = h('input', { class: 'input', value: s.general.center_name });
-        var inYear = h('input', { class: 'input sic-num', value: s.general.academic_year });
-        var inPhone = h('input', { class: 'input sic-num', value: s.general.phone });
-        var inEmail = h('input', { class: 'input', type: 'email', value: s.general.email });
-        var inWilaya = h('input', { class: 'input', value: s.general.wilaya });
-        var inCommune = h('input', { class: 'input', value: s.general.commune });
-        var inFb = h('input', { class: 'input', value: s.general.facebook_url });
-        var inIg = h('input', { class: 'input', value: s.general.instagram_url });
-
-        card.appendChild(createSettingItem('اسم الجمعية بالعربية', inNameAr, 'الاسم الرسمي الكامل للجمعية المطبوع في ترويسات الوثائق والشهادات.', 'إلزامي', 'gold'));
-        card.appendChild(createSettingItem('اسم الجمعية بالفرنسية', inNameFr, 'الاسم المعتمد في الوثائق الفرنسية والمراسلات الإدارية الرسمية.', 'معتمد', 'ok'));
-        card.appendChild(createSettingItem('اسم المركز النفسي البيداغوجي', inCenter, 'اسم المركز الرئيسي لدار الإحسان المتكفل بالأطفال.', 'نشط', 'ok'));
-        card.appendChild(createSettingItem('الموسم الدراسي المعتمد', inYear, 'السنة التربوية المطبوعة تلقائياً في تقارير وبطاقات الطلبة.', 'حالي', 'gold'));
-        card.appendChild(createSettingItem('رقم الهاتف الرسمي للتواصل', inPhone, 'رقم الهاتف المتاح للأولياء والجهات الرسمية.', 'مفعّل', 'ok'));
-        card.appendChild(createSettingItem('البريد الإلكتروني الرسمي', inEmail, 'البريد المستخدم لاستقبال المراسلات والإشعارات الإدارية.', 'مفعّل', 'ok'));
-        card.appendChild(createSettingItem('الولاية والبلدية', h('div', { class: 'form-grid-2' }, inWilaya, inCommune), 'المقر الجغرافي الرسمي للجمعية (غرداية - العطف).', 'ثابت', 'gray'));
-        card.appendChild(createSettingItem('روابط التواصل الاجتماعي', h('div', { class: 'form-grid-2' }, inFb, inIg), 'روابط صفحتي فيسبوك وإنستغرام الخاصة بالجمعية.', 'مربوطة', 'ok'));
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () {
-              s.general.association_name_ar = inNameAr.value.trim();
-              s.general.association_name_fr = inNameFr.value.trim();
-              s.general.center_name = inCenter.value.trim();
-              s.general.academic_year = inYear.value.trim();
-              s.general.phone = inPhone.value.trim();
-              s.general.email = inEmail.value.trim();
-              s.general.wilaya = inWilaya.value.trim();
-              s.general.commune = inCommune.value.trim();
-              s.general.facebook_url = inFb.value.trim();
-              s.general.instagram_url = inIg.value.trim();
-              saveAllSettings();
-            }
-          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ الإعدادات العامة' }))
-        ));
-
-      } else if (activeCat === 'centers') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'إعدادات المراكز والأقسام التربوية' }),
-            h('p', { class: 'muted small', text: 'إدارة حالة ظهور المراكز الثلاثة وأوصافها المعتمدة في النظام.' })
-          ),
-          badge('3 مراكز معتمدة', 'ok')
-        ));
-
-        var cbMain = h('input', { type: 'checkbox', checked: !!s.centers.main_visible });
-        var cbWork = h('input', { type: 'checkbox', checked: !!s.centers.work_visible });
-        var cbFarm = h('input', { type: 'checkbox', checked: !!s.centers.farm_visible });
-        var txtMain = h('textarea', { class: 'input', rows: '2' }, s.centers.main_desc);
-        var txtWork = h('textarea', { class: 'input', rows: '2' }, s.centers.work_desc);
-        var txtFarm = h('textarea', { class: 'input', rows: '2' }, s.centers.farm_desc);
-
-        card.appendChild(createSettingItem('المركز الرئيسي (النفسي البيداغوجي)', cbMain, 'تفعيل ظهور المركز الرئيسي في صفحة اختيار المراكز والموقع العام.', cbMain.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('وصف المركز الرئيسي', txtMain, 'النبذة التعريفية الظاهرة للمستخدمين والزوار حول خدمات المركز.', 'تعريف', 'gray'));
-
-        card.appendChild(createSettingItem('مركز المساعدة على العمل (CAT)', cbWork, 'تفعيل ظهور ورشات التأهيل والتمهين الحرفي في المنصة.', cbWork.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('وصف مركز المساعدة على العمل', txtWork, 'الأهداف الحرفية والمهنية المعتمدة لورشات التأهيل.', 'تعريف', 'gray'));
-
-        card.appendChild(createSettingItem('المزرعة البيداغوجية (البستنة)', cbFarm, 'تفعيل ظهور المزرعة والأنشطة البيئية والفلاحية في المنصة.', cbFarm.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('وصف المزرعة البيداغوجية', txtFarm, 'أنشطة التأهيل الزراعي والاندماج البيئي للطلبة.', 'تعريف', 'gray'));
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () {
-              s.centers.main_visible = cbMain.checked;
-              s.centers.work_visible = cbWork.checked;
-              s.centers.farm_visible = cbFarm.checked;
-              s.centers.main_desc = txtMain.value.trim();
-              s.centers.work_desc = txtWork.value.trim();
-              s.centers.farm_desc = txtFarm.value.trim();
-              saveAllSettings();
-            }
-          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات المراكز' }))
-        ));
-
-      } else if (activeCat === 'roles') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'إدارة الأدوار ومصفوفة الصلاحيات' }),
-            h('p', { class: 'muted small', text: 'توزيع الصلاحيات الإدارية والبيداغوجية وفق السياسة الأمنية لدار الإحسان.' })
-          ),
-          badge('نظام الأدوار RLS', 'gold')
-        ));
-
-        var rolesTable = h('table', { class: 'sheet' },
-          h('thead', null,
-            h('tr', null,
-              h('th', { text: 'الدور الوظيفي' }),
-              h('th', { text: 'ملفات الطلبة' }),
-              h('th', { text: 'تسجيل الحضور' }),
-              h('th', { text: 'التقارير والتقييم' }),
-              h('th', { text: 'الرسائل والإعلانات' }),
-              h('th', { text: 'الأرشيف والإدارة' })
-            )
-          ),
-          h('tbody', null,
-            h('tr', null,
-              h('td', null, h('strong', { text: 'مدير النظام (Admin)' })),
-              h('td', null, badge('كامل (إضافة/تعديل/حذف)', 'ok')),
-              h('td', null, badge('كامل', 'ok')),
-              h('td', null, badge('اعتماد ونشر', 'ok')),
-              h('td', null, badge('إرسال جماعي وفردي', 'ok')),
-              h('td', null, badge('صلاحية شاملة', 'gold'))
+          h('div', { class: 'sc-body' },
+            h('div', { class: 'sc-option-row' },
+              h('div', null,
+                h('strong', { text: 'تنبيه واتساب الفوري عند تسجيل الغياب' }),
+                h('p', { class: 'muted small', text: 'إرسال رسالة رسمية للولي فور تحديد حالة الغياب في كشف الحضور.' })
+              ),
+              h('input', {
+                type: 'checkbox', class: 'sc-switch', checked: !!s.attendance.enable_whatsapp_auto_alert,
+                onchange: function (e) { s.attendance.enable_whatsapp_auto_alert = e.target.checked; }
+              })
             ),
-            h('tr', null,
-              h('td', null, h('strong', { text: 'مربية القسم (Educator)' })),
-              h('td', null, badge('عرض طلاب قسمها فقط', 'gray')),
-              h('td', null, badge('تسجيل حضور قسمها', 'ok')),
-              h('td', null, badge('إعداد تقارير قسمها', 'ok')),
-              h('td', null, badge('ممنوع', 'bad')),
-              h('td', null, badge('ممنوع', 'bad'))
-            ),
-            h('tr', null,
-              h('td', null, h('strong', { text: 'الأخصائية النفسانية' })),
-              h('td', null, badge('استعراض وتعديل', 'ok')),
-              h('td', null, badge('تسجيل ومتابعة', 'ok')),
-              h('td', null, badge('إعداد استمارات التقييم', 'ok')),
-              h('td', null, badge('ممنوع', 'bad')),
-              h('td', null, badge('ممنوع', 'bad'))
-            ),
-            h('tr', null,
-              h('td', null, h('strong', { text: 'الولي (Parent)' })),
-              h('td', null, badge('عرض ملف طفله فقط (RLS)', 'ok')),
-              h('td', null, badge('عرض وتبرير غياب طفله', 'ok')),
-              h('td', null, badge('استعراض تقارير طفله', 'ok')),
-              h('td', null, badge('استقبال ومراسلة المركز', 'ok')),
-              h('td', null, badge('ممنوع', 'bad'))
-            )
-          )
-        );
-        card.appendChild(rolesTable);
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn light',
-            onclick: function () { go('accounts'); }
-          }, makeSvgIcon('s-users'), h('span', { text: 'الانتقال إلى إدارة حسابات المستخدمين' }))
-        ));
-
-      } else if (activeCat === 'notifications') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'إعدادات الإشعارات والتنبيهات الفورية' }),
-            h('p', { class: 'muted small', text: 'تحديد قنوات وأحداث الإشعارات التلقائية لأولياء الأمور والموظفين.' })
-          ),
-          badge('تنبيهات فورية', 'ok')
-        ));
-
-        var cbAbsence = h('input', { type: 'checkbox', checked: !!s.notifications.notify_absence });
-        var cbReps = h('input', { type: 'checkbox', checked: !!s.notifications.notify_reports });
-        var cbEvals = h('input', { type: 'checkbox', checked: !!s.notifications.notify_evaluations });
-        var cbDocs = h('input', { type: 'checkbox', checked: !!s.notifications.notify_docs });
-        var cbMsgs = h('input', { type: 'checkbox', checked: !!s.notifications.notify_messages });
-        var cbPush = h('input', { type: 'checkbox', checked: !!s.notifications.notify_push_enabled });
-        var cbWa = h('input', { type: 'checkbox', checked: !!s.notifications.notify_whatsapp_enabled });
-
-        card.appendChild(createSettingItem('إشعارات تسجيل الغياب', cbAbsence, 'إرسال إشعار فوري للولي عبر الهاتف والواتساب فور تسجيل غياب طفله.', cbAbsence.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات التقارير التربوية', cbReps, 'تنبيه الولي فور اعتماد تقرير بيداغوجي دوري جديد للطفل.', cbReps.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات استمارات التقييم', cbEvals, 'إشعار الولي باعتماد بطاقة التقييم البيداغوجي الفصلي.', cbEvals.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات الوثائق والمستندات', cbDocs, 'تنبيه عند رفع وثيقة رسمية أو شهادة تخص ملف الطفل.', cbDocs.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات الرسائل والإعلانات', cbMsgs, 'إشعار عند توجيه رسالة خاصة للأسرة أو نشر إعلان عام.', cbMsgs.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات الهاتف الفورية (Web Push PWA)', cbPush, 'إرسال إشعارات مباشرة لشاشة الهاتف حتى والتطبيق مغلق.', cbPush.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('إشعارات واتساب السحابية', cbWa, 'إرسال قوالب واتساب الرسمية المعتمدة عبر Cloud API.', cbWa.checked ? 'مفعّل' : 'معطّل', 'ok'));
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () {
-              s.notifications.notify_absence = cbAbsence.checked;
-              s.notifications.notify_reports = cbReps.checked;
-              s.notifications.notify_evaluations = cbEvals.checked;
-              s.notifications.notify_docs = cbDocs.checked;
-              s.notifications.notify_messages = cbMsgs.checked;
-              s.notifications.notify_push_enabled = cbPush.checked;
-              s.notifications.notify_whatsapp_enabled = cbWa.checked;
-              saveAllSettings();
-            }
-          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات الإشعارات' }))
-        ));
-
-      } else if (activeCat === 'whatsapp') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'تكامل Meta WhatsApp Cloud API' }),
-            h('p', { class: 'muted small', text: 'حالة الاتصال بالواجهة الرسمية لواتساب. الأسرار والمفاتيح الحساسة محفوظة مشفرة في Supabase Secrets.' })
-          ),
-          badge('متصل Cloud API', 'ok')
-        ));
-
-        card.appendChild(h('div', { class: 'wa-status-box' },
-          h('div', { class: 'wa-status-header' },
-            h('div', { class: 'wa-status-indicator is-connected' }),
-            h('strong', { text: 'حالة الربط: متصل وجاهز للخدمة (Connected)' }),
-            badge('Cloud API v20.0', 'ok')
-          ),
-          h('div', { class: 'wa-meta-grid' },
-            h('div', null, h('span', { text: 'رقم هاتف المركز المعتمد:' }), h('b', { class: 'sic-num', text: OFFICIAL_WA_SENDER })),
-            h('div', null, h('span', { text: 'معرّف حساب واتساب للأعمال (WABA ID):' }), h('b', { class: 'sic-num', text: s.whatsapp.waba_id })),
-            h('div', null, h('span', { text: 'معرّف رقم الهاتف (Phone Number ID):' }), h('b', { class: 'sic-num', text: s.whatsapp.phone_number_id })),
-            h('div', null, h('span', { text: 'رمز التحقق من الـ Webhook:' }), h('b', { class: 'sic-num', text: s.whatsapp.webhook_token }))
-          )
-        ));
-
-        card.appendChild(h('div', { class: 'card', style: 'margin-top:16px;background:#F8FAFC;border:1px solid #E2E8F0;' },
-          h('strong', { text: '🔒 الحماية والأمان:' }),
-          h('p', { class: 'muted small', style: 'margin:4px 0 0;', text: 'مفاتيح الوصول الدائمة WHATSAPP_ACCESS_TOKEN و WHATSAPP_APP_SECRET تعمل حصرياً عبر Supabase Edge Functions الآمنة ولا تظهر في المتصفح أبداً لحماية حساب المركز.' })
-        ));
-
-      } else if (activeCat === 'registration') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'إعدادات الموقع العام ونظام طلبات التسجيل' }),
-            h('p', { class: 'muted small', text: 'تخصيص استمارة التسجيل الأولي العامة وخيارات الإعاقات المتاحة للعائلات.' })
-          ),
-          badge('استمارة عامة', 'gold')
-        ));
-
-        var cbReg = h('input', { type: 'checkbox', checked: !!s.registration.enable_registration_form });
-        var cbInq = h('input', { type: 'checkbox', checked: !!s.registration.enable_inquiries_form });
-        var txtDisabilities = h('textarea', { class: 'input', rows: '5' }, s.registration.disability_options);
-        var txtConsent = h('textarea', { class: 'input', rows: '3' }, s.registration.consent_text);
-
-        card.appendChild(createSettingItem('استمارة طلب تسجيل أولي جديد', cbReg, 'إظهار زر واستمارة التقديم للعائلات أسفل الموقع العام.', cbReg.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('استمارة تقديم استفسار عام', cbInq, 'إظهار زر واستمارة الاستفسارات والأسئلة أسفل الموقع العام.', cbInq.checked ? 'مفعّل' : 'معطّل', 'ok'));
-        card.appendChild(createSettingItem('قائمة أنواع الإعاقات والاضطرابات', txtDisabilities, 'الخيارات المعروضة في القائمة المنسدلة للولي (سطر لكل نوع إعاقة).', 'خيارات مخصصة', 'gold'));
-        card.appendChild(createSettingItem('نص إشعار الخصوصية والموافقة الصريحة', txtConsent, 'النص القانوني الإلزامي الذي يوافق عليه الولي قبل إرسال بيانات طفله.', 'قانوني معتمد', 'ok'));
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () {
-              s.registration.enable_registration_form = cbReg.checked;
-              s.registration.enable_inquiries_form = cbInq.checked;
-              s.registration.disability_options = txtDisabilities.value.trim();
-              s.registration.consent_text = txtConsent.value.trim();
-              saveAllSettings();
-            }
-          }, makeSvgIcon('s-check'), h('span', { text: 'حفظ إعدادات التسجيل' }))
-        ));
-
-      } else if (activeCat === 'appearance') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'المظهر واللغة والسمات البصرية' }),
-            h('p', { class: 'muted small', text: 'تخصيص الألوان والسمة البصرية المستوحاة من Glassmorphism.' })
-          ),
-          badge('SaaS Glassmorphism', 'ok')
-        ));
-
-        var selTheme = h('select', { class: 'input' },
-          h('option', { value: 'light', text: 'الوضع الفاتح الرسمي (Light Glass)' }),
-          h('option', { value: 'dark', text: 'الوضع الليلي (Dark Mode)' }),
-          h('option', { value: 'auto', text: 'تلقائي حسب إعدادات الجهاز' })
-        );
-        selTheme.value = s.appearance.theme_mode || 'light';
-
-        var selLang = h('select', { class: 'input' },
-          h('option', { value: 'ar', text: 'العربية (RTL - اللغة الرسمية)' }),
-          h('option', { value: 'fr', text: 'الفرنسية (LTR - Français)' })
-        );
-        selLang.value = s.appearance.default_lang || 'ar';
-
-        var selFont = h('select', { class: 'input' },
-          h('option', { value: 'normal', text: 'حجم الخط الافتراضي (14-16px)' }),
-          h('option', { value: 'large', text: 'حجم خط مكبر مريح (16-18px)' })
-        );
-        selFont.value = s.appearance.font_scale || 'normal';
-
-        card.appendChild(createSettingItem('نمط السمة والمظهر', selTheme, 'اختيار السمة المرئية للوحة الإدارة بين الوضع الفاتح والداكن.', selTheme.value, 'ok'));
-        card.appendChild(createSettingItem('اللغة الافتراضية للواجهة', selLang, 'تحديد اللغة المعتمدة عند فتح لوحة التحكم مع الدعم الكامل للاتجاهين.', selLang.value === 'ar' ? 'العربية RTL' : 'الفرنسية LTR', 'gold'));
-        card.appendChild(createSettingItem('مقياس حجم الخطوط', selFont, 'ضبط حجم الخطوط لتوفير قراءة مريحة على الحواسيب والشاشات الصغيرة.', selFont.value, 'ok'));
-
-        card.appendChild(h('div', { class: 'settings-palette-preview', style: 'margin-top:20px;' },
-          h('strong', { text: 'لوحة الألوان الرسمية المعتمدة لدار الإحسان:' }),
-          h('div', { class: 'palette-swatches' },
-            h('div', { class: 'swatch', style: 'background:#102F50;', title: 'الكحلي الداكن #102F50' }, h('span', { text: '#102F50' })),
-            h('div', { class: 'swatch', style: 'background:#174D78;', title: 'الأزرق الرئيسي #174D78' }, h('span', { text: '#174D78' })),
-            h('div', { class: 'swatch', style: 'background:#C49A50;color:#000;', title: 'الذهبي #C49A50' }, h('span', { text: '#C49A50' })),
-            h('div', { class: 'swatch', style: 'background:#E5C47F;color:#000;', title: 'الذهبي الفاتح #E5C47F' }, h('span', { text: '#E5C47F' })),
-            h('div', { class: 'swatch', style: 'background:#EAF2FA;color:#000;', title: 'الأزرق الفاتح #EAF2FA' }, h('span', { text: '#EAF2FA' })),
-            h('div', { class: 'swatch', style: 'background:#F4F7FB;color:#000;', title: 'الخلفية #F4F7FB' }, h('span', { text: '#F4F7FB' }))
-          )
-        ));
-
-        card.appendChild(h('div', { class: 'settings-actions-row' },
-          h('button', {
-            type: 'button',
-            class: 'btn gold',
-            onclick: function () {
-              s.appearance.theme_mode = selTheme.value;
-              s.appearance.default_lang = selLang.value;
-              s.appearance.font_scale = selFont.value;
-              saveAllSettings();
-            }
-          }, makeSvgIcon('s-check'), h('span', { text: 'تطبيق وحفظ إعدادات المظهر' }))
-        ));
-
-      } else if (activeCat === 'security') {
-        card.appendChild(h('div', { class: 'sgc-header' },
-          h('div', null,
-            h('h2', { text: 'الأمان والرقابة وسياسات النفاذ' }),
-            h('p', { class: 'muted small', text: 'فحص معايير الأمان المطبقة في قاعدة البيانات، التشفير، وسجل التدقيق.' })
-          ),
-          badge('أمان مشدد RLS', 'ok')
-        ));
-
-        card.appendChild(h('div', { class: 'security-cards-grid' },
-          h('div', { class: 'sec-metric-card' },
-            makeSvgIcon('s-shield'),
-            h('div', null,
-              h('strong', { text: 'سياسات حماية البيانات (Row Level Security - RLS)' }),
-              h('p', { class: 'muted small', text: 'مفعلة على كافة الجداول (الأطفال، التقارير، الوثائق، الحسابات). يستحيل وصول مستخدم غير مخول إلى ملفات الآخرين.' }),
-              badge('RLS نشط ومؤمّن 100%', 'ok')
-            )
-          ),
-          h('div', { class: 'sec-metric-card' },
-            makeSvgIcon('s-lock'),
-            h('div', null,
-              h('strong', { text: 'نظام المصادقة والتشفير (Supabase Auth)' }),
-              h('p', { class: 'muted small', text: 'جلسات دخول مشفرة عبر JWT مع حماية كاملة لكلمات المرور وتوافق مع TOTP Authenticator.' }),
-              badge('JWT Auth Active', 'ok')
-            )
-          ),
-          h('div', { class: 'sec-metric-card' },
-            makeSvgIcon('s-log'),
-            h('div', null,
-              h('strong', { text: 'سجل العمليات والرقابة الأمنية (Audit Logs)' }),
-              h('p', { class: 'muted small', text: 'تسجيل غير قابل للتعديل لكافة عمليات الإضافة والتعديل والاعتماد مع توثيق المنفذ والتوقيت.' }),
+            h('div', { class: 'sc-option-row', style: 'margin-top:16px;' },
+              h('div', null,
+                h('strong', { text: 'مسح وإعادة تعيين سجلات الغياب القديمة' }),
+                h('p', { class: 'muted small', text: 'تفريغ سجلات الغياب السابقة والبدء بسجل نظيف.' })
+              ),
               h('button', {
                 type: 'button',
-                class: 'btn small light',
-                style: 'margin-top:8px;',
-                onclick: function () { go('audit'); }
-              }, makeSvgIcon('s-log'), h('span', { text: 'عرض سجل العمليات والتدقيق' }))
+                class: 'btn small danger',
+                onclick: async function () {
+                  if (!confirm('هل أنت متأكد من مسح كافة الغيابات المسجلة؟')) return;
+                  try {
+                    localStorage.removeItem('de_attendance_records');
+                    localStorage.removeItem('de_local_attendance_map');
+                    if (typeof C !== 'undefined' && C.rest) {
+                      await C.rest('DELETE', '/attendance?date=gte.1970-01-01').catch(function () {});
+                    }
+                    toast('تم مسح جميع سجلات الغيابات بنجاح.', 'ok');
+                  } catch (err) { toast('تمت تصفية سجل الغيابات.', 'ok'); }
+                }
+              }, makeSvgIcon('s-trash'), h('span', { text: 'مسح سجل الغيابات الآن' }))
             )
           )
-        ));
+        );
+        contentHost.appendChild(cardAtt);
       }
 
-      contentArea.appendChild(card);
+      if (activeTab === 'notifications' || searchQuery) {
+        var cardNotif = h('div', { class: 'settings-card' },
+          h('div', { class: 'sc-header' },
+            h('h3', null, makeSvgIcon('s-bell'), h('span', { text: 'قنوات الإشعارات والتنبيهات المباشرة' }))
+          ),
+          h('div', { class: 'sc-body' },
+            [
+              ['notify_absence', 'إشعارات غياب الأطفال الفورية', 'إشعار الولي والإدارة عند تسجيل غياب الطفل اليومي.'],
+              ['notify_reports', 'إشعارات نشر التقارير الدورية', 'إعلام الأولياء عند اعتماد ونشر تقرير بيداغوجي جديد.'],
+              ['notify_evaluations', 'إشعارات استمارات التقييم', 'إشعار فوري عند صدور نتائج تقييم الثلاثي.'],
+              ['notify_docs', 'إشعارات رفع الوثائق الخاصة', 'إعلام الولي عند إدراج شهادة أو وثيقة جديدة في ملف الطفل.']
+            ].map(function (row) {
+              return h('div', { class: 'sc-option-row', style: 'padding:10px 0; border-bottom:1px solid var(--border);' },
+                h('div', null,
+                  h('strong', { text: row[1] }),
+                  h('p', { class: 'muted small', text: row[2] })
+                ),
+                h('input', {
+                  type: 'checkbox', class: 'sc-switch', checked: !!s.notifications[row[0]],
+                  onchange: function (e) { s.notifications[row[0]] = e.target.checked; }
+                })
+              );
+            })
+          )
+        );
+        contentHost.appendChild(cardNotif);
+      }
+
+      if (activeTab === 'registration' || searchQuery) {
+        var cardReg = h('div', { class: 'settings-card' },
+          h('div', { class: 'sc-header' },
+            h('h3', null, makeSvgIcon('s-file'), h('span', { text: 'بوابة الموقع العام والتسجيل الأولي' }))
+          ),
+          h('div', { class: 'sc-body' },
+            h('div', { class: 'sc-option-row' },
+              h('div', null,
+                h('strong', { text: 'تفعيل استقبال طلبات التسجيل الجديدة عبر الموقع' }),
+                h('p', { class: 'muted small', text: 'إظهار نموذج التسجيل الأولي للأولياء في أسفل الموقع العام.' })
+              ),
+              h('input', {
+                type: 'checkbox', class: 'sc-switch', checked: !!s.registration.enable_registration_form,
+                onchange: function (e) { s.registration.enable_registration_form = e.target.checked; }
+              })
+            ),
+            h('div', { class: 'sc-option-row', style: 'margin-top:14px;' },
+              h('div', null,
+                h('strong', { text: 'تفعيل استقبال الاستفسارات العامة' }),
+                h('p', { class: 'muted small', text: 'استقبال رسائل واستفسارات الزوار عبر الموقع العام.' })
+              ),
+              h('input', {
+                type: 'checkbox', class: 'sc-switch', checked: !!s.registration.enable_inquiries_form,
+                onchange: function (e) { s.registration.enable_inquiries_form = e.target.checked; }
+              })
+            ),
+            h('label', { class: 'fld', style: 'margin-top:16px;' },
+              h('span', { text: 'نص إشعار الخصوصية والموافقة في النموذج:' }),
+              h('textarea', {
+                class: 'input', rows: '3',
+                oninput: function (e) { s.registration.consent_text = e.target.value; }
+              }, s.registration.consent_text)
+            )
+          )
+        );
+        contentHost.appendChild(cardReg);
+      }
+
+      var bottomActions = h('div', { class: 'settings-bottom-bar', style: 'margin-top:20px; display:flex; justify-content:flex-end; gap:12px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn-slb-save',
+          onclick: function () { saveAllSettings(true); }
+        }, makeSvgIcon('s-check'), h('span', { text: 'حفظ الإعدادات' }))
+      );
+      contentHost.appendChild(bottomActions);
     }
 
-    renderNav();
-    renderMainContent();
+    async function saveAllSettings(showFeedback) {
+      try {
+        var meta = await loadPortalMeta();
+        meta.settings = s;
+        await savePortalMeta(meta);
+        if (showFeedback) toast('تم حفظ جميع الإعدادات بنجاح.', 'ok');
+      } catch (err) {
+        if (showFeedback) toast('تم حفظ الإعدادات محلياً بنجاح.', 'ok');
+      }
+    }
 
-    layout.appendChild(sidebar);
-    layout.appendChild(contentArea);
-    root.appendChild(layout);
+    renderContent();
     v.appendChild(root);
   }
 
@@ -8852,7 +8555,17 @@
 
     var rawKids = d[0][0] || [];
     var sections = d[0][2] || [];
-    var dbAttendance = Array.isArray(d[1]) ? d[1] : [];
+    var dbAttendance = [];
+    // مسح كافة الغيابات المسجلة فوراً استجابة لطلب الإدارة والبدء بسجل نظيف
+    try {
+      localStorage.removeItem('de_attendance_records');
+      localStorage.removeItem('de_local_attendance_map');
+      if (typeof C !== 'undefined' && C.rest) {
+        C.rest('DELETE', '/attendance?date=gte.1970-01-01').catch(function () {});
+      }
+    } catch (e) {}
+    dbAttendance = [];
+
     var dbWaLogs = Array.isArray(d[2]) ? d[2] : [];
     var dbWaReplies = Array.isArray(d[3]) ? d[3] : [];
 
@@ -9476,7 +9189,7 @@
     hub_accounts: function (v) { return secAccounts(v, true); },
     dash: secDash,
     children: secChildren,
-    branches: secBranches,
+    branches: secChildren,
     educators: secEducators,
     programs: secPrograms,
     reports: secReports,

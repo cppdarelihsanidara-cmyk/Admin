@@ -3881,3 +3881,375 @@ table.sheet tbody tr:hover, table.tbl tbody tr:hover {
   background: #174D3C !important;
   color: #FFFFFF !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT FOREST GREEN MODERN SAAS STYLES — NO DARK/BLACK BACKGROUNDS
+   ═══════════════════════════════════════════════════════════════════ */
+
+body {
+  background: #F5F7F4 !important;
+  color: #24332C !important;
+}
+
+.shell {
+  background: #F5F7F4 !important;
+}
+
+.side {
+  background: #FFFFFF !important;
+  color: #24332C !important;
+  border-inline-end: 1px solid #E5EBE6 !important;
+  box-shadow: 2px 0 12px rgba(23, 77, 60, 0.04) !important;
+}
+
+.bar {
+  background: #FFFFFF !important;
+  color: #24332C !important;
+  border-bottom: 1px solid #E5EBE6 !important;
+  box-shadow: 0 1px 6px rgba(23, 77, 60, 0.03) !important;
+}
+
+#nav button {
+  color: #24332C !important;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+#nav button:hover {
+  background: #DCECE4 !important;
+  color: #174D3C !important;
+}
+
+#nav button.active {
+  background: #174D3C !important;
+  color: #FFFFFF !important;
+}
+
+/* ─── Light Dashboard Hero (No Dark Banners) ─── */
+.dash-light-hero {
+  background: #FFFFFF !important;
+  border: 1.5px solid #DCECE4 !important;
+  border-radius: 20px !important;
+  padding: 24px 26px !important;
+  box-shadow: 0 4px 18px rgba(23, 77, 60, 0.05) !important;
+  margin-bottom: 24px !important;
+}
+
+.dash-light-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.dash-light-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #DCECE4;
+  color: #174D3C;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(23, 77, 60, 0.15);
+}
+
+.dash-light-title {
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+  font-size: clamp(1.3rem, 2.4vw, 1.75rem);
+  font-weight: 800;
+  color: #174D3C !important;
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+.dash-light-sub {
+  font-size: 13.8px;
+  color: #75847B !important;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.dash-light-btn-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF !important;
+  color: #174D3C !important;
+  border: 1.5px solid #26745A !important;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(23, 77, 60, 0.06);
+}
+
+.dash-light-btn-switch:hover {
+  background: #174D3C !important;
+  color: #FFFFFF !important;
+}
+
+.dash-light-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 14px;
+}
+
+.dash-stat-light-card {
+  background: #F5F7F4 !important;
+  border: 1px solid #E5EBE6 !important;
+  border-radius: 14px;
+  padding: 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-stat-light-card:hover {
+  transform: translateY(-2px);
+  background: #FFFFFF !important;
+  box-shadow: 0 6px 16px rgba(23, 77, 60, 0.08) !important;
+}
+
+.dsl-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #DCECE4;
+  color: #174D3C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dsl-icon.ok { background: #ECFDF5; color: #059669; }
+.dsl-icon.info { background: #E0F2FE; color: #0284C7; }
+.dsl-icon.gold { background: #FEF3C7; color: #D97706; }
+
+.dsl-num {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #174D3C !important;
+  line-height: 1.1;
+  display: block;
+}
+
+.dsl-label {
+  font-size: 12.5px;
+  color: #75847B !important;
+  font-weight: 600;
+}
+
+/* ─── Light Settings Styles ─── */
+.settings-light-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-light-banner {
+  background: #FFFFFF !important;
+  border: 1.5px solid #DCECE4 !important;
+  border-radius: 20px !important;
+  padding: 24px 26px !important;
+  box-shadow: 0 4px 18px rgba(23, 77, 60, 0.05) !important;
+}
+
+.slb-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.slb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #DCECE4;
+  color: #174D3C;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.slb-title {
+  font-size: clamp(1.3rem, 2.4vw, 1.75rem);
+  font-weight: 800;
+  color: #174D3C !important;
+  margin: 0 0 6px;
+}
+
+.slb-sub {
+  font-size: 13.8px;
+  color: #75847B !important;
+  margin: 0;
+}
+
+.btn-slb-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #174D3C !important;
+  color: #FFFFFF !important;
+  border: none;
+  padding: 11px 22px;
+  border-radius: 12px;
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(23, 77, 60, 0.2);
+}
+
+.btn-slb-save:hover {
+  background: #26745A !important;
+  transform: translateY(-2px);
+}
+
+.settings-search-fld {
+  background: #FFFFFF !important;
+  border: 1.5px solid #E5EBE6 !important;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 14px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(23, 77, 60, 0.03);
+}
+
+.settings-pill-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E5EBE6;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #75847B;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-pill-btn:hover {
+  background: #DCECE4;
+  color: #174D3C;
+}
+
+.settings-pill-btn.is-active {
+  background: #174D3C !important;
+  color: #FFFFFF !important;
+  border-color: #174D3C !important;
+  box-shadow: 0 4px 12px rgba(23, 77, 60, 0.18);
+}
+
+.settings-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5EBE6 !important;
+  border-radius: 16px !important;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(23, 77, 60, 0.04) !important;
+  margin-bottom: 20px;
+}
+
+.sc-header {
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.sc-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #174D3C !important;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.sc-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.sc-switch {
+  width: 22px;
+  height: 22px;
+  accent-color: #174D3C;
+  cursor: pointer;
+}
+
+/* ─── Attendance Professional Icons ─── */
+.att-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.18s ease;
+  border: 1.5px solid transparent;
+}
+
+.att-seg-btn.seg-present {
+  background: #ECFDF5;
+  color: #059669;
+  border-color: #A7F3D0;
+}
+
+.att-seg-btn.seg-present.is-active {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
+}
+
+.att-seg-btn.seg-absent {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FECACA;
+}
+
+.att-seg-btn.seg-absent.is-active {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
+.att-seg-btn.seg-none {
+  background: #F1F5F9;
+  color: #64748B;
+  border-color: #E2E8F0;
+}
+
+.att-seg-btn.seg-none.is-active {
+  background: #64748B !important;
+  color: #FFFFFF !important;
+}
