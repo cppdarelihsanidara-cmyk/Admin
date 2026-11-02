@@ -5432,7 +5432,7 @@
       allDomainDetailTables
     );
 
-    var topActionsBar = h('div', { class: 'oep-action-bar no-print', style: 'display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-bottom:16px;padding:10px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;' },
+    var topActionsBar = h('div', { class: 'oep-action-bar no-print', style: 'position:sticky;top:8px;z-index:20;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-bottom:16px;padding:10px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 4px 12px rgba(15,23,42,.08);' },
       h('button', { type: 'button', class: 'btn gold', onclick: async function () {
         try { toast('جارٍ تجهيز تقرير الملاحظات والتوجيهات...', 'ok');
           var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd, 'notes');
@@ -5447,10 +5447,13 @@
           toast('تم تنزيل التقرير الإحصائي بنجاح!', 'ok');
         } catch (e) { toast('تعذر تنزيل التقرير: ' + e.message, 'bad'); }
       } }, makeSvgIcon('s-download'), h('span', { text: 'التقرير الإحصائي لنتائج التقييم' })),
-      h('button', { type: 'button', class: 'btn', onclick: function () {
-        var detail = document.querySelector('.eval-detailed-skills-box');
-        if (detail) { detail.scrollIntoView({ behavior: 'smooth', block: 'start' }); detail.style.outline = '2px solid #16A34A'; setTimeout(function () { detail.style.outline = ''; }, 1800); }
-      } }, makeSvgIcon('s-card'), h('span', { text: 'التفاصيل' })),
+      h('button', { type: 'button', class: 'btn', onclick: async function () {
+        try { toast('جارٍ تجهيز التقرير الشامل مع الملاحظات والإحصاءات والجداول التفصيلية...', 'ok');
+          var fullBytes = await DE_PDF.renderEvaluationToPdf(ev, childFullName, secName, kd, 'full');
+          DE_PDF.downloadPdf(fullBytes, 'التقرير_الشامل_للتقييم_' + (childFullName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
+          toast('تم تنزيل التقرير الشامل بنجاح!', 'ok');
+        } catch (e) { toast('تعذر تنزيل التقرير الشامل: ' + e.message, 'bad'); }
+      } }, makeSvgIcon('s-card'), h('span', { text: 'التقرير الشامل: الملاحظات والإحصاءات والجداول' })),
       h('button', { type: 'button', class: 'btn', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة الورقة الرسمية (A4)' }))
     );
 
