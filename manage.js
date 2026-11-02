@@ -1044,10 +1044,27 @@
     appts: function () { return C.rest('GET', '/appointments?select=*&order=starts_at.desc').catch(function () { return []; }); },
     msgs: function () { return C.rest('GET', '/messages?select=*&order=created_at.desc').catch(function () { return []; }); },
     reads: function () { return C.rest('GET', '/message_reads?select=message_id').catch(function () { return []; }); },
-    docs: function () { return C.rest('GET', '/documents?select=*&order=created_at.desc').catch(function () { return []; }); }
+    docs: function () { return C.rest('GET', '/documents?select=*&order=created_at.desc').catch(function () { return []; }); },
+    audit: function () { return C.rest('GET', '/audit_logs?select=*&order=created_at.desc&limit=50').catch(function () { return []; }); }
   };
 
-  async function get(k) { if (!S.cache[k]) S.cache[k] = await Q[k](); return S.cache[k]; }
+  async function get(k) {
+    if (S.cache[k]) return S.cache[k];
+    if (Q[k]) {
+      try { S.cache[k] = await Q[k](); } catch (e) { S.cache[k] = []; }
+    } else if (k === 'audit') {
+      S.cache[k] = await C.rest('GET', '/audit_logs?select=*&order=created_at.desc&limit=50').catch(function () { return []; });
+    } else if (k === 'reports') {
+      S.cache[k] = await C.rest('GET', '/reports?select=*&order=report_date.desc&limit=50').catch(function () { return []; });
+    } else if (k === 'docs') {
+      S.cache[k] = await C.rest('GET', '/documents?select=*&order=created_at.desc&limit=50').catch(function () { return []; });
+    } else if (k === 'msgs') {
+      S.cache[k] = await C.rest('GET', '/messages?select=*&order=created_at.desc&limit=50').catch(function () { return []; });
+    } else {
+      try { S.cache[k] = await C.rest('GET', '/' + k + '?select=*').catch(function () { return []; }); } catch (e) { S.cache[k] = []; }
+    }
+    return S.cache[k] || [];
+  }
   async function getMany() { var r = await Promise.all([].map.call(arguments, get)); return r; }
   function nameOf(list, id, key) { var x = list.filter(function (r) { return (r.id || r.user_id) === id; })[0]; return x ? x[key || 'full_name'] : '—'; }
 
@@ -1850,7 +1867,7 @@
     bento.appendChild(auditCard);
 
     // 6. Bento Recent Notifications
-    var topNotifs = (NOTIF_STATE.items || []).slice(0, 3);
+    var topNotifs = ((typeof NOTIF_STATE !== "undefined" && NOTIF_STATE && NOTIF_STATE.items) || []).slice(0, 3);
     var notifsCard = h('div', { class: 'bento-card bento-notifs' },
       h('div', { class: 'bento-card-hdr' },
         h('h3', null, makeSvgIcon('s-bell'), h('span', { text: 'آخر الإشعارات' })),
@@ -9604,7 +9621,7 @@
       toast('قسم الحسابات غير متاح لصلاحية الأخصائية.', 'bad');
       sec = 'children';
     }
-    if (!S.isEducator && (S.activeCenter === 'work' || S.activeCenter === 'farm') && sec !== 'hub' && sec !== 'hub_accounts' && sec !== 'children' && sec !== 'attendance' && sec !== 'accounts') {
+    if (!S.isEducator && (S.activeCenter === 'work' || S.activeCenter === 'farm') && sec !== 'hub' && sec !== 'hub_accounts' && sec !== 'children' && sec !== 'attendance' && sec !== 'accounts' && sec !== 'dash' && sec !== 'notifications') {
       sec = 'children';
     }
     if (!SECS[sec]) sec = S.isEducator ? 'children' : 'hub';
