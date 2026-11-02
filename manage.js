@@ -318,7 +318,9 @@
     appts: 'المواعيد والأنشطة',
     msgs: 'الرسائل والإعلانات',
     docs: 'الوثائق الخاصة',
-    accounts: 'حسابات المركز',
+    accounts: 'إدارة المستخدمين والصلاحيات',
+    notifications: 'مركز الإشعارات والتنبيهات',
+    parents: 'فضاء الأولياء',
     audit: 'سجل العمليات والتدقيق',
     attendance: 'الغيابات والحضور',
     settings: 'الأمان والإعدادات'
@@ -1654,7 +1656,7 @@
         }
         S.activeCenter = ck;
         S.filterSectionId = '';
-        applyRoleSidebarUI();
+        applyRoleSidebarUI(); initHeaderWidgets();
         if (ck === 'main') {
           go('dash');
         } else {
@@ -1694,94 +1696,199 @@
       S.activeCenter = allowedList[0] || 'main';
     }
     var cm = getCenterMeta(S.activeCenter);
+
+    v.textContent = '';
+    v.appendChild(h('div', { class: 'empty', text: 'جارٍ جلب إحصائيات لوحة المعلومات الحية…' }));
+
     var d = await Promise.all([
-      C.rpc('admin_family_counts').catch(function () { return {}; }),
       get('children'),
       get('branches'),
-      get('sections')
+      get('sections'),
+      get('reports'),
+      get('docs'),
+      get('msgs'),
+      C.rest('GET', '/attendance?order=date.desc&limit=500').catch(function () { return []; }),
+      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=200').catch(function () { return []; }),
+      get('audit')
     ]);
-    var c = d[0] || {}, allKids = d[1] || [], branches = d[2] || [], sections = d[3] || [];
+
+    var allKids = d[0] || [], branches = d[1] || [], sections = d[2] || [];
+    var reports = d[3] || [], docs = d[4] || [], msgs = d[5] || [];
+    var dbAttendance = d[6] || [], waLogs = d[7] || [], auditList = d[8] || [];
+
+    v.textContent = '';
 
     var centerKids = allKids.filter(function (k) { return childCenterKey(k, branches, sections) === S.activeCenter; });
     var activeCenterKids = centerKids.filter(function (k) { return !!k.active; });
     var centerSections = sections.filter(function (s) { return sectionCenterKey(s, branches) === S.activeCenter; });
 
-    // 1. البانر الأخضر الترحيبي العلوي مع بطاقات الإحصائيات الشفافة الـ 4 داخله (مطابق للصورة المرفقة)
-    var hero = h('div', { class: 'dash-hero-banner' },
-      h('div', { class: 'dash-hero-top' },
+    // حساب إحصائيات حضور اليوم
+    var todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers' }).format(new Date());
+    var todayAtt = dbAttendance.filter(function (a) { return (a.date ? String(a.date).slice(0, 10) : '') === todayStr; });
+    var presentCount = 0, absentCount = 0;
+    centerKids.forEach(function (k) {
+      var match = todayAtt.filter(function (a) { return a.child_id === k.id; })[0];
+      if (match && match.status === 'present') presentCount++;
+      else if (match && match.status === 'absent') absentCount++;
+    });
+    var unrecordedCount = Math.max(0, centerKids.length - (presentCount + absentCount));
+    var attRate = centerKids.length > 0 ? Math.round((presentCount / centerKids.length) * 100) : 0;
+
+    // إحصائيات واتساب
+    var deliveredWa = waLogs.filter(function (l) { return l.status === 'delivered' || l.status === 'read' || l.status === 'sent'; }).length;
+    var failedWa = waLogs.filter(function (l) { return l.status === 'failed'; }).length;
+
+    // Bento Grid Layout
+    var bento = h('div', { class: 'bento-grid' });
+
+    // 1. Bento Hero Card
+    var heroCard = h('div', { class: 'bento-card bento-hero' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-home'), h('span', { text: 'مرحبًا بك في ' + cm.name })),
+        badge(cm.badge, 'gold')
+      ),
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;' },
         h('div', null,
-          h('span', { class: 'dash-hero-kicker', text: 'ADMIN DASHBOARD • ' + cm.badge }),
-          h('h1', { class: 'dash-hero-title', text: 'مرحبًا بك في ' + cm.name }),
-          h('p', { class: 'dash-hero-sub', text: 'إحصائيات حية ومباشرة وإجراءات سريعة لإدارة ' + cm.name + '.' })
+          h('div', { style: 'font-size:2.4rem;font-weight:800;color:#FFFFFF;', text: String(centerKids.length) }),
+          h('div', { style: 'font-size:0.95rem;color:#EAF2FA;margin-top:4px;', text: 'إجمالي الطلبة المسجلين (' + activeCenterKids.length + ' طالب نشط)' })
         ),
         h('button', {
           type: 'button',
-          class: 'dash-hero-btn',
-          text: 'المركز وملحقاته (تبديل المركز)',
+          class: 'btn gold',
           onclick: function () { go('hub'); }
-        })
-      ),
-      h('div', { class: 'dash-hero-stats' },
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(centerKids.length) }),
-          h('span', { text: 'إجمالي الطلبة بالمركز' })
-        ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(activeCenterKids.length) }),
-          h('span', { text: 'الطلبة النشطون' })
-        ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(centerSections.length || 1) }),
-          h('span', { text: 'الأقسام والأفواج' })
-        ),
-        h('div', { class: 'dash-hero-stat' },
-          h('b', { text: String(c.reports_published == null ? 0 : c.reports_published) }),
-          h('span', { text: 'التقارير المعتمدة' })
-        )
+        }, makeSvgIcon('s-branch'), h('span', { text: 'تبديل المركز' }))
       )
     );
-    v.appendChild(hero);
+    bento.appendChild(heroCard);
 
-    // 2. شبكة الإجراءات السريعة (Quick Actions) ببطاقات بيضاء وأيقونات خضراء ناعمة (مطابقة للصورة المرفقة)
-    v.appendChild(h('div', { class: 'qa-section-hdr' },
-      h('h2', { class: 'qa-section-title', text: 'الإجراءات السريعة (Quick Actions)' })
-    ));
-
-    var qaItems = [
-      { sec: 'children', icon: 's-child', title: S.activeCenter === 'farm' ? 'طلاب البستنة' : 'الأقسام والأطفال', sub: 'إدارة ملفات الطلبة، الأقسام، والبطاقات' },
-      { sec: 'attendance', icon: 's-cal', title: 'الغيابات والحضور', sub: 'تسجيل الحضور والغياب اليومي وإرسال الإشعارات للأولياء' },
-      { sec: 'educators', icon: 's-users', title: 'المربيات', sub: 'إدارة المربيات وإسناد الأفواج وحساباتهن' },
-      { sec: 'programs', icon: 's-book', title: 'البرامج التربوية', sub: 'إعداد وتصدير الجداول الأسبوعية للأقسام' },
-      S.activeCenter !== 'farm' ? { sec: 'reports', icon: 's-report', title: 'التقارير التربوية', sub: 'التقارير الدورية ومرفقات ملفات الطلبة' } : null,
-      S.activeCenter !== 'farm' ? { sec: 'evaluations', icon: 's-card', title: 'استمارات التقييم', sub: 'استمارات التقييم البيداغوجي وفق النموذج الرسمي' } : null,
-      { sec: 'appts', icon: 's-cal', title: 'المواعيد والأنشطة', sub: 'برمجة مواعيد المتابعة والأنشطة' },
-      { sec: 'msgs', icon: 's-mail', title: 'الرسائل والإعلانات', sub: 'إرسال الإعلانات والرسائل للأولياء' },
-      { sec: 'docs', icon: 's-file', title: 'الوثائق والملفات', sub: 'أرشيف الوثائق الخاصة والآمنة للطلبة' },
-      { sec: 'hub', icon: 's-branch', title: 'المركز وملحقاته', sub: 'التنقل بين المراكز الثلاثة وقسم الإدارة' }
-    ];
-
-    if (canAccessGeneralAdmin()) {
-      qaItems.push(
-        { sec: 'archive', icon: 's-archive', title: 'الأرشيف والنسخ الاحتياطية', sub: 'تنزيل أرشيف ZIP شامل ومنظم للأطفال والتقارير' },
-        { sec: 'accounts', icon: 's-shield', title: 'قسم الإدارة والصلاحيات', sub: 'حسابات الإدارة وإذن الدخول لكل مركز' },
-        { sec: 'audit', icon: 's-log', title: 'سجل العمليات', sub: 'متابعة النشاط والرقابة الأمنية' },
-        { sec: 'settings', icon: 's-gear', title: 'الأمان والإعدادات', sub: 'المصادقة الثنائية وإعدادات النظام' }
-      );
-    }
-
-    var qaGrid = h('div', { class: 'quick-actions-grid' }, qaItems.filter(Boolean).map(function (item) {
-      return h('button', {
+    // 2. Bento Attendance Card
+    var attCard = h('div', { class: 'bento-card bento-att' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-cal'), h('span', { text: 'حضور اليوم' })),
+        badge(attRate + '% نسبة الحضور', 'ok')
+      ),
+      h('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin:12px 0;' },
+        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#059669;', text: String(presentCount) }), h('div', { class: 'muted small', text: 'حاضر' })),
+        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#DC2626;', text: String(absentCount) }), h('div', { class: 'muted small', text: 'غائب' })),
+        h('div', { style: 'text-align:center;' }, h('span', { style: 'font-size:1.4rem;font-weight:700;color:#64748B;', text: String(unrecordedCount) }), h('div', { class: 'muted small', text: 'لم يسجل' }))
+      ),
+      h('button', {
         type: 'button',
-        class: 'qa-card',
-        onclick: function () { go(item.sec); }
-      },
-        h('span', { class: 'qa-icon' }, makeSvgIcon(item.icon)),
-        h('strong', { class: 'qa-title', text: item.title }),
-        h('span', { class: 'qa-sub', text: item.sub })
-      );
-    }));
-    v.appendChild(qaGrid);
+        class: 'btn small light',
+        style: 'margin-top:auto;',
+        onclick: function () { go('attendance'); }
+      }, makeSvgIcon('s-check-circle'), h('span', { text: 'تسجيل الحضور الفوري' }))
+    );
+    bento.appendChild(attCard);
+
+    // 3. Bento WhatsApp Pulse Card
+    var waCard = h('div', { class: 'bento-card bento-wa' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-whatsapp'), h('span', { text: 'حالة إشعارات واتساب' })),
+        badge('Cloud API v20', 'ok')
+      ),
+      h('div', { style: 'display:flex;gap:12px;margin:12px 0;' },
+        h('div', { style: 'flex:1;background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);text-align:center;' },
+          h('b', { style: 'color:#059669;font-size:1.2rem;', text: String(deliveredWa) }),
+          h('div', { class: 'muted small', text: 'تم التسليم' })
+        ),
+        h('div', { style: 'flex:1;background:var(--surface);padding:10px;border-radius:8px;border:1px solid var(--border);text-align:center;' },
+          h('b', { style: 'color:#DC2626;font-size:1.2rem;', text: String(failedWa) }),
+          h('div', { class: 'muted small', text: 'فشل الإرسال' })
+        )
+      ),
+      h('button', {
+        type: 'button',
+        class: 'btn small ghost',
+        style: 'margin-top:auto;',
+        onclick: function () { go('attendance'); }
+      }, h('span', { text: 'فتح سجل إرسال الرسائل' }))
+    );
+    bento.appendChild(waCard);
+
+    // 4. Bento Centers Distribution
+    var mainKids = allKids.filter(function (k) { return (k.center || 'main') === 'main'; }).length;
+    var workKids = allKids.filter(function (k) { return (k.center || '') === 'work'; }).length;
+    var farmKids = allKids.filter(function (k) { return (k.center || '') === 'farm'; }).length;
+
+    var centersCard = h('div', { class: 'bento-card bento-centers' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-branch'), h('span', { text: 'المراكز الثلاثة' })),
+        badge(allKids.length + ' طالب إجمالي', 'gold')
+      ),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin:8px 0;' },
+        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'المركز الرئيسي دار الإحسان' }), h('strong', { text: mainKids + ' طالب' })),
+        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'مركز المساعدة على العمل' }), h('strong', { text: workKids + ' طالب' })),
+        h('div', { style: 'display:flex;justify-content:space-between;font-size:0.86rem;' }, h('span', { text: 'المزرعة البيداغوجية' }), h('strong', { text: farmKids + ' طالب' }))
+      ),
+      h('button', {
+        type: 'button',
+        class: 'btn small light',
+        style: 'margin-top:auto;',
+        onclick: function () { go('branches'); }
+      }, h('span', { text: 'إدارة المراكز والأقسام' }))
+    );
+    bento.appendChild(centersCard);
+
+    // 5. Bento Audit Stream
+    var recentAudits = (auditList || []).slice(0, 4);
+    var auditCard = h('div', { class: 'bento-card bento-audit' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-log'), h('span', { text: 'آخر النشاطات' })),
+        h('button', { class: 'btn-text-gold', type: 'button', text: 'سجل العمليات', onclick: function () { go('audit'); } })
+      ),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px;' },
+        recentAudits.map(function (a) {
+          return h('div', { style: 'font-size:0.82rem;padding:6px 0;border-bottom:1px solid var(--border);' },
+            h('strong', { text: a.actor_email ? a.actor_email.split('@')[0] : 'إداري' }),
+            h('span', { class: 'muted', text: ' • ' + (a.action || 'عملية') }),
+            h('div', { class: 'muted small', text: fmt(a.at, true) })
+          );
+        })
+      )
+    );
+    bento.appendChild(auditCard);
+
+    // 6. Bento Recent Notifications
+    var topNotifs = (NOTIF_STATE.items || []).slice(0, 3);
+    var notifsCard = h('div', { class: 'bento-card bento-notifs' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-bell'), h('span', { text: 'آخر الإشعارات' })),
+        h('button', { class: 'btn-text-gold', type: 'button', text: 'عرض الكل', onclick: function () { go('notifications'); } })
+      ),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px;' },
+        topNotifs.length ? topNotifs.map(function (n) {
+          return h('div', { style: 'display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);' },
+            h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-bell')),
+            h('div', { style: 'flex:1;' },
+              h('strong', { style: 'font-size:0.88rem;', text: n.title }),
+              h('p', { class: 'muted small', style: 'margin:2px 0 0;', text: n.body })
+            )
+          );
+        }) : h('div', { class: 'empty', style: 'padding:16px;', text: 'لا توجد إشعارات حديثة' })
+      )
+    );
+    bento.appendChild(notifsCard);
+
+    // 7. Bento Quick Actions
+    var actionsCard = h('div', { class: 'bento-card bento-actions' },
+      h('div', { class: 'bento-card-hdr' },
+        h('h3', null, makeSvgIcon('s-wand'), h('span', { text: 'الإجراءات السريعة' }))
+      ),
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;' },
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('children'); } }, makeSvgIcon('s-child'), h('span', { text: 'الأقسام والطلبة' })),
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('attendance'); } }, makeSvgIcon('s-cal'), h('span', { text: 'الحضور والغياب' })),
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('reports'); } }, makeSvgIcon('s-report'), h('span', { text: 'التقارير' })),
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('notifications'); } }, makeSvgIcon('s-bell'), h('span', { text: 'الإشعارات' })),
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('msgs'); } }, makeSvgIcon('s-mail'), h('span', { text: 'الرسائل' })),
+        h('button', { type: 'button', class: 'btn light', onclick: function () { go('settings'); } }, makeSvgIcon('s-gear'), h('span', { text: 'الإعدادات' }))
+      )
+    );
+    bento.appendChild(actionsCard);
+
+    v.appendChild(bento);
   }
+
 
   /* =====================================================================
      2. إدارة الأطفال والطلبة + أقسام المركز المدمجة + بطاقة الانخراط + رمز التسجيل
@@ -2412,209 +2519,176 @@
     v.textContent = '';
     v.appendChild(h('div', { class: 'empty', text: 'جارٍ قراءة بيانات الأقسام والفروع التربوية…' }));
 
-    var d;
-    try {
-      d = await getMany('branches', 'sections', 'children');
-    } catch (e) {
-      d = [[], [], []];
-    }
+    var d = await Promise.all([
+      get('branches'),
+      get('sections'),
+      get('children')
+    ]);
     var branches = d[0] || [], sections = d[1] || [], kids = d[2] || [];
 
     v.textContent = '';
 
-    function kidsCountInBranch(bid) {
-      return kids.filter(function (k) { return k.branch_id === bid && k.active; }).length;
-    }
     function kidsCountInSection(sid) {
       return kids.filter(function (k) { return k.section_id === sid && k.active; }).length;
     }
 
-    function openAddSectionModal() {
-      var branchOpts = branches.map(function (b) { return [b.id, b.name]; });
-      return openForm({
-        title: 'إضافة قسم / فوج تربوي جديد',
-        fields: [
-          { k: 'branch_id', label: 'المركز / الفرع التابع له', type: 'select', opts: branchOpts, req: true },
-          { k: 'name', label: 'اسم القسم التربوي', req: true, min: 2, max: 80, hint: 'مثال: قسم التوحد 1، قسم التمهين، إلخ' },
-          { k: 'slug', label: 'المعرّف التقني (Slug)', req: true, min: 2, max: 40, hint: 'أحرف إنجليزية وأرقام وشرطة فقط (مثال: sec_autism_1)' },
-          { k: 'description', label: 'وصف القسم وأهدافه البيداغوجية', type: 'textarea', max: 500 }
-        ],
-        onSubmit: async function (x) {
-          await C.rest('POST', '/sections', {
-            branch_id: x.branch_id,
-            name: x.name,
-            slug: x.slug.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
-            description: x.description || null,
-            active: true
-          });
-          bust();
-          toast('تم إنشاء القسم التربوي بنجاح.', 'ok');
-          go('branches');
-        }
-      });
-    }
-
-    function openEditSectionModal(sec) {
-      var branchOpts = branches.map(function (b) { return [b.id, b.name]; });
-      return openForm({
-        title: 'تعديل بيانات القسم: ' + sec.name,
-        values: sec,
-        fields: [
-          { k: 'branch_id', label: 'المركز / الفرع التابع له', type: 'select', opts: branchOpts, req: true },
-          { k: 'name', label: 'اسم القسم التربوي', req: true, min: 2, max: 80 },
-          { k: 'description', label: 'الوصف والأهداف البيداغوجية', type: 'textarea', max: 500 }
-        ],
-        onSubmit: async function (x) {
-          await C.rest('PATCH', '/sections?id=eq.' + uid(sec.id), {
-            branch_id: x.branch_id,
-            name: x.name,
-            description: x.description || null
-          });
-          bust();
-          toast('تم تحديث بيانات القسم بنجاح.', 'ok');
-          go('branches');
-        }
-      });
-    }
-
     var root = h('div', { class: 'branches-saas-root' });
 
-    // ترويسة الصفحة
+    // ترويسة رئيسية
     root.appendChild(h('div', { class: 'branches-hub-hero' },
       h('div', null,
-        h('h1', null, makeSvgIcon('s-branch'), h('span', { text: 'إدارة الفروع والأقسام التربوية' })),
-        h('p', { text: 'تنظيم الأفواج الدراسية، متابعة توزيع الطلبة على الأقسام، وإدارة الطاقة الاستيعابية لكل مركز.' })
+        h('h1', null, makeSvgIcon('s-branch'), h('span', { text: 'إدارة المراكز والأقسام التربوية' })),
+        h('p', { text: 'عرض الأفواج التربوية مقسمة حسب المراكز الثلاثة في بطاقات زجاجية ذكية مع عداد الطلبة وإمكانية الفتح المباشر.' })
       ),
       h('div', { class: 'bhh-actions' },
         h('button', {
           type: 'button',
           class: 'btn gold',
-          onclick: openAddSectionModal
+          onclick: function () { openAddSectionForCenterModal(S.activeCenter, branches, function () { go('branches'); }); }
         }, makeSvgIcon('s-plus'), h('span', { text: 'إضافة قسم جديد' }))
       )
     ));
 
-    // بطاقات إحصائية علوية
-    var statsGrid = h('div', { class: 'att-stats', style: 'margin-bottom:18px;' },
-      h('div', { class: 'att-stat', style: '--c:#102F50;' },
-        h('div', null, h('span', { text: 'إجمالي الفروع والمراكز' }), h('strong', { class: 'sic-num', text: String(branches.length) })),
-        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-branch'))
-      ),
-      h('div', { class: 'att-stat', style: '--c:#174D78;' },
-        h('div', null, h('span', { text: 'إجمالي الأقسام التربوية' }), h('strong', { class: 'sic-num', text: String(sections.length) })),
-        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-book'))
-      ),
-      h('div', { class: 'att-stat', style: '--c:#C49A50;' },
-        h('div', null, h('span', { text: 'إجمالي الطلبة المسجلين' }), h('strong', { class: 'sic-num', text: String(kids.filter(function (k) { return k.active; }).length) })),
-        h('div', { class: 'att-stat-icon-wrap' }, makeSvgIcon('s-users'))
-      )
-    );
-    root.appendChild(statsGrid);
-
-    // شريط أدوات البحث وتصفية الأقسام
-    var filterBranchId = 'all';
     var searchVal = '';
-
     var searchInput = h('input', {
       type: 'search',
       class: 'input',
-      placeholder: 'بحث باسم القسم أو الوصف…',
+      style: 'max-width:320px;',
+      placeholder: 'بحث فوري في الأقسام…',
       oninput: function () {
         searchVal = normAr(searchInput.value.trim());
-        renderSectionsGrid();
+        renderAccordion();
       }
     });
 
-    var branchSelect = h('select', {
-      class: 'input',
-      onchange: function () {
-        filterBranchId = branchSelect.value;
-        renderSectionsGrid();
-      }
-    },
-      h('option', { value: 'all', text: '— كافة الفروع والمراكز —' }),
-      branches.map(function (b) { return h('option', { value: b.id, text: b.name }); })
+    var sortSel = h('select', { class: 'input', style: 'max-width:200px;' },
+      h('option', { value: 'default', text: 'الترتيب المعتمد' }),
+      h('option', { value: 'kids', text: 'حسب عدد الطلبة (تنازلي)' }),
+      h('option', { value: 'alpha', text: 'الترتيب الأبجدي' })
     );
+    sortSel.addEventListener('change', renderAccordion);
 
-    var filterToolbar = h('div', { class: 'sections-filter-toolbar card' },
-      h('div', { class: 'sft-fld' }, h('label', { text: 'البحث السريع:' }), searchInput),
-      h('div', { class: 'sft-fld' }, h('label', { text: 'تصفية حسب المركز:' }), branchSelect)
+    var toolbar = h('div', { class: 'sections-filter-toolbar card' },
+      h('div', { style: 'display:flex;align-items:center;gap:10px;flex:1;' },
+        h('label', { text: 'البحث:' }), searchInput
+      ),
+      h('div', { style: 'display:flex;align-items:center;gap:10px;' },
+        h('label', { text: 'الترتيب:' }), sortSel
+      )
     );
-    root.appendChild(filterToolbar);
+    root.appendChild(toolbar);
 
-    var cardsGridHost = h('div', { class: 'sections-cards-grid' });
-    root.appendChild(cardsGridHost);
+    var accordionHost = h('div', { class: 'center-sections-accordion' });
+    root.appendChild(accordionHost);
+    v.appendChild(root);
 
-    function renderSectionsGrid() {
-      cardsGridHost.textContent = '';
-      var filtered = sections.filter(function (s) {
-        if (filterBranchId !== 'all' && s.branch_id !== filterBranchId) return false;
+    function renderAccordion() {
+      accordionHost.textContent = '';
+      var centerKeys = ['main', 'work', 'farm'];
+
+      centerKeys.forEach(function (ck) {
+        var cm = getCenterMeta(ck);
+        var centerSecs = sections.filter(function (s) {
+          return sectionCenterKey(s, branches) === ck;
+        });
+
         if (searchVal) {
-          var hay = normAr(s.name + ' ' + (s.description || '') + ' ' + (nameOf(branches, s.branch_id, 'name') || ''));
-          if (hay.indexOf(searchVal) === -1) return false;
+          centerSecs = centerSecs.filter(function (s) {
+            return normAr(s.name + ' ' + (s.description || '')).indexOf(searchVal) >= 0;
+          });
         }
-        return true;
-      });
 
-      if (!filtered.length) {
-        cardsGridHost.appendChild(h('div', { class: 'card empty', style: 'grid-column: 1 / -1; padding: 32px;', text: 'لا توجد أقسام مطابقة للبحث أو التصفية الحالية.' }));
-        return;
-      }
+        if (sortSel.value === 'kids') {
+          centerSecs.sort(function (a, b) { return kidsCountInSection(b.id) - kidsCountInSection(a.id); });
+        } else if (sortSel.value === 'alpha') {
+          centerSecs.sort(function (a, b) { return a.name.localeCompare(b.name, 'ar'); });
+        }
 
-      filtered.forEach(function (sec) {
-        var count = kidsCountInSection(sec.id);
-        var brName = nameOf(branches, sec.branch_id, 'name');
+        var totalCenterKids = kids.filter(function (k) { return childCenterKey(k, branches, sections) === ck && k.active; }).length;
 
-        var secCard = h('div', { class: 'section-saas-card' },
-          h('div', { class: 'ssc-header' },
+        var groupCard = h('div', { class: 'center-accordion-group' });
+
+        var isCollapsed = localStorage.getItem('de_sec_collapsed_' + ck) === '1';
+        var bodyEl = h('div', { class: 'cag-body' + (isCollapsed ? ' is-collapsed' : '') });
+
+        var headerEl = h('div', {
+          class: 'cag-header',
+          onclick: function () {
+            var nowCollapsed = bodyEl.classList.toggle('is-collapsed');
+            localStorage.setItem('de_sec_collapsed_' + ck, nowCollapsed ? '1' : '0');
+            arrowIcon.style.transform = nowCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+          }
+        },
+          h('div', { class: 'cag-title-group' },
+            h('div', { class: 'cag-icon' }, makeSvgIcon(cm.svgIcon || 's-branch')),
             h('div', null,
-              h('h3', { class: 'ssc-title', text: sec.name }),
-              h('span', { class: 'ssc-branch', text: brName || 'المركز الرئيسي' })
-            ),
-            h('div', { class: 'ssc-badge-box' },
-              badge(count + ' تلميذ', count > 0 ? 'ok' : 'gray'),
-              badge(sec.active ? 'نشط' : 'معطّل', sec.active ? 'gold' : 'gray')
+              h('h3', { class: 'cag-title', text: cm.name }),
+              h('span', { class: 'muted small', text: cm.badge + ' • ' + totalCenterKids + ' طالب مسجل' })
             )
           ),
-          h('p', { class: 'ssc-desc', text: sec.description || 'لا يوجد وصف مسجل لهذا القسم.' }),
-          h('div', { class: 'ssc-footer' },
-            h('div', { class: 'ssc-actions' },
-              h('button', {
-                type: 'button',
-                class: 'btn small light',
-                onclick: function () {
-                  S.filterSectionId = sec.id;
-                  go('children');
-                }
-              }, makeSvgIcon('s-child'), h('span', { text: 'عرض الطلبة' })),
-              h('button', {
-                type: 'button',
-                class: 'btn small light',
-                onclick: function () { openEditSectionModal(sec); }
-              }, makeSvgIcon('s-edit'), h('span', { text: 'تعديل' })),
-              h('button', {
-                type: 'button',
-                class: 'btn small ghost',
-                onclick: async function () {
-                  if (count > 0) {
-                    return toast('لا يمكن حذف القسم لوجود ' + count + ' أطفال مسجلين به حالياً.', 'bad');
-                  }
-                  if (!(await ask({ title: 'حذف القسم التربوي؟', msg: 'هل أنت متأكد من حذف قسم «' + sec.name + '»؟', ok: 'حذف', danger: true }))) return;
-                  await C.rest('DELETE', '/sections?id=eq.' + uid(sec.id));
-                  bust();
-                  toast('تم حذف القسم بنجاح.', 'ok');
-                  go('branches');
-                }
-              }, makeSvgIcon('s-trash'))
-            )
+          h('div', { style: 'display:flex;align-items:center;gap:10px;' },
+            badge(centerSecs.length + ' أقسام', 'gold'),
+            arrowIcon = makeSvgIcon('s-back')
           )
         );
-        cardsGridHost.appendChild(secCard);
+        arrowIcon.style.transition = 'transform 0.2s';
+        if (isCollapsed) arrowIcon.style.transform = 'rotate(180deg)';
+
+        var grid = h('div', { class: 'sections-cards-grid' });
+        if (!centerSecs.length) {
+          grid.appendChild(h('div', { class: 'empty', style: 'grid-column:1/-1;padding:20px;', text: 'لا توجد أقسام مطابقة في هذا المركز' }));
+        } else {
+          centerSecs.forEach(function (sec) {
+            var kCount = kidsCountInSection(sec.id);
+            var isFav = localStorage.getItem('de_fav_sec_' + sec.id) === '1';
+
+            var card = h('div', { class: 'section-saas-card' },
+              h('div', { class: 'ssc-header' },
+                h('div', null,
+                  h('h3', { class: 'ssc-title', text: sec.name }),
+                  h('span', { class: 'ssc-branch', text: cm.name })
+                ),
+                h('div', { style: 'display:flex;align-items:center;gap:6px;' },
+                  h('button', {
+                    type: 'button',
+                    class: 'icon-btn',
+                    style: 'width:28px;height:28px;color:' + (isFav ? '#D6B779' : '#CBD5E1'),
+                    title: isFav ? 'قسم مفضل' : 'إضافة للمفضلة',
+                    onclick: function (e) {
+                      e.stopPropagation();
+                      localStorage.setItem('de_fav_sec_' + sec.id, isFav ? '0' : '1');
+                      renderAccordion();
+                    }
+                  }, makeSvgIcon('s-star')),
+                  badge(kCount + ' تلميذ', kCount > 0 ? 'ok' : 'gray')
+                )
+              ),
+              h('p', { class: 'ssc-desc', text: sec.description || 'فوج بيداغوجي وتربوي معتمد لدى جمعية دار الإحسان.' }),
+              h('div', { class: 'ssc-footer' },
+                h('button', {
+                  type: 'button',
+                  class: 'btn small gold',
+                  style: 'width:100%;font-weight:700;',
+                  onclick: function () {
+                    S.activeCenter = ck;
+                    S.filterSectionId = sec.id;
+                    go('children');
+                  }
+                }, makeSvgIcon('s-child'), h('span', { text: 'فتح القسم وعرض الطلبة' }))
+              )
+            );
+            grid.appendChild(card);
+          });
+        }
+
+        bodyEl.appendChild(grid);
+        groupCard.appendChild(headerEl);
+        groupCard.appendChild(bodyEl);
+        accordionHost.appendChild(groupCard);
       });
     }
 
-    renderSectionsGrid();
-    v.appendChild(root);
+    renderAccordion();
   }
 
   /* =====================================================================
@@ -9501,6 +9575,8 @@
     archive: secArchive,
     requests: secRegistrationRequests,
     inquiries: secInquiries,
+    notifications: secNotifications,
+    parents: secParents,
     accounts: function (v) { return secAccounts(v, false); },
     audit: secAudit,
     attendance: secAttendance,
@@ -9561,7 +9637,7 @@
       appEl.classList.toggle('is-hub-mode', !S.isEducator && (sec === 'hub' || sec === 'hub_accounts'));
     }
 
-    applyRoleSidebarUI();
+    applyRoleSidebarUI(); initHeaderWidgets();
 
     var cm = getCenterMeta(S.activeCenter);
     if (sec === 'hub') {
@@ -9742,7 +9818,7 @@
         S.activeCenter = allowedCentersList[0] || 'main';
       }
 
-      applyRoleSidebarUI();
+      applyRoleSidebarUI(); initHeaderWidgets();
       show('app');
       if (S.isEducator) {
         var eduName = (S.eduProfile && S.eduProfile.full_name) || (embeddedMatch && embeddedMatch.full_name) || myEmail;
@@ -9953,6 +10029,494 @@
       }
     });
   }
+
+  
+  /* ══════════════════════════════════════════════════════════════════════════════
+     DAR EL IHSAN — FOREST GREEN PREMIUM THEME ENGINE (LIGHT & DARK MODE)
+     ══════════════════════════════════════════════════════════════════════════════ */
+  function initThemeEngine() {
+    var saved = localStorage.getItem('de_theme');
+    var theme = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(theme);
+
+    var btn = document.getElementById('themeToggleBtn');
+    if (btn && !btn._themeBound) {
+      btn._themeBound = true;
+      btn.addEventListener('click', toggleTheme);
+    }
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('theme-dark');
+    } else {
+      document.documentElement.classList.remove('theme-dark');
+    }
+    localStorage.setItem('de_theme', theme);
+
+    var btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+      btn.setAttribute('aria-label', theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن');
+      btn.title = theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن';
+      var u = btn.querySelector('use');
+      if (u) u.setAttribute('href', theme === 'dark' ? '#s-sun' : '#s-moon');
+    }
+  }
+
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════════
+     CENTRAL NOTIFICATION ENGINE (نظام الإشعارات المركزي)
+     ══════════════════════════════════════════════════════════════════════════════ */
+  var NOTIF_STATE = {
+    items: [],
+    unreadCount: 0,
+    activeTab: 'all',
+    searchVal: '',
+    poller: null
+  };
+
+  function getLocalNotifications() {
+    try {
+      var raw = localStorage.getItem('de_notifications_cache_v2');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setLocalNotifications(list) {
+    try {
+      localStorage.setItem('de_notifications_cache_v2', JSON.stringify(Array.isArray(list) ? list.slice(0, 100) : []));
+    } catch (e) {}
+  }
+
+  // إضافة إشعار رسمي وحفظه سحابياً ومحلياً
+  async function notifySystem(category, title, body, relatedUrl, relatedRecordId, audience, childId) {
+    var newNotif = {
+      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      title: title,
+      body: body,
+      category: category || 'general',
+      notification_type: category || 'general',
+      related_url: relatedUrl || 'dash',
+      related_record_id: relatedRecordId || null,
+      audience: audience || 'admin',
+      child_id: childId || null,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+
+    var list = getLocalNotifications();
+    list.unshift(newNotif);
+    setLocalNotifications(list);
+    NOTIF_STATE.items = list;
+    updateNotificationBadges();
+
+    // حفظ في قاعدة البيانات سحابياً
+    try {
+      await C.rest('POST', '/notifications', {
+        title: title,
+        body: body,
+        notification_type: category || 'general',
+        category: category || 'general',
+        related_url: relatedUrl || 'dash',
+        audience: audience || 'admin',
+        is_read: false,
+        created_at: newNotif.created_at
+      });
+    } catch (e) {}
+
+    // تنبيه صوتي وتنبيه Toast فوري
+    toast('🔔 ' + title + ': ' + body, 'ok');
+  }
+
+  async function fetchNotifications() {
+    var dbList = [];
+    try {
+      var rows = await C.rest('GET', '/notifications?order=created_at.desc&limit=50');
+      if (Array.isArray(rows)) dbList = rows;
+    } catch (e) {}
+
+    var localList = getLocalNotifications();
+    var merged = localList.slice();
+    dbList.forEach(function (dItem) {
+      if (!merged.some(function (m) { return m.id === dItem.id; })) {
+        merged.push(dItem);
+      }
+    });
+    merged.sort(function (a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
+    NOTIF_STATE.items = merged;
+    setLocalNotifications(merged);
+    updateNotificationBadges();
+    renderNotificationDropdown();
+  }
+
+  function updateNotificationBadges() {
+    var unread = (NOTIF_STATE.items || []).filter(function (n) { return !n.is_read; }).length;
+    NOTIF_STATE.unreadCount = unread;
+
+    var bellBadge = document.getElementById('notifBellBadge');
+    if (bellBadge) {
+      bellBadge.textContent = String(unread);
+      bellBadge.hidden = unread === 0;
+    }
+
+    var navBadge = document.getElementById('notifNavBadge');
+    if (navBadge) {
+      navBadge.textContent = String(unread);
+      navBadge.hidden = unread === 0;
+    }
+  }
+
+  function renderNotificationDropdown() {
+    var host = document.getElementById('notifDropdownList');
+    if (!host) return;
+    host.textContent = '';
+
+    var topItems = (NOTIF_STATE.items || []).slice(0, 5);
+    if (!topItems.length) {
+      host.appendChild(h('div', { class: 'empty-notif-drop', text: 'لا توجد إشعارات جديدة حالياً' }));
+      return;
+    }
+
+    topItems.forEach(function (n) {
+      var iconName = 's-bell';
+      if (n.category === 'attendance') iconName = 's-cal';
+      else if (n.category === 'messages') iconName = 's-mail';
+      else if (n.category === 'reports') iconName = 's-report';
+      else if (n.category === 'docs') iconName = 's-file';
+      else if (n.category === 'system') iconName = 's-shield';
+
+      var item = h('div', {
+        class: 'notif-drop-item' + (!n.is_read ? ' is-unread' : ''),
+        onclick: function () {
+          n.is_read = true;
+          setLocalNotifications(NOTIF_STATE.items);
+          updateNotificationBadges();
+          var drop = document.getElementById('notifDropdown');
+          if (drop) drop.hidden = true;
+          if (n.related_url) go(n.related_url);
+        }
+      },
+        h('div', { class: 'ndi-icon' }, makeSvgIcon(iconName)),
+        h('div', { class: 'ndi-info' },
+          h('strong', { class: 'ndi-title', text: n.title }),
+          h('p', { class: 'ndi-body', text: n.body }),
+          h('span', { class: 'ndi-time', text: fmt(n.created_at, true) })
+        )
+      );
+      host.appendChild(item);
+    });
+  }
+
+  function initHeaderWidgets() {
+    initThemeEngine();
+
+    // ربط جرس الإشعارات
+    var bellBtn = document.getElementById('notifBellBtn');
+    var notifDrop = document.getElementById('notifDropdown');
+    if (bellBtn && notifDrop && !bellBtn._bound) {
+      bellBtn._bound = true;
+      bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        notifDrop.hidden = !notifDrop.hidden;
+        if (!notifDrop.hidden) renderNotificationDropdown();
+      });
+      document.addEventListener('click', function (e) {
+        if (!notifDrop.contains(e.target) && e.target !== bellBtn) {
+          notifDrop.hidden = true;
+        }
+      });
+    }
+
+    var btnMarkAll = document.getElementById('btnMarkAllReadDrop');
+    if (btnMarkAll && !btnMarkAll._bound) {
+      btnMarkAll._bound = true;
+      btnMarkAll.addEventListener('click', function () {
+        (NOTIF_STATE.items || []).forEach(function (n) { n.is_read = true; });
+        setLocalNotifications(NOTIF_STATE.items);
+        updateNotificationBadges();
+        renderNotificationDropdown();
+        toast('تم تحديد جميع الإشعارات كمقروءة.', 'ok');
+      });
+    }
+
+    var btnOpenAll = document.getElementById('btnOpenAllNotifs');
+    if (btnOpenAll && !btnOpenAll._bound) {
+      btnOpenAll._bound = true;
+      btnOpenAll.addEventListener('click', function () {
+        if (notifDrop) notifDrop.hidden = true;
+        go('notifications');
+      });
+    }
+
+    // ربط البحث العام في الترويسة
+    var topSearch = document.getElementById('topGlobalSearch');
+    var searchDrop = document.getElementById('topSearchResults');
+    if (topSearch && searchDrop && !topSearch._bound) {
+      topSearch._bound = true;
+      topSearch.addEventListener('input', async function () {
+        var q = normAr(topSearch.value.trim());
+        if (!q) { searchDrop.hidden = true; return; }
+        searchDrop.textContent = '';
+        var kids = await get('children') || [];
+        var sections = await get('sections') || [];
+        var reports = await get('reports') || [];
+
+        var matches = [];
+        kids.forEach(function (k) {
+          if (normAr(k.full_name || '').indexOf(q) >= 0 || (k.membership_no && k.membership_no.indexOf(q) >= 0)) {
+            matches.push({ type: 'طالب', label: k.full_name, sub: 'قسم: ' + (k.section || '—'), sec: 'children', id: k.id });
+          }
+        });
+        sections.forEach(function (s) {
+          if (normAr(s.name || '').indexOf(q) >= 0) {
+            matches.push({ type: 'قسم تربوي', label: s.name, sub: s.description || 'فوج معتمد', sec: 'branches', id: s.id });
+          }
+        });
+        reports.forEach(function (r) {
+          if (normAr(r.title || '').indexOf(q) >= 0) {
+            matches.push({ type: 'تقرير', label: r.title, sub: fmt(r.report_date), sec: 'reports', id: r.id });
+          }
+        });
+
+        if (!matches.length) {
+          searchDrop.appendChild(h('div', { class: 'empty', style: 'padding:14px;', text: 'لا توجد نتائج مطابقة لبحثك' }));
+        } else {
+          matches.slice(0, 8).forEach(function (m) {
+            var row = h('div', {
+              class: 'notif-drop-item',
+              onclick: function () {
+                topSearch.value = '';
+                searchDrop.hidden = true;
+                if (m.sec === 'children' && m.id) S.filterSectionId = '';
+                go(m.sec);
+              }
+            },
+              h('div', { class: 'ndi-info' },
+                h('div', { style: 'display:flex;justify-content:space-between;' },
+                  h('strong', { text: m.label }),
+                  badge(m.type, 'gold')
+                ),
+                h('span', { class: 'ndi-body', text: m.sub })
+              )
+            );
+            searchDrop.appendChild(row);
+          });
+        }
+        searchDrop.hidden = false;
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!searchDrop.contains(e.target) && e.target !== topSearch) {
+          searchDrop.hidden = true;
+        }
+      });
+    }
+
+    fetchNotifications();
+    if (!NOTIF_STATE.poller) {
+      NOTIF_STATE.poller = setInterval(fetchNotifications, 10000);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════════
+     صفحة مركز الإشعارات والتنبيهات المستقلة (secNotifications)
+     ══════════════════════════════════════════════════════════════════════════════ */
+  async function secNotifications(v) {
+    v.textContent = '';
+
+    var root = h('div', { class: 'notif-hub-wrap' });
+
+    root.appendChild(h('div', { class: 'notif-hub-hero' },
+      h('div', null,
+        h('h1', { class: 'nhh-title' }, makeSvgIcon('s-bell'), h('span', { text: 'مركز الإشعارات والتنبيهات' })),
+        h('p', { class: 'nhh-sub', text: 'متابعة حية وفورية لكافة تنبيهات الحضور والغياب، الرسائل، التقارير، وأنشطة النظام.' })
+      ),
+      h('div', { class: 'csh-actions' },
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          onclick: function () {
+            (NOTIF_STATE.items || []).forEach(function (n) { n.is_read = true; });
+            setLocalNotifications(NOTIF_STATE.items);
+            updateNotificationBadges();
+            renderList();
+            toast('تم تحديد جميع الإشعارات كمقروءة.', 'ok');
+          }
+        }, makeSvgIcon('s-check'), h('span', { text: 'تحديد الكل كمقروء' })),
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          onclick: function () {
+            NOTIF_STATE.items = (NOTIF_STATE.items || []).filter(function (n) { return !n.is_read; });
+            setLocalNotifications(NOTIF_STATE.items);
+            updateNotificationBadges();
+            renderList();
+            toast('تم حذف الإشعارات المقروءة.', 'ok');
+          }
+        }, makeSvgIcon('s-trash'), h('span', { text: 'حذف المقروءة' }))
+      )
+    ));
+
+    var activeCat = 'all';
+    var searchTxt = '';
+
+    var searchInput = h('input', {
+      type: 'search',
+      class: 'input',
+      style: 'max-width:280px;',
+      placeholder: 'بحث في الإشعارات…',
+      oninput: function () {
+        searchTxt = normAr(searchInput.value.trim());
+        renderList();
+      }
+    });
+
+    var tabDefs = [
+      ['all', 'كافة الإشعارات'],
+      ['unread', 'غير المقروءة'],
+      ['attendance', 'الحضور والغياب'],
+      ['messages', 'الرسائل'],
+      ['reports', 'التقارير'],
+      ['system', 'النظام والأمان']
+    ];
+
+    var tabsGroup = h('div', { class: 'notif-tabs-group' });
+    function renderTabs() {
+      tabsGroup.textContent = '';
+      tabDefs.forEach(function (td) {
+        var btn = h('button', {
+          type: 'button',
+          class: 'notif-tab-btn' + (activeCat === td[0] ? ' is-active' : ''),
+          onclick: function () {
+            activeCat = td[0];
+            renderTabs();
+            renderList();
+          }
+        }, td[1]);
+        tabsGroup.appendChild(btn);
+      });
+    }
+
+    var toolbar = h('div', { class: 'notif-filters-toolbar' }, tabsGroup, searchInput);
+    root.appendChild(toolbar);
+
+    var listHost = h('div', { class: 'notif-items-list' });
+    root.appendChild(listHost);
+    v.appendChild(root);
+
+    function renderList() {
+      listHost.textContent = '';
+      var items = NOTIF_STATE.items || [];
+
+      var filtered = items.filter(function (n) {
+        if (activeCat === 'unread' && n.is_read) return false;
+        if (activeCat !== 'all' && activeCat !== 'unread' && n.category !== activeCat) return false;
+        if (searchTxt) {
+          var hay = normAr((n.title || '') + ' ' + (n.body || ''));
+          if (hay.indexOf(searchTxt) === -1) return false;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        listHost.appendChild(h('div', { class: 'card empty', style: 'padding:40px;', text: 'لا توجد إشعارات مطابقة للتصفية الحالية' }));
+        return;
+      }
+
+      filtered.forEach(function (n) {
+        var iconName = 's-bell';
+        if (n.category === 'attendance') iconName = 's-cal';
+        else if (n.category === 'messages') iconName = 's-mail';
+        else if (n.category === 'reports') iconName = 's-report';
+        else if (n.category === 'docs') iconName = 's-file';
+        else if (n.category === 'system') iconName = 's-shield';
+
+        var card = h('div', { class: 'notif-page-card' + (!n.is_read ? ' is-unread' : '') },
+          h('div', { class: 'npc-left' },
+            h('div', { class: 'npc-icon' }, makeSvgIcon(iconName)),
+            h('div', { class: 'npc-body' },
+              h('div', { style: 'display:flex;align-items:center;gap:10px;' },
+                h('strong', { text: n.title }),
+                !n.is_read ? badge('جديد', 'gold') : null
+              ),
+              h('p', { text: n.body }),
+              h('div', { class: 'npc-meta' },
+                h('span', { text: fmt(n.created_at, true) }),
+                h('span', { text: '•' }),
+                h('span', { text: 'النوع: ' + (n.category || 'عام') })
+              )
+            )
+          ),
+          h('div', { class: 'npc-actions' },
+            h('button', {
+              type: 'button',
+              class: 'btn small light',
+              onclick: function () {
+                n.is_read = true;
+                setLocalNotifications(NOTIF_STATE.items);
+                updateNotificationBadges();
+                if (n.related_url) go(n.related_url);
+              }
+            }, makeSvgIcon('s-eye'), h('span', { text: 'عرض التفاصيل' })),
+            h('button', {
+              type: 'button',
+              class: 'btn small ghost',
+              title: 'حذف الإشعار',
+              onclick: function () {
+                NOTIF_STATE.items = (NOTIF_STATE.items || []).filter(function (x) { return x.id !== n.id; });
+                setLocalNotifications(NOTIF_STATE.items);
+                updateNotificationBadges();
+                renderList();
+              }
+            }, makeSvgIcon('s-trash'))
+          )
+        );
+        listHost.appendChild(card);
+      });
+    }
+
+    renderTabs();
+    renderList();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════════
+     قسم فضاء الأولياء الإداري (secParents)
+     ══════════════════════════════════════════════════════════════════════════════ */
+  async function secParents(v) {
+    v.textContent = '';
+    var d = await getMany('children', 'codes');
+    var kids = d[0] || [], codes = d[1] || [];
+
+    var root = h('div', { class: 'notif-hub-wrap' });
+    root.appendChild(h('div', { class: 'notif-hub-hero' },
+      h('div', null,
+        h('h1', { class: 'nhh-title' }, makeSvgIcon('s-users'), h('span', { text: 'إدارة فضاء الأولياء' })),
+        h('p', { class: 'nhh-sub', text: 'متابعة حسابات أولياء الأمور، إدارة رموز التفعيل، والتحقق من صلاحيات الدخول.' })
+      ),
+      h('div', { class: 'csh-actions' },
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          onclick: function () { window.open('parent.html', '_blank'); }
+        }, makeSvgIcon('s-desktop'), h('span', { text: 'فتح فضاء الأولياء للمعاينة' }))
+      )
+    ));
+
+    var card = h('div', { class: 'card', style: 'padding:24px;' },
+      h('h3', { text: 'حالة الربط وحسابات الأولياء المعتمدة' }),
+      h('p', { class: 'muted', text: 'كل ولي أمر يملك صلاحية الاطلاع الحصرية على بيانات طفله المسجل فقط عبر سياسات Row Level Security المشددة.' })
+    );
+    root.appendChild(card);
+    v.appendChild(root);
+  }
+
 
   async function init() {
     // صمام أمان حاسم: إذا بقيت شاشة التحميل ظاهرة لأكثر من ثانيتين، يتم إظهار شاشة الدخول فوراً
