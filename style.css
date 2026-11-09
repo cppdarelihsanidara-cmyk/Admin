@@ -5,7 +5,7 @@
   --nav-text: #153d5d;
   --nav-soft: #eef3f6;
   --gold: #a3264d;
-  --green: #1f8a7a;
+  --green: #2563EB;
   --blue: #16335f;
   --cream: #f5efe8;
   --paper: #f9f5f1;
@@ -1448,7 +1448,7 @@ footer p {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #059669;
+  background: #2563EB;
   color: #FFFFFF;
   display: flex;
   align-items: center;
