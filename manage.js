@@ -3316,29 +3316,63 @@
     function renderProgramsDashboard() {
       mainContainer.textContent = '';
 
-      // 1. بطاقة الترويسة الرئيسية مع زر «+ إضافة برنامج أسبوعي»
-      var addProgramBtn = h('button', {
+            // 1. بطاقة الترويسة وشريط إضافة وتحرير البرنامج الأسبوعي المباشر (دون نوافذ منبثقة)
+      var inlineSecSelect = h('select', { style: 'font-weight:700; font-size:13px; padding:7px 10px; border-radius:8px; border:1.5px solid #CBD5E1; min-width:160px;' },
+        sections.map(function (s) { return h('option', { value: s.id, text: s.name }); })
+      );
+      var inlineSemInp = h('input', {
+        type: 'text', value: 'السداسي الأول',
+        style: 'font-weight:700; font-size:13px; padding:7px 10px; border-radius:8px; border:1.5px solid #CBD5E1; width:120px; text-align:center;'
+      });
+      var inlineYearInp = h('input', {
+        type: 'text', value: '2026/2027',
+        style: 'font-weight:700; font-size:13px; padding:7px 10px; border-radius:8px; border:1.5px solid #CBD5E1; width:95px; text-align:center;'
+      });
+
+      var inlineStartBtn = h('button', {
         type: 'button',
         class: 'btn primary gold',
-        style: 'font-weight:900; font-size:14px; padding:10px 20px; box-shadow:0 4px 14px rgba(245,158,11,0.25); display:flex; align-items:center; gap:8px;',
-        onclick: function () { openAddProgramModal(); }
-      }, makeSvgIcon('s-plus'), h('span', { text: '+ إضافة برنامج أسبوعي' }));
+        style: 'font-weight:900; font-size:13px; padding:8px 16px; border-radius:8px; display:flex; align-items:center; gap:6px;',
+        onclick: function () {
+          var chosenSecId = inlineSecSelect.value;
+          var chosenSecName = getSectionName(chosenSecId);
+          var semVal = inlineSemInp.value.trim() || 'السداسي الأول';
+          var yearVal = inlineYearInp.value.trim() || '2026/2027';
+
+          var existing = findProgramForSection(chosenSecId);
+          if (existing) {
+            activeWeekState = parseExistingProgramState(existing, sections);
+          } else {
+            activeWeekState = createOfficialPresetWeekState(chosenSecId, chosenSecName);
+          }
+          activeWeekState.semester = semVal;
+          activeWeekState.academic_year = yearVal;
+          expandedSecId = chosenSecId;
+          isMergeMode = false;
+          mergeSelectedCells = {};
+          renderProgramsDashboard();
+          toast('تم فتح محرر البرنامج لفوج «' + chosenSecName + '».', 'ok');
+        }
+      }, makeSvgIcon('s-edit'), h('span', { text: 'بدء تحرير البرنامج' }));
 
       var heroCard = h('div', {
         class: 'card wk-programs-hero-card',
-        style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; padding:20px 24px; background:linear-gradient(135deg, #EAF4FF 0%, #FFFFFF 100%); border:1.5px solid #2563EB; border-radius:16px; box-shadow:0 6px 24px rgba(37, 99, 235,0.08);'
+        style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; padding:16px 20px; background:linear-gradient(135deg, #EAF4FF 0%, #FFFFFF 100%); border:1.5px solid #2563EB; border-radius:14px; box-shadow:0 4px 20px rgba(37, 99, 235,0.07);'
       },
-        h('div', { style: 'display:flex; align-items:center; gap:14px;' },
-          h('div', { style: 'background:#DCFCE7; color:#1D4ED8; width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0;' },
+        h('div', { style: 'display:flex; align-items:center; gap:12px;' },
+          h('div', { style: 'background:#EAF4FF; color:#2563EB; width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;' },
             makeSvgIcon('s-cal')
           ),
           h('div', null,
-            h('h2', { style: 'margin:0 0 4px; color:#163B65; font-size:1.4rem; font-weight:900;', text: 'البرامج الأسبوعية للأفواج' }),
-            h('p', { class: 'small muted', style: 'margin:0; font-size:13px; color:#475569;', text: 'إعداد وإدارة واعتماد البرامج الأسبوعية المعتمدة لكل فوج تربوي، ونشرها في فضاء الأولياء بصيغة A4' })
+            h('h2', { style: 'margin:0 0 2px; color:#163B65; font-size:1.35rem; font-weight:900;', text: 'البرامج الأسبوعية للأفواج' }),
+            h('p', { class: 'small muted', style: 'margin:0; font-size:12.5px; color:#64748B;', text: 'إعداد وإدارة واعتماد البرامج الأسبوعية المعتمدة لكل فوج تربوي، ونشرها في فضاء الأولياء بصيغة A4' })
           )
         ),
-        h('div', { style: 'display:flex; align-items:center; gap:10px; flex-wrap:wrap;' },
-          addProgramBtn
+        h('div', { style: 'display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; background:#FFFFFF; padding:8px 12px; border-radius:10px; border:1px solid #CBD5E1;' },
+          h('div', null, h('span', { class: 'small muted', style: 'font-weight:700; font-size:11px; display:block; margin-bottom:2px;', text: 'الفوج:' }), inlineSecSelect),
+          h('div', null, h('span', { class: 'small muted', style: 'font-weight:700; font-size:11px; display:block; margin-bottom:2px;', text: 'السداسي:' }), inlineSemInp),
+          h('div', null, h('span', { class: 'small muted', style: 'font-weight:700; font-size:11px; display:block; margin-bottom:2px;', text: 'الموسم:' }), inlineYearInp),
+          inlineStartBtn
         )
       );
       mainContainer.appendChild(heroCard);
@@ -6758,13 +6792,56 @@
     var v = $('#view');
     v.textContent = '';
 
-    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;' },
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;' },
       h('div', { style: 'display:flex; align-items:center; gap:10px;' },
         h('img', { src: 'logo-sq.png', style: 'width:42px; height:42px; border-radius:8px;' }),
         h('h2', { style: 'margin:0; color:#163B65; font-size:1.35rem; font-weight:900;', text: existingRep ? 'تعديل استمارة ملاحظة سلوك' : 'استمارة ملاحظة سلوك جديدة' })
       ),
-      h('div', { class: 'row-actions' },
-        h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
+      h('div', { class: 'row-actions', style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' },
+        h('button', {
+          class: 'btn light',
+          type: 'button',
+          style: 'font-weight:700;',
+          onclick: function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للمعاينة.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            var packed = packCurrentObsData();
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1040px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(renderBehaviorObservationSheetView({
+              child_id: kidSelect.value,
+              report_date: reportDateInp.value,
+              behavior_observation: packed
+            }, chosenKid ? chosenKid.full_name : '', sName, chosenKid));
+            openModal(prevModal);
+          }
+        }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة الاستمارة' })),
+
+        h('button', {
+          class: 'btn light',
+          type: 'button',
+          style: 'font-weight:700;',
+          onclick: async function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للتحميل.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            var packed = packCurrentObsData();
+            try {
+              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              var pdfBytes = await DE_PDF.renderBehaviorObservationToPdf({
+                child_id: kidSelect.value,
+                report_date: reportDateInp.value,
+                behavior_observation: packed
+              }, chosenKid ? chosenKid.full_name : '', sName, chosenKid);
+              DE_PDF.downloadPdf(pdfBytes, 'استمارة_ملاحظة_سلوك_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
+              toast('تم تحميل الاستمارة بصيغة PDF بنجاح!', 'ok');
+            } catch (err) {
+              toast('تعذر التحميل: ' + err.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF (A4)' })),
+
+        h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
       )
     );
     v.appendChild(topBar);
@@ -6777,13 +6854,38 @@
     var obs = ev.behavior_observation || {};
     var itemsState = obs.items || {};
 
+    var curSecId = S.isEducator ? S.eduSectionId : (selKid ? selKid.section_id : '');
+    var secFilterSelect = h('select', { style: 'font-weight:700; width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1;', disabled: !!S.isEducator },
+      h('option', { value: '', text: '— جميع الأقسام التربوية —' }),
+      secAllOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); })
+    );
+    secFilterSelect.value = curSecId || '';
+
     var kidSelect = h('select', { style: 'font-weight:700; width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1;' });
-    kidSelect.appendChild(h('option', { value: '', text: '— اختر الطالب المعني بالملاحظة —' }));
-    kids.forEach(function (k) {
-      var opt = h('option', { value: k.id, text: k.full_name + (k.section ? (' — ' + k.section) : '') });
-      if (k.id === ev.child_id) opt.selected = true;
-      kidSelect.appendChild(opt);
+
+    function populateObsKidsSelect() {
+      var sId = secFilterSelect.value;
+      var keep = ev.child_id || kidSelect.value;
+      while (kidSelect.firstChild) kidSelect.removeChild(kidSelect.firstChild);
+      kidSelect.appendChild(h('option', { value: '', text: '— اختر الطالب المعني بالملاحظة —' }));
+      kids.forEach(function (k) {
+        if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
+        var opt = h('option', { value: k.id, text: k.full_name + (k.section ? (' — ' + k.section) : '') });
+        kidSelect.appendChild(opt);
+      });
+      if (keep && kids.some(function (k) { return k.id === keep; })) {
+        kidSelect.value = keep;
+      }
+    }
+
+    secFilterSelect.addEventListener('change', function () {
+      ev.child_id = '';
+      populateObsKidsSelect();
+      ev.child_id = kidSelect.value;
+      onKidChange();
     });
+
+    populateObsKidsSelect();
 
     var disabilityInp = h('input', { type: 'text', style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1; font-weight:700;', placeholder: 'الإعاقة / الاضطراب', value: obs.disability || (selKid && (selKid.disability || '')) || 'توحد' });
     var ageInp = h('input', { type: 'text', style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1; font-weight:700; text-align:center;', placeholder: 'العمر (مثال: 08 سنوات)', value: obs.age || (selKid && selKid.dob ? calcKidAgeStr(selKid.dob) : '08 سنوات') });
@@ -6799,11 +6901,12 @@
     }
     kidSelect.addEventListener('change', onKidChange);
 
-    var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px; background:#F8FAFC; padding:18px; border-radius:12px; border:1.5px solid #E2E8F0;' },
-      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block;', text: 'اسم ولقب الحالة:' }), kidSelect),
-      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block;', text: 'الإعاقة / الاضطراب:' }), disabilityInp),
-      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block;', text: 'العمر:' }), ageInp),
-      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block;', text: 'تاريخ الملاحظة:' }), reportDateInp)
+    var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:20px; background:#F8FAFC; padding:16px; border-radius:12px; border:1.5px solid #E2E8F0;' },
+      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '1. القسم التربوي:' }), secFilterSelect),
+      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '2. اسم ولقب الحالة:' }), kidSelect),
+      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '3. الإعاقة / الاضطراب:' }), disabilityInp),
+      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '4. العمر:' }), ageInp),
+      h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '5. تاريخ الملاحظة:' }), reportDateInp)
     );
     card.appendChild(metaGrid);
 
@@ -6878,7 +6981,6 @@
 
       var tr = h('tr', { style: 'background:' + (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC') + '; border-bottom:1px solid #E2E8F0;' },
         h('td', { style: 'padding:8px 12px; border:1px solid #E2E8F0; font-size:13.5px; font-weight:700; color:#0F172A; vertical-align:middle;' },
-          h('span', { style: 'display:inline-block; margin-left:8px; font-size:18px;', text: it.icon }),
           h('span', { text: it.text })
         ),
         h('td', { style: 'padding:4px; border:1px solid #E2E8F0; text-align:center; vertical-align:middle;' }, bYes),
@@ -6914,19 +7016,78 @@
     card.appendChild(sigFooter);
 
     // أزرار الحفظ والنشر
-    var actionsBar = h('div', { style: 'display:flex; justify-content:flex-end; gap:12px; margin-top:24px;' },
-      h('button', {
-        type: 'button',
-        class: 'btn light',
-        style: 'font-weight:700;',
-        onclick: function () { saveObsAction('draft'); }
-      }, h('span', { text: 'حفظ كمسودة' })),
-      h('button', {
-        type: 'button',
-        class: 'btn gold',
-        style: 'font-weight:800;',
-        onclick: function () { saveObsAction('published'); }
-      }, h('span', { text: 'اعتماد ونشر للأولياء' }))
+    function packCurrentObsData() {
+      var packedItems = {};
+      BEHAVIOR_OBSERVATION_ITEMS.forEach(function (it) {
+        if (rowStateRefs[it.id]) packedItems[it.id] = rowStateRefs[it.id].get();
+      });
+      return {
+        disability: disabilityInp.value,
+        age: ageInp.value,
+        additional_notes: extraNotesArea.value,
+        items: packedItems
+      };
+    }
+
+    var actionsBar = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px;' },
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'font-weight:700;',
+          onclick: function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للمعاينة.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            var packed = packCurrentObsData();
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1040px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(renderBehaviorObservationSheetView({
+              child_id: kidSelect.value,
+              report_date: reportDateInp.value,
+              behavior_observation: packed
+            }, chosenKid ? chosenKid.full_name : '', sName, chosenKid));
+            openModal(prevModal);
+          }
+        }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'font-weight:700;',
+          onclick: async function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للتحميل.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            var packed = packCurrentObsData();
+            try {
+              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              var pdfBytes = await DE_PDF.renderBehaviorObservationToPdf({
+                child_id: kidSelect.value,
+                report_date: reportDateInp.value,
+                behavior_observation: packed
+              }, chosenKid ? chosenKid.full_name : '', sName, chosenKid);
+              DE_PDF.downloadPdf(pdfBytes, 'استمارة_ملاحظة_سلوك_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
+              toast('تم تحميل الاستمارة بصيغة PDF بنجاح!', 'ok');
+            } catch (err) {
+              toast('تعذر التحميل: ' + err.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF' }))
+      ),
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'font-weight:700;',
+          onclick: function () { saveObsAction('draft'); }
+        }, h('span', { text: 'حفظ كمسودة' })),
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          style: 'font-weight:800;',
+          onclick: function () { saveObsAction('published'); }
+        }, h('span', { text: 'اعتماد ونشر للأولياء' }))
+      )
     );
     card.appendChild(actionsBar);
 
@@ -7032,7 +7193,6 @@
       var val = sv.val || '';
       var tr = h('tr', { style: 'background:' + (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC') + ';' },
         h('td', { style: 'padding:6px 10px; border:1px solid #E2E8F0; font-weight:700;' },
-          h('span', { style: 'margin-left:6px; font-size:16px;', text: it.icon }),
           h('span', { text: it.text })
         ),
         h('td', { style: 'padding:6px 4px; border:1px solid #E2E8F0; text-align:center; font-weight:900;' }, val === 'يوجد' ? h('span', { style: 'color:#2563EB; font-size:15px;', text: '✔' }) : ''),
@@ -7105,12 +7265,47 @@
     var v = $('#view');
     v.textContent = '';
 
-    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;' },
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;' },
       h('div', { style: 'display:flex; align-items:center; gap:10px;' },
         h('img', { src: 'logo-sq.png', style: 'width:42px; height:42px; border-radius:8px;' }),
         h('h2', { style: 'margin:0; color:#163B65; font-size:1.35rem; font-weight:900;', text: existingRep ? 'تعديل التقرير النوعي' : 'كتابة التقرير النوعي (الملاحظات والتوجيهات)' })
       ),
-      h('div', { class: 'row-actions' },
+      h('div', { class: 'row-actions', style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' },
+        h('button', {
+          class: 'btn light',
+          type: 'button',
+          style: 'font-weight:700;',
+          onclick: function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للمعاينة.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            packQualData();
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1040px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'notes'));
+            openModal(prevModal);
+          }
+        }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة التقرير النوعي' })),
+
+        h('button', {
+          class: 'btn light',
+          type: 'button',
+          style: 'font-weight:700;',
+          onclick: async function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للتحميل.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            packQualData();
+            try {
+              toast('جارٍ تجهيز التقرير النوعي بصيغة PDF...', 'ok');
+              var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'notes');
+              DE_PDF.downloadPdf(pdfBytes, 'التقرير_النوعي_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
+              toast('تم تحميل التقرير النوعي بصيغة PDF بنجاح!', 'ok');
+            } catch (err) {
+              toast('تعذر التحميل: ' + err.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل النوعي PDF' })),
+
         h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
       )
     );
@@ -7193,22 +7388,74 @@
     v.appendChild(step1Card);
 
     // =========================================================================
-    // 2. بطاقة التقرير الكمي (معروضة في الأعلى مباشرة فوق التقرير النوعي لتوجيه ملئه)
+    // 2. بطاقة التقرير الكمي (تستدعي نتائج آخر تقييم للسلوك الحالي تلقائياً وتعرضها أعلى الاستمارة)
     // =========================================================================
     var quantHost = h('div', { class: 'card', style: 'margin-bottom:16px; border:2px solid #2563EB; border-radius:14px; background:#F8FAFC; padding:18px;' });
 
-    function renderQuantitativeOnTop() {
+    async function renderQuantitativeOnTop() {
       quantHost.textContent = '';
       var chosenKid = kids.filter(function (k) { return k.id === ev.child_id; })[0];
       var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
 
-      quantHost.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1.5px solid #CBD5E1; padding-bottom:8px;' },
+      // جلب نتائج آخر تقييم أداء سلوك حالي للطفل لربطه بالتقرير الكمي
+      var evalRows = [];
+      try {
+        var rawAll = await C.rest('GET', '/progress_reports?child_id=eq.' + uid(ev.child_id) + '&order=report_date.desc');
+        if (Array.isArray(rawAll)) evalRows = rawAll;
+      } catch (e) {}
+      var sharedList = readLocalSharedEvaluations();
+      var localChildEvals = sharedList.filter(function (r) { return r && r.child_id === ev.child_id; });
+      var combinedEvals = evalRows.concat(localChildEvals).filter(function (r) { return isSectionEvaluation(r) || isEvaluationReport(r); });
+      combinedEvals.sort(function (a, b) {
+        return new Date(b.report_date || b.created_at || 0) - new Date(a.report_date || a.created_at || 0);
+      });
+      var latestEval = combinedEvals[0];
+
+      if (latestEval) {
+        var p = parseEvaluationReport(latestEval);
+        if (p && p.domains && p.domains.length) {
+          ev.domains = p.domains;
+        }
+      }
+
+      var quantHeaderBar = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1.5px solid #CBD5E1; padding-bottom:8px; flex-wrap:wrap; gap:10px;' },
         h('div', { style: 'display:flex; align-items:center; gap:8px;' },
           h('span', { style: 'font-size:22px;', text: '📊' }),
-          h('strong', { style: 'color:#163B65; font-size:15px; font-weight:900;', text: 'التقرير التقييمي الكمي لنتائج الحالة (معروض في الأعلى لتوجيه ملء التقرير النوعي)' })
+          h('div', null,
+            h('strong', { style: 'color:#163B65; font-size:15px; font-weight:900; display:block;', text: 'التقرير التقييمي الكمي لنتائج الحالة (معروض في الأعلى لتوجيه ملء التقرير النوعي)' }),
+            latestEval ? h('span', { class: 'small muted', style: 'color:#2563EB; font-weight:700;', text: '✓ تم ربط نتائج آخر تقييم للسلوك الحالي تلقائياً (بتاريخ: ' + fmt(latestEval.report_date) + ')' }) : h('span', { class: 'small muted', style: 'color:#64748B;', text: 'لم يُسجل تقييم سابق؛ يتم عرض النتائج الافتراضية.' })
+          )
         ),
-        h('span', { class: 'badge gold', style: 'font-size:11px;', text: 'مخطط بياني مباشر' })
-      ));
+        h('div', { style: 'display:flex; gap:8px; align-items:center;' },
+          h('button', {
+            type: 'button',
+            class: 'btn small light',
+            style: 'font-weight:800;',
+            onclick: function () {
+              var prevModal = h('div', { class: 'modal card', style: 'max-width:1000px; width:95%; max-height:90vh; overflow-y:auto; padding:20px;' });
+              prevModal.appendChild(renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'statistics'));
+              openModal(prevModal);
+            }
+          }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة التقرير الكمي' })),
+
+          h('button', {
+            type: 'button',
+            class: 'btn small light',
+            style: 'font-weight:800;',
+            onclick: async function () {
+              try {
+                toast('جارٍ تجهيز التقرير الكمي بصيغة PDF...', 'ok');
+                var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'statistics');
+                DE_PDF.downloadPdf(pdfBytes, 'التقرير_الكمي_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
+                toast('تم تحميل التقرير الكمي بصيغة PDF بنجاح!', 'ok');
+              } catch (err) {
+                toast('تعذر التحميل: ' + err.message, 'bad');
+              }
+            }
+          }, makeSvgIcon('s-download'), h('span', { text: 'تحميل الكمي PDF' }))
+        )
+      );
+      quantHost.appendChild(quantHeaderBar);
 
       var canvasWrap = h('div', { style: 'width:100%; min-height:280px; background:#FFF; border:1px solid #E2E8F0; border-radius:8px; display:flex; align-items:center; justify-content:center;' },
         h('span', { class: 'muted small', text: 'جارٍ رسم التقرير الكمي البياني...' })
@@ -7348,19 +7595,66 @@
     );
     v.appendChild(stepSummaryCard);
 
+    function packQualData() {
+      ev.title = titleInput.value;
+      ev.report_date = dateInput.value;
+      ev.term = termSelect.value;
+      ev.school_year = schoolYearInput.value;
+      ev.degree_of_disability = disabilityDegInput.value;
+      ev.qualification_level = qualLevelInput.value;
+    }
+
     // تذييل الحفظ والنشر
-    var saveActions = h('div', { style: 'display:flex; justify-content:flex-end; gap:12px; margin-top:20px;' },
-      h('button', {
-        type: 'button',
-        class: 'btn light',
-        onclick: function () { saveQualitativeAction('draft'); }
-      }, h('span', { text: 'حفظ كمسودة' })),
-      h('button', {
-        type: 'button',
-        class: 'btn gold',
-        style: 'font-weight:800;',
-        onclick: function () { saveQualitativeAction('published'); }
-      }, h('span', { text: 'اعتماد ونشر للولي' }))
+    var saveActions = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px;' },
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'font-weight:700;',
+          onclick: function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للمعاينة.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            packQualData();
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1040px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'notes'));
+            openModal(prevModal);
+          }
+        }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة التقرير' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'font-weight:700;',
+          onclick: async function () {
+            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للتحميل.', 'bad');
+            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
+            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
+            packQualData();
+            try {
+              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, chosenKid ? chosenKid.full_name : '', sName, chosenKid, 'notes');
+              DE_PDF.downloadPdf(pdfBytes, 'التقرير_النوعي_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
+              toast('تم تحميل التقرير بصيغة PDF بنجاح!', 'ok');
+            } catch (err) {
+              toast('تعذر التحميل: ' + err.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF' }))
+      ),
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          onclick: function () { saveQualitativeAction('draft'); }
+        }, h('span', { text: 'حفظ كمسودة' })),
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
+          style: 'font-weight:800;',
+          onclick: function () { saveQualitativeAction('published'); }
+        }, h('span', { text: 'اعتماد ونشر للولي' }))
+      )
     );
     v.appendChild(saveActions);
 
@@ -7430,7 +7724,7 @@
     v.textContent = '';
 
     var topBar = h('div', { class: 'bar-sub' },
-      h('h2', { text: existingRep ? 'تعديل استمارة التقييم البيداغوجي' : 'إضافة استمارة تقييم بيداغوجي رسمية جديدة' }),
+      h('h2', { text: existingRep ? 'تعديل تقييم أداء السلوك الحالي' : 'تقييم أداء السلوك الحالي (المجالات والمهارات البيداغوجية)' }),
       h('div', { class: 'row-actions' },
         h('button', { class: 'btn light', type: 'button', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
       )
@@ -7598,119 +7892,7 @@
       supervisorsHost
     );
     v.appendChild(stepSupervisorsCard);
-
-    // 3. خانات تقرير التقييم (الوصف العام لأداء الحالة: التقرير العام + الخانات الستة — مضبوطة بحد أقصى لصفحة A4)
-    var MAX_GR_CHARS = 700;
-    var MAX_GR_LINES = 10;
-    var grCounterBadge = h('span', { class: 'muted small', style: 'display:block; margin-top:4px; font-weight:700;' });
-    var generalReportArea = h('textarea', { rows: 8, maxlength: MAX_GR_CHARS, placeholder: 'اكتب التقرير العام الشامل لأداء وسلوك الحالة (مضبوط بحد أقصى لا يتجاوز صفحة A4)...' });
-    generalReportArea.value = String(ev.general_report || '').slice(0, MAX_GR_CHARS);
-
-    function updateGrLimitUI() {
-      var val = generalReportArea.value || '';
-      var lines = val.split('\n');
-      if (lines.length > MAX_GR_LINES) {
-        val = lines.slice(0, MAX_GR_LINES).join('\n');
-        generalReportArea.value = val;
-      }
-      if (val.length > MAX_GR_CHARS) {
-        val = val.slice(0, MAX_GR_CHARS);
-        generalReportArea.value = val;
-      }
-      ev.general_report = val;
-      var rem = MAX_GR_CHARS - val.length;
-      grCounterBadge.textContent = 'حد صفحة A4: ' + val.length + ' / ' + MAX_GR_CHARS + ' حرف (' + lines.length + '/' + MAX_GR_LINES + ' أسطر)' + (rem <= 0 ? ' — امتلأت مساحة الصندوق في صفحة A4' : '');
-      grCounterBadge.style.color = rem <= 30 ? '#DC2626' : '#475569';
-    }
-    generalReportArea.addEventListener('input', updateGrLimitUI);
-    updateGrLimitUI();
-
-    var ab = ev.abilities || {};
-    function makeAbArea(key, placeholder) {
-      var ta = h('textarea', { rows: 2, maxlength: 130, placeholder: placeholder + ' (حد أقصى سطران لصفحة A4)' });
-      ta.value = String(ab[key] || '').slice(0, 130);
-      ta.addEventListener('input', function () {
-        if (!ev.abilities) ev.abilities = {};
-        var lns = ta.value.split('\n');
-        if (lns.length > 2) ta.value = lns.slice(0, 2).join(' ');
-        ev.abilities[key] = ta.value.slice(0, 130);
-      });
-      return ta;
-    }
-
-    var stepReportFieldsCard = h('div', { class: 'card prog-step-card' },
-      h('h3', { class: 'prog-step-title', text: '3⃣ خانات تقرير التقييم — الوصف العام لأداء الحالة (مطابقة للصورة الرسمية)' }),
-      h('div', { class: 'eval-builder-grid-2' },
-        h('label', { class: 'fld' },
-          h('span', { text: 'التقرير العام (مربع التقرير الشامل على اليمين — مضبوط لصفحة A4):' }),
-          generalReportArea,
-          grCounterBadge
-        ),
-        h('div', { class: 'oep-abilities-stack' },
-          h('label', { class: 'fld' }, h('span', { text: '1. إمكانيات والقدرات الحالية:' }), makeAbArea('current_potentials', 'سجل الإمكانيات والقدرات الحالية...')),
-          h('label', { class: 'fld' }, h('span', { text: '2. المهارات المعرفية والفكرية:' }), makeAbArea('cognitive_intellectual', 'سجل المهارات المعرفية والفكرية...')),
-          h('label', { class: 'fld' }, h('span', { text: '3. اللغة (استقبالية تعبيرية):' }), makeAbArea('language_receptive_expressive', 'سجل مستوى اللغة الاستقبالية والتعبيرية...')),
-          h('label', { class: 'fld' }, h('span', { text: '4. القدرات الإتصالية والسلوكية:' }), makeAbArea('communication_behavioral', 'سجل القدرات التواصلية والسلوك...')),
-          h('label', { class: 'fld' }, h('span', { text: '5. المعارف الأكاديمية وما قبل الأكاديمي:' }), makeAbArea('academic_preacademic', 'سجل المعارف الأكاديمية وما قبل الأكاديمية...')),
-          h('label', { class: 'fld' }, h('span', { text: '6. القدرات الحركية والاستقلالية:' }), makeAbArea('motor_independence', 'سجل القدرات الحركية ومستوى الاستقلالية...'))
-        )
-      )
-    );
-    v.appendChild(stepReportFieldsCard);
-
-    // 4. الخلاصة والتوصيات (نقاط القوة، نقاط الضعف، التوصيات مع إمكانية إضافة أكثر من واحدة)
-    function buildDynamicListBlock(title, arrKey, placeholder, addLabel) {
-      var MAX_ITEMS_A4 = 4;
-      var container = h('div', { class: 'dynamic-items-container' });
-      var addBtn = h('button', {
-        type: 'button',
-        class: 'btn small light',
-        text: addLabel,
-        onclick: function () {
-          if ((ev[arrKey] || []).length >= MAX_ITEMS_A4) {
-            return toast('الحد الأقصى 4 نقاط في كل خانة حتى لا يتجاوز تقرير الملاحظات صفحة A4 واحدة.', 'bad');
-          }
-          ev[arrKey].push('');
-          redraw();
-        }
-      });
-      function redraw() {
-        container.textContent = '';
-        if (!ev[arrKey] || !ev[arrKey].length) ev[arrKey] = [''];
-        if (ev[arrKey].length > MAX_ITEMS_A4) ev[arrKey] = ev[arrKey].slice(0, MAX_ITEMS_A4);
-        addBtn.disabled = ev[arrKey].length >= MAX_ITEMS_A4;
-        ev[arrKey].forEach(function (val, idx) {
-          var inp = h('input', { type: 'text', maxlength: 120, placeholder: placeholder + ' (حد صفحة A4)', value: String(val || '').slice(0, 120) });
-          inp.addEventListener('input', function () { ev[arrKey][idx] = inp.value.slice(0, 120); });
-          var del = h('button', {
-            type: 'button',
-            class: 'btn small danger',
-            text: 'حذف',
-            disabled: ev[arrKey].length <= 1,
-            onclick: function () {
-              ev[arrKey].splice(idx, 1);
-              redraw();
-            }
-          });
-          container.appendChild(h('div', { class: 'dynamic-item-row' }, inp, del));
-        });
-      }
-      redraw();
-      return h('div', { class: 'card', style: 'margin-bottom:0;' },
-        h('div', { class: 'bar-sub' }, h('h4', { text: title + ' (حد 4 نقاط لصفحة A4)' }), addBtn),
-        container
-      );
-    }
-
-    var stepSummaryCard = h('div', { class: 'card prog-step-card' },
-      h('h3', { class: 'prog-step-title', text: '4⃣ الخلاصة والتوصيات (إمكانية إضافة أكثر من نقطة قوة، ضعف، وتوصية)' }),
-      h('div', { class: 'eval-builder-grid-2' },
-        buildDynamicListBlock('نقاط القوة', 'strengths', 'اكتب نقطة قوة...', '+ إضافة نقطة قوة'),
-        buildDynamicListBlock('نقاط الضعف', 'weaknesses', 'اكتب نقطة ضعف...', '+ إضافة نقطة ضعف')
-      ),
-      buildDynamicListBlock('التوصيات والتوجيهات', 'recommendations', 'اكتب توصية للمركز والأسرة...', '+ إضافة توصية أخرى')
-    );
-    v.appendChild(stepSummaryCard);
+    // تم نزع التقرير النوعي (الوصف العام والخلاصة والتوصيات) من تقييم أداء السلوك الحالي بطلب الإدارة ونقله للتقرير النوعي
 
     // 5. تقييم المهارات والمجالات البيداغوجية المصغر ("اريد ان تصغر حجم التقيم")
     var CURR = (window && window.DE_CURRICULUM) || EMBEDDED_CURRICULUM || {};
@@ -8244,21 +8426,42 @@
       go('reports');
     }
 
+    var repQuickBar = h('div', {
+      class: 'card',
+      style: 'margin-bottom:14px; padding:12px 16px; background:#FFFFFF; border:1.5px solid #2563EB; border-radius:12px; box-shadow:0 2px 10px rgba(37,99,235,0.06);'
+    },
+      h('div', { style: 'font-weight:900; color:#163B65; font-size:14px; margin-bottom:8px; display:flex; align-items:center; gap:8px;' },
+        makeSvgIcon('s-report'),
+        h('span', { text: 'إنشاء تقرير جديد — اختر نوع التقرير مباشرة:' })
+      ),
+      h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openQualitativeReportBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '📝' }), h('span', { text: 'التقرير النوعي (الملاحظات)' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openAnnualFinalBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '🎓' }), h('span', { text: 'التقرير النهائي لمتابعة الطالب' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { editReport(null); }
+        }, h('span', { style: 'font-size:16px;', text: '📄' }), h('span', { text: 'تقرير دوري عادي (مع مرفق)' }))
+      )
+    );
+    v.appendChild(repQuickBar);
+
     listView(v, {
       title: S.isEducator ? ('التقارير البيداغوجية والنهائية — قسم ' + (S.eduSectionName || 'فوجي')) : 'التقارير البيداغوجية والنهائية للطلبة',
-      addLabel: 'إضافة تقرير جديد',
-      onAdd: function () {
-        if (!kids.length) return toast('لا يوجد أطفال مسجلون في هذا القسم.', 'bad');
-        openChooseReportTypeModal(function (typeId) {
-          if (typeId === 'annual_final') {
-            openAnnualFinalBuilder(null, kids, sections, secAllOpts, branchOpts);
-          } else if (typeId === 'qualitative') {
-            openQualitativeReportBuilder(null, kids, sections, secAllOpts, branchOpts);
-          } else {
-            editReport(null);
-          }
-        });
-      },
+      rows: rows,
       rows: rows,
       empty: 'لا توجد تقارير دورية مسجلة بعد. اضغط «كتابة تقرير دوري جديد» لإضافة تقرير مع إمكانية رفع ملف.',
       search: function (r) { return r.title + ' ' + nameOf(kids, r.child_id); },
@@ -8437,23 +8640,49 @@
       go('evaluations');
     }
 
+    var evalQuickBar = h('div', {
+      class: 'card',
+      style: 'margin-bottom:14px; padding:12px 16px; background:#FFFFFF; border:1.5px solid #2563EB; border-radius:12px; box-shadow:0 2px 10px rgba(37,99,235,0.06);'
+    },
+      h('div', { style: 'font-weight:900; color:#163B65; font-size:14px; margin-bottom:8px; display:flex; align-items:center; gap:8px;' },
+        makeSvgIcon('s-card'),
+        h('span', { text: 'إنشاء استمارة تقييم جديدة — اختر النوع مباشرة:' })
+      ),
+      h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:8px;' },
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '📊' }), h('span', { text: 'تقييم أداء السلوك الحالي' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openBehaviorObservationBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '📋' }), h('span', { text: 'استمارة ملاحظة السلوك' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openReinforcersBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '⭐' }), h('span', { text: 'استبانة المعززات' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openInterviewDiagnosticBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '📝' }), h('span', { text: 'شبكة المقابلة والفحص' }))
+      )
+    );
+    v.appendChild(evalQuickBar);
+
     listView(v, {
-      title: S.isEducator ? ('استمارات التقييم البيداغوجي — قسم ' + (S.eduSectionName || 'فوجي')) : 'استمارات التقييم البيداغوجي الرسمية للطلبة',
-      addLabel: 'إضافة استمارة تقييم جديدة',
-      onAdd: function () {
-        if (!kids.length) return toast('لا يوجد أطفال مسجلون في هذا القسم.', 'bad');
-        openChooseEvaluationTypeModal(function (typeId) {
-          if (typeId === 'reinforcers') {
-            openReinforcersBuilder(null, kids, sections, secAllOpts, branchOpts);
-          } else if (typeId === 'interview_diagnostic') {
-            openInterviewDiagnosticBuilder(null, kids, sections, secAllOpts, branchOpts);
-          } else if (typeId === 'behavior_observation') {
-            openBehaviorObservationBuilder(null, kids, sections, secAllOpts, branchOpts);
-          } else {
-            openEvaluationBuilder(null, kids, sections, secAllOpts, branchOpts);
-          }
-        });
-      },
+      title: S.isEducator ? ('استمارات التقييم — قسم ' + (S.eduSectionName || 'فوجي')) : 'استمارات التقييم الرسمية للطلبة',
+      rows: rows,
       rows: rows,
       empty: 'لا توجد استمارات تقييم مسجلة بعد. اضغط «إضافة استمارة تقييم جديدة» لإنشاء استمارة مطابقة للنموذج الرسمي.',
       search: function (r) { return r.title + ' ' + nameOf(kids, r.child_id); },

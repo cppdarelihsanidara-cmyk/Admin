@@ -2714,8 +2714,8 @@
     var totalSlotsCount = timeSlots.length;
     var baseSlotW = slotsAreaW / totalSlotsCount;
 
-    var periodBarH = 30;
-    var timeBarH = 26;
+    var periodBarH = 32;
+    var timeBarH = 34;
     var tableHeaderH = periodBarH + timeBarH;
 
     // خلية "اليوم"
@@ -2763,9 +2763,9 @@
       ctx.lineWidth = 1;
       ctx.strokeRect(sx, tblY + periodBarH, baseSlotW, timeBarH);
 
-      ctx.fillStyle = '#1E293B';
-      ctx.font = 'bold 11.5px "Plus Jakarta Sans", "Cairo", sans-serif';
-      ctx.fillText(slot.start + ' - ' + slot.end, sx + baseSlotW / 2, tblY + periodBarH + 18);
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 14px "Plus Jakarta Sans", "Cairo", sans-serif';
+      ctx.fillText(slot.start + ' - ' + slot.end, sx + baseSlotW / 2, tblY + periodBarH + 22);
     });
 
     // رسم صفوف الأيام الـ 5 مع الدمج الأفقي والرأسي بين الأيام
@@ -2825,7 +2825,7 @@
 
         if (isAct) {
           ctx.fillStyle = '#000000';
-          ctx.font = (rowspan > 1 ? 'bold 26px ' : 'bold 20px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
+          ctx.font = (rowspan > 1 ? '900 28px ' : '900 24px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
           var actText = sess.activity || sess.title || 'نشاط يومي';
           var actLines = wrapLines(ctx, actText, cellW - 14, 3);
           var lineH = rowspan > 1 ? 30 : 25;
@@ -2837,13 +2837,13 @@
           // اسم المجال بخط واضح وداكن في الأعلى
           var shortDom = String(sess.domain || 'مجال بيداغوجي').replace(/\s*\(.*?\)\s*/g, '').trim();
           ctx.fillStyle = '#334155';
-          ctx.font = 'bold 14.5px "Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
+          ctx.font = 'bold 16px "Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
           var domWrap = wrapLines(ctx, '(' + shortDom + ')', cellW - 12, 1);
           ctx.fillText(domWrap[0] || ('(' + shortDom + ')'), sx + cellW / 2, ry + 25);
 
           // اسم المهارة بخط أسود عريض جداً ومكبر وواضح
           ctx.fillStyle = '#000000';
-          ctx.font = (rowspan > 1 ? 'bold 22px ' : 'bold 18.5px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
+          ctx.font = (rowspan > 1 ? '900 25px ' : '900 22px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
           var skText = sess.skill || sess.title || '';
           var skLines = wrapLines(ctx, skText, cellW - 14, 3);
           var skLineH = 23;
@@ -2854,7 +2854,7 @@
           });
         } else if (isMan) {
           ctx.fillStyle = '#000000';
-          ctx.font = (rowspan > 1 ? 'bold 24px ' : 'bold 19px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
+          ctx.font = (rowspan > 1 ? '900 26px ' : '900 22px ') + '"Cairo", "Tajawal", "IBM Plex Sans Arabic", sans-serif';
           var manText = sess.manual_text || sess.title || '';
           var manLines = wrapLines(ctx, manText, cellW - 14, 3);
           var mLineH = 24;
