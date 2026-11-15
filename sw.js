@@ -1,9 +1,9 @@
 /* Service worker — دار الإحسان.
    الاستراتيجية: الشبكة أولاً مع تجاوز الكاش القديم لتطبيق كافة التعديلات فوراً. */
 'use strict';
-var CACHE = 'de-shell-security-20261115-v9';
+var CACHE = 'de-shell-security-20261104-v8';
 var SHELL = [
-  "./", "frame-guard.js", "index.html", "site.html", "navback.js", "icons.js", "icons.css",
+  "./", "index.html", "site.html", "navback.js", "icons.js", "icons.css",
   "parent.html", "manage.html", "qr.html", "style.css", "cms.css", "portal.css",
   "qr.css", "manage-theme.css", "parent-modern.css", "pdf-writer.js", "zip-builder.js", "mobile-admin.css",
   "manage.webmanifest", "pwa.css", "pwa.js", "script.js", "i18n-data.js", "cms.js",

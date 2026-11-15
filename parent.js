@@ -2136,9 +2136,11 @@ function getEvalType(r) {
 }
 
 function getEvalTypeName(type) {
-  if (type === 'mas') return 'استمارة تقييم دوافع السلوك (مدا - MAS)';
+  if (type === 'mas' || type === 'mas_behavior') return 'استمارة تقييم دوافع السلوك MAS';
+  if (type === 'target_behavior') return 'تقييم قياس السلوك المستهدف';
+  if (type === 'reinforcers') return 'استبيان تقييم المعززات';
   if (type === 'observation') return 'استمارة ملاحظة سلوك';
-  return 'تقرير اللجنة البيداغوجية والتربوية';
+  return 'تقييم الأداء الحالي';
 }
 
 function getEvalTypeBadge(type) {
@@ -2667,8 +2669,8 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
         h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
         h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
         h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
-        h('div', { class: 'oep-fr-title', text: "COMPTE RENDU DE L'EQUIPE PEDAGOGIQUE" }),
-        h('h2', { class: 'oep-report-heading', text: 'التقرير البيداغوجي الوصفي (تقرير الملاحظات والتوجيهات)' })
+        h('div', { class: 'oep-fr-title', text: "RAPPORT D'ANALYSE QUALITATIF" }),
+        h('h2', { class: 'oep-report-heading', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
       ),
       logoImg
     );
@@ -2864,15 +2866,15 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
 
     var pTab1 = makeParentReportControlRow(
       'notes',
-      'التقرير الأول (الكتابي)',
-      'التقرير البيداغوجي الوصفي — تقرير الملاحظات والتوجيهات',
-      'تقرير_الملاحظات_والتوجيهات'
+      'معاينة التقرير النوعي',
+      "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)",
+      'تقرير_نوعي_تحليلي'
     );
     var pTab2 = makeParentReportControlRow(
       'statistics',
-      'التقرير الثاني (الكمي)',
-      'التقرير التقييمي الكمي — كشف النتائج والأعمدة والدائرة النسبية',
-      'التقرير_الكمي_لنتائج_التقييم'
+      'معاينة التقرير الكمي',
+      'تقرير الكمي (quantitative)',
+      'تقرير_الكمي_quantitative'
     );
 
     var printBtn = h('button', {
