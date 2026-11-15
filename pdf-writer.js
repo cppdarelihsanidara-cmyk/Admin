@@ -250,9 +250,6 @@
   // استخراج وتحليل بيانات التقييم سواء مُرّر الكائن الخام r أو الكائن المحلل ev
   function ensureParsedEval(rep) {
     if (!rep) return { domains: [], supervisors: [], abilities: {}, strengths: [], weaknesses: [], recommendations: [] };
-    if (Array.isArray(rep.domains) && rep.domains.length > 0 && rep.domains[0].ratings && (!rep.activities || typeof rep.activities !== 'string')) {
-      return rep;
-    }
     var cur = (root && root.DE_CURRICULUM) || {};
     var domainKeys = Object.keys(cur);
     var res = {
@@ -340,15 +337,61 @@
       } catch (e) {}
     }
 
+    // دمج أي حقول مباشرة موجودة على الكائن rep لضمان عدم ضياع التعديلات الحية للطفل
+    if (rep.eval_type) res.eval_type = rep.eval_type;
+    if (rep.child_id) res.child_id = rep.child_id;
+    if (rep.child_name) res.child_name = rep.child_name;
+    if (rep.dob) res.dob = rep.dob;
+    if (rep.disability) res.disability = rep.disability;
+    if (rep.section_name) res.section_name = rep.section_name;
+    if (rep.membership_no) res.membership_no = rep.membership_no;
+    if (rep.term) res.term = rep.term;
+    if (rep.school_year) res.school_year = rep.school_year;
+    if (rep.degree_of_disability) res.degree_of_disability = rep.degree_of_disability;
+    if (rep.qualification_level) res.qualification_level = rep.qualification_level;
+    if (Array.isArray(rep.supervisors) && rep.supervisors.length) res.supervisors = rep.supervisors;
+    if (rep.general_report) res.general_report = rep.general_report;
+    if (rep.abilities && typeof rep.abilities === 'object') {
+      Object.keys(rep.abilities).forEach(function (k) {
+        if (rep.abilities[k]) res.abilities[k] = rep.abilities[k];
+      });
+    }
+    if (Array.isArray(rep.strengths) && rep.strengths.some(Boolean)) res.strengths = rep.strengths;
+    if (Array.isArray(rep.weaknesses) && rep.weaknesses.some(Boolean)) res.weaknesses = rep.weaknesses;
+    if (Array.isArray(rep.recommendations) && rep.recommendations.some(Boolean)) res.recommendations = rep.recommendations;
+    if (rep.reinforcers) res.reinforcers = Object.assign({}, res.reinforcers || {}, rep.reinforcers);
+    if (rep.interview) res.interview = Object.assign({}, res.interview || {}, rep.interview);
+    if (rep.annual_final) res.annual_final = Object.assign({}, res.annual_final || {}, rep.annual_final);
+    if (rep.behavior_observation) res.behavior_observation = Object.assign({}, res.behavior_observation || {}, rep.behavior_observation);
+    if (rep.target_behavior_eval) res.target_behavior_eval = Object.assign({}, res.target_behavior_eval || {}, rep.target_behavior_eval);
+    if (rep.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval || {}, rep.mas_eval);
+    if (Array.isArray(rep.domains) && rep.domains.length && rep.domains[0] && Array.isArray(rep.domains[0].ratings)) {
+      var hasDirectRated = rep.domains.some(function (d) {
+        return (d.ratings || []).some(function (r) { return (r.score !== '' && r.score != null) || r.yn || r.note; });
+      });
+      if (hasDirectRated || !res.domains.length) {
+        res.domains = rep.domains;
+      }
+    }
+    if (typeof rawJson !== 'undefined' && rawJson && typeof rawJson === 'object') {
+      if (rawJson.child_id && !res.child_id) res.child_id = rawJson.child_id;
+      if (rawJson.child_name && !res.child_name) res.child_name = rawJson.child_name;
+      if (rawJson.dob && !res.dob) res.dob = rawJson.dob;
+      if (rawJson.disability && !res.disability) res.disability = rawJson.disability;
+      if (rawJson.section_name && !res.section_name) res.section_name = rawJson.section_name;
+      if (rawJson.membership_no && !res.membership_no) res.membership_no = rawJson.membership_no;
+      if (rawJson.target_behavior_eval) res.target_behavior_eval = Object.assign({}, res.target_behavior_eval || {}, rawJson.target_behavior_eval);
+      if (rawJson.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval || {}, rawJson.mas_eval);
+      if (rawJson.behavior_observation) res.behavior_observation = Object.assign({}, res.behavior_observation || {}, rawJson.behavior_observation);
+    }
+
     if (!res.domains.length && domainKeys.length) {
-      domainKeys.forEach(function (dk) {
-        var skList = cur[dk] || [];
-        res.domains.push({
-          domain: dk,
-          ratings: skList.map(function (sk, idx) {
-            return { num: idx + 1, skill: sk, item: sk, score: '5', yn: '', note: 'مقيَّمة' };
-          })
-        });
+      var firstDk = domainKeys[0];
+      res.domains.push({
+        domain: firstDk,
+        ratings: (cur[firstDk] || []).map(function (sk, idx) {
+          return { num: idx + 1, skill: sk, item: sk, score: '', yn: '', note: '' };
+        })
       });
     }
     return res;
@@ -580,19 +623,21 @@
     ctx.fillText('- العطف - غرداية -', W / 2, 136);
 
     ctx.fillStyle = '#1D4ED8';
-    ctx.font = 'bold 23px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx.font = 'bold 22px "Cairo", "IBM Plex Sans Arabic", sans-serif';
     var schoolYrTxt = (ev.school_year || '2024 - 2025').replace('/', ' - ');
-    ctx.fillText('نتائج تقييم الأداء الحالي ' + schoolYrTxt, W / 2, 172);
+    ctx.fillText('تقرير الكمي (quantitative) — نتائج تقييم الأداء الحالي ' + schoolYrTxt, W / 2, 172);
 
     // 2. سطر بيانات الطالب (اسم ولقب الحالة | تاريخ الميلاد | فوج)
+    var rawDob = (kd && kd.dob) || ev.dob || '';
     var dobFmt = '—';
-    if (kd && kd.dob) {
-      var mDob = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(kd.dob).trim());
-      dobFmt = mDob ? (mDob[1] + '/' + mDob[2] + '/' + mDob[3]) : String(kd.dob);
+    if (rawDob) {
+      var mDob = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rawDob).trim());
+      dobFmt = mDob ? (mDob[1] + '/' + mDob[2] + '/' + mDob[3]) : String(rawDob);
     }
-    var memPrefix = (kd && kd.membership_no) ? (kd.membership_no + ' * ') : '';
-    var studentFullLabel = memPrefix + (childFullName || (kd && kd.full_name) || 'تلميذ المركز');
-    var groupLabel = ev.qualification_level || secName || (kd && kd.section) || 'القسم الخاص';
+    var memNoVal = (kd && kd.membership_no) || ev.membership_no || '';
+    var memPrefix = memNoVal ? (memNoVal + ' * ') : '';
+    var studentFullLabel = memPrefix + (childFullName || (kd && kd.full_name) || ev.child_name || 'تلميذ المركز');
+    var groupLabel = ev.qualification_level || secName || (kd && kd.section) || ev.section_name || 'القسم الخاص';
 
     var infoY = 216;
     ctx.fillStyle = '#0F172A';
@@ -1328,7 +1373,7 @@
     ctx.lineWidth = 3;
     ctx.strokeRect(M - 10, M - 10, CW + 20, H - (M - 10) * 2);
 
-    drawOfficialHeader(ctx, W, 'استبانة لتحديد المعززات التي يرغب فيها الشخص', logoImg);
+    drawOfficialHeader(ctx, W, 'استبيان تقييم المعززات', logoImg);
 
     var y = 220;
     // بطاقة معلومات المفحوص
@@ -1829,6 +1874,12 @@
     }
     if (evObj && evObj.eval_type === 'annual_final') {
       return renderAnnualFinalToPdf(rep, childFullName, secName, kd);
+    }
+    if (evObj && evObj.eval_type === 'target_behavior') {
+      return renderTargetBehaviorToPdf(rep, childFullName, secName, kd);
+    }
+    if (evObj && (evObj.eval_type === 'mas_behavior' || evObj.eval_type === 'mas')) {
+      return renderMasBehaviorToPdf(rep, childFullName, secName, kd);
     } // 'notes' | 'statistics' | 'full'
     if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
       try { await document.fonts.ready; } catch (e) {}
@@ -1847,19 +1898,23 @@
     var M = 56;
     var CW = W - M * 2; // 1128
 
-    // حساب العمر وتاريخ الميلاد
+    // حساب العمر وتاريخ الميلاد مع دعم الحقول المحفوظة داخل التقييم مباشرة
     var ageTxt = '—';
     var dobFmt = '—';
-    if (kd && kd.dob) {
-      var mDob = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(kd.dob).trim());
+    var rawChildDob = (kd && kd.dob) || ev.dob || '';
+    if (rawChildDob) {
+      var mDob = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rawChildDob).trim());
       if (mDob) {
         dobFmt = mDob[1] + '/' + mDob[2] + '/' + mDob[3];
         var age = new Date().getFullYear() - parseInt(mDob[1], 10);
         if (age > 0) ageTxt = age + ' سنة';
       } else {
-        dobFmt = String(kd.dob);
+        dobFmt = String(rawChildDob);
       }
     }
+    var resolvedChildName = childFullName || (kd && kd.full_name) || ev.child_name || '—';
+    var resolvedDisability = (kd && kd.disability) || ev.disability || '—';
+    var resolvedSection = ev.qualification_level || secName || (kd && kd.section) || ev.section_name || '—';
 
     var pages = [];
     function newPage(title) {
@@ -1874,12 +1929,12 @@
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // القسم الأول: التقرير البيداغوجي الوصفي (تقرير الملاحظات والتوجيهات)
+    // القسم الأول: تقرير نوعي تحليلي (Rapport d'analyse qualitatif)
     // يُرسم عندما يكون reportType === 'notes' أو 'full'
     // مضبوط بدقة ليبقى داخل صفحة A4 واحدة دون تجاوزها أبداً
     // ══════════════════════════════════════════════════════════════════════════
     if (reportType === 'notes' || reportType === 'full') {
-      var pNotes = newPage('تقرير اللجنة البيداغوجية والتربوية — الملاحظات والتوجيهات');
+      var pNotes = newPage("تقرير نوعي تحليلي (Rapport d'analyse qualitatif)");
       var ctx = pNotes.ctx;
       var y = pNotes.y;
 
@@ -1903,9 +1958,9 @@
       var x4 = M;
 
       var infoRows = [
-        ['اسم ولقب الحالة:', childFullName || (kd && kd.full_name) || '—', 'العمر:', ageTxt],
-        ['نوع الاضطراب:', (kd && kd.disability) || '—', 'تاريخ الميلاد:', dobFmt],
-        ['درجة الإعاقة / الاضطراب:', ev.degree_of_disability || 'متوسطة', 'القسم ومستوى التأهيل:', ev.qualification_level || secName || (kd && kd.section) || '—']
+        ['اسم ولقب الحالة:', resolvedChildName, 'العمر:', ageTxt],
+        ['نوع الاضطراب:', resolvedDisability, 'تاريخ الميلاد:', dobFmt],
+        ['درجة الإعاقة / الاضطراب:', ev.degree_of_disability || 'متوسطة', 'القسم ومستوى التأهيل:', resolvedSection]
       ];
 
       infoRows.forEach(function (row) {
@@ -2146,7 +2201,7 @@
       qCanvas.width = W;
       qCanvas.height = 1754;
       var qCtx = qCanvas.getContext('2d');
-      drawQuantitativeEvaluationPage(qCtx, W, statsObj, childFullName, secName, kd, logoImg);
+      drawQuantitativeEvaluationPage(qCtx, W, statsObj, resolvedChildName, resolvedSection, kd, logoImg);
       pages.push({ canvas: qCanvas, ctx: qCtx, y: 1650 });
     }
 
@@ -3098,7 +3153,537 @@
     return await exportCanvasToPdfBytes(c, 'a4');
   }
 
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     تصدير تقييم قياس السلوك المستهدف إلى PDF بدقة A4 (مطابق تماماً لملف قياس السلوك المستهدف)
+     ══════════════════════════════════════════════════════════════════════════ */
+  async function renderTargetBehaviorToPdf(rep, childFullName, secName, kd) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
+    var ev = ensureParsedEval(rep);
+    var tb = ev.target_behavior_eval || rep.target_behavior_eval || {};
+    var days = Array.isArray(tb.days) ? tb.days : [];
+    var W = 1240, H = 1754, M = 64, CW = W - M * 2;
+
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || tb.child_name || '...........................................';
+    var ageVal = tb.age || (kd && kd.dob ? (function (dob) {
+      try {
+        var bd = new Date(dob); var td = new Date(); var a = td.getFullYear() - bd.getFullYear();
+        return a > 0 ? (a + ' سنوات') : '.....................';
+      } catch (e) { return '.....................'; }
+    })(kd.dob) : '.....................');
+    var behaviorTitle = tb.selected_behaviors_text || (Array.isArray(tb.selected_behaviors) && tb.selected_behaviors.length ? tb.selected_behaviors.join(' ، ') : '.................................');
+
+    var pages = [];
+    function createPage(isFirstPage) {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+      ctx.direction = 'rtl';
+
+      var y = 85;
+      // العنوان في الوسط مسطر: قياس السلوك المستهدف
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 30px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      var titleTxt = 'قياس السلوك المستهدف';
+      ctx.fillText(titleTxt, W / 2, y);
+      var tw = ctx.measureText(titleTxt).width;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - tw / 2 - 6, y + 8);
+      ctx.lineTo(W / 2 + tw / 2 + 6, y + 8);
+      ctx.stroke();
+
+      y += 52;
+      if (isFirstPage) {
+        ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('اسم الطفل: ' + chName, W - M, y);
+        ctx.fillText('العمر: ' + ageVal, M + 320, y);
+        y += 42;
+
+        ctx.font = 'bold 19px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        var bLines = wrapLines(ctx, 'السلوك: ' + behaviorTitle, CW, 2);
+        bLines.forEach(function (bl) {
+          ctx.fillText(bl, W - M, y);
+          y += 30;
+        });
+        y += 10;
+
+        ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.fillText('جدول القياس: التكرار + المدة الزمنية', W - M, y);
+        y += 20;
+      }
+
+      // رسم ترويسة الجدول بـ 6 أعمدة مطابقة للملف المرفق تماماً
+      var colW = [180, 175, 185, 175, 175, CW - (180 + 175 + 185 + 175 + 175)];
+      var colX = [];
+      var curX = W - M;
+      for (var i = 0; i < colW.length; i++) {
+        curX -= colW[i];
+        colX.push(curX);
+      }
+      var hdrH = 95;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(M, y, CW, hdrH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.6;
+      for (var cIdx = 0; cIdx < colW.length; cIdx++) {
+        ctx.strokeRect(colX[cIdx], y, colW[cIdx], hdrH);
+      }
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      var headers = [
+        ['اليوم والتاريخ'],
+        ['نوع', 'السلوك'],
+        ['وقت و', 'مدة', 'حدوث', 'السلوك'],
+        ['عدد مرات', 'تكرار', 'السلوك'],
+        ['مكان', 'حدوث', 'السلوك'],
+        ['سوابق حدوث', 'السلوك']
+      ];
+      headers.forEach(function (hLines, idx) {
+        var cx = colX[idx] + colW[idx] / 2;
+        var startHy = y + 28;
+        hLines.forEach(function (ln, lIdx) {
+          ctx.fillText(ln, cx, startHy + lIdx * 21);
+        });
+      });
+
+      var pObj = { canvas: c, ctx: ctx, y: y + hdrH, colW: colW, colX: colX };
+      pages.push(pObj);
+      return pObj;
+    }
+
+    var curPage = createPage(true);
+    var subRowH = 42;
+
+    days.forEach(function (dayObj) {
+      var rows = (Array.isArray(dayObj.rows) && dayObj.rows.length) ? dayObj.rows : [{ sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }, { sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }];
+      var blockH = rows.length * subRowH;
+      if (curPage.y + blockH > H - 70) {
+        curPage = createPage(false);
+      }
+      var ctx = curPage.ctx;
+      var colW = curPage.colW;
+      var colX = curPage.colX;
+      var startY = curPage.y;
+
+      // خلية اليوم والتاريخ مدمجة عمودياً (rowspan)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(colX[0], startY, colW[0], blockH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(colX[0], startY, colW[0], blockH);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      var dayNameStr = dayObj.day_name || '';
+      var dateFmtStr = dayObj.date_display || dayObj.date || '';
+      if (dayNameStr && dateFmtStr) {
+        ctx.fillText(dayNameStr, colX[0] + colW[0] / 2, startY + blockH / 2 - 4);
+        ctx.fillText(dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 20);
+      } else {
+        ctx.fillText(dayNameStr || dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 6);
+      }
+
+      // صفوف السلوكيات الفرعية لهذا اليوم
+      rows.forEach(function (rItem, rIdx) {
+        var ry = startY + rIdx * subRowH;
+        var vals = [
+          rItem.sub_behavior || '',
+          rItem.time_duration || '',
+          rItem.frequency || '',
+          rItem.location || '',
+          rItem.antecedents || ''
+        ];
+        for (var cIdx = 1; cIdx < 6; cIdx++) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(colX[cIdx], ry, colW[cIdx], subRowH);
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1.3;
+          ctx.strokeRect(colX[cIdx], ry, colW[cIdx], subRowH);
+
+          var cellTxt = String(vals[cIdx - 1] || '');
+          if (cellTxt) {
+            ctx.fillStyle = '#000000';
+            ctx.font = (cIdx === 1 ? 'bold 14.5px ' : '14.5px ') + '"Cairo", "IBM Plex Sans Arabic", sans-serif';
+            ctx.textAlign = 'center';
+            var wrapped = wrapLines(ctx, cellTxt, colW[cIdx] - 10, 1);
+            ctx.fillText(wrapped[0] || '', colX[cIdx] + colW[cIdx] / 2, ry + 26);
+          }
+        }
+      });
+
+      curPage.y += blockH;
+    });
+
+    var jpegPages = [];
+    for (var k = 0; k < pages.length; k++) {
+      var jpgBytes = await canvasToJpegBytes(pages[k].canvas, 0.95);
+      jpegPages.push({ data: jpgBytes, width: W, height: H });
+    }
+    return buildPdfBinary(jpegPages);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     تصدير استمارة تقييم دوافع السلوك MAS إلى PDF بدقة A4 (مطابقة للوثيقة المرفقة بدون خانة المتوسط)
+     ══════════════════════════════════════════════════════════════════════════ */
+  var MAS_HEADINGS_REGEX = /^(السلوك وتعريفه الإجرائي|البيئة محط المسح|التحليل|النتيجة|توصيات مبنية على النتيجة)\s*:?/i;
+
+  function drawMasFormattedTextOnCanvas(ctx, text, rightX, startY, maxW, maxY) {
+    var y = startY;
+    var rawLines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+    rawLines.forEach(function (rawLn) {
+      var trimmed = rawLn.trim();
+      if (!trimmed) {
+        y += 14;
+        return;
+      }
+      var cleanLn = trimmed.replace(/^[🎯🟢📝💡📌•\-]+\s*/, '');
+      var m = MAS_HEADINGS_REGEX.exec(cleanLn);
+      if (m) {
+        if (y > maxY) return;
+        var headingPart = m[1] + ':';
+        var restPart = cleanLn.slice(m[0].length).trim();
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(headingPart, rightX, y);
+        var hWidth = ctx.measureText(headingPart).width;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(rightX, y + 5);
+        ctx.lineTo(rightX - hWidth, y + 5);
+        ctx.stroke();
+        y += 28;
+        if (restPart) {
+          ctx.font = '16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+          var wRest = wrapLines(ctx, restPart, maxW, 6);
+          wRest.forEach(function (wLn) {
+            if (y <= maxY) {
+              ctx.fillText(wLn, rightX, y);
+              y += 25;
+            }
+          });
+        }
+      } else {
+        ctx.fillStyle = '#000000';
+        ctx.font = '16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.textAlign = 'right';
+        var wLines = wrapLines(ctx, cleanLn, maxW, 6);
+        wLines.forEach(function (wLn) {
+          if (y <= maxY) {
+            ctx.fillText(wLn, rightX, y);
+            y += 25;
+          }
+        });
+      }
+    });
+    return y;
+  }
+
+  async function renderMasBehaviorToPdf(rep, childFullName, secName, kd) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
+    var ev = ensureParsedEval(rep);
+    var mas = ev.mas_eval || rep.mas_eval || ev.mas || {};
+    var answers = mas.answers || {};
+    var W = 1240, H = 1754, M = 64, CW = W - M * 2;
+
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || mas.child_name || '—';
+    var informant = mas.informant || mas.examiner || '—';
+    var dateVal = mas.report_date || ev.report_date || new Date().toISOString().slice(0, 10);
+    var mDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateVal).trim());
+    var dateFmt = mDate ? (mDate[3] + '/' + mDate[2] + '/' + mDate[1]) : String(dateVal);
+
+    var masItems = [
+      'هل يتكرر السلوك باستمرار مراراً وتكراراً إذا ترك الشخص لوحده لفترات طويلة لساعات مثلاً.',
+      'هل يظهر السلوك عند الطلب منه أن يقوم بمهمة صعبة؟',
+      'هل يظهر السلوك كاستجابة لتحدثك مع آخرين في الغرفة؟',
+      'هل يظهر السلوك كوسيلة للحصول على لعبة، طعام، أو نشاط قد أخبر المفحوص أنه لن يحصل عليه.',
+      'هل يتكرر السلوك بنفس الطريقة لفترات طويلة جداً إذا لم يكن هناك أحد حوله هز الجسم لأكثر من ساعة.',
+      'هل يظهر السلوك عند إعطاء المفحوص تعليمات وأوامر؟',
+      'هل يظهر السلوك عندما توقف انتباهك للمفحوص؟',
+      'هل يظهر السلوك عندما تأخذ لعبة مفضلة، طعام، أو نشاط منه؟',
+      'هل يبدو لك أن المفحوص يستمتع بالقيام بالسلوك (يحب ملمس، مذاق، منظر، رائحة، أو صوت المثير المسلكي)؟',
+      'هل يبدو لك أن المفحوص يقوم بالسلوك ليزعجك أو يغضبك عند محاولتك لجعله يتبع تعليماتك؟',
+      'هل يبدو لك أن المفحوص يقوم بالسلوك ليزعجك أو يغضبك عندما تعطيه انتباهك؟ (إذا كنت في غرفة أخرى أو تحدث شخصاً آخر).',
+      'هل يتوقف السلوك إذا أعطيت المفحوص اللعبة، الطعام أو النشاط الذي طلبه؟',
+      'خلال القيام بالسلوك هل يظهر المفحوص هادئاً وغير واعٍ لأي شيء آخر يحدث حوله؟',
+      'هل يتوقف السلوك (خلال 1-5 دقائق) من إيقافك لتشغيل المفحوص أو إعطائه تعليمات؟',
+      'هل يبدو لك أن المفحوص يقوم بالسلوك لحملك على قضاء بعض الوقت معه؟',
+      'هل يبدو أن السلوك يظهر عند إخبار المفحوص بأنه لن يقوم بشيء أراد القيام به؟'
+    ];
+
+    // الصفحة الأولى: الترويسة + السلوك وتعريفه الإجرائي + البيئة محط المسح + جدول البنود (1 إلى 13)
+    var c1 = document.createElement('canvas');
+    c1.width = W; c1.height = H;
+    var ctx1 = c1.getContext('2d');
+    ctx1.fillStyle = '#FFFFFF';
+    ctx1.fillRect(0, 0, W, H);
+    ctx1.direction = 'rtl';
+
+    var y = 80;
+    ctx1.fillStyle = '#000000';
+    ctx1.font = 'bold 26px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx1.textAlign = 'center';
+    ctx1.fillText('استمارة تقييم دوافع السلوك MAS', W / 2, y);
+    y += 42;
+
+    ctx1.font = 'bold 19px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx1.textAlign = 'right';
+    ctx1.fillText('اسم الحالة: ' + chName, W - M, y);
+    ctx1.fillText('مقدم المعلومات: ' + informant, W - M - 430, y);
+    ctx1.fillText('التاريخ: ' + dateFmt, M + 230, y);
+    y += 38;
+
+    var introBlock = mas.intro_text || ('السلوك وتعريفه الإجرائي:\n' + (mas.behavior_definition || '') + '\nالبيئة محط المسح: ' + (mas.environment || 'المركز و المنزل'));
+    y = drawMasFormattedTextOnCanvas(ctx1, introBlock, W - M, y, CW, 430);
+    y += 12;
+
+    // إعداد أعمدة جدول البنود (9 أعمدة من اليمين لليسار: # | البند | مطلقا 0 | شبه مطلقا 1 | نادرا 2 | نصف الوقت 3 | عادة 4 | أغلب الأحيان 5 | دائما 6)
+    var qColW = [46, 512, 80, 84, 80, 84, 80, 84, 78];
+    var qColX = [];
+    var curQx = W - M;
+    for (var qi = 0; qi < qColW.length; qi++) {
+      curQx -= qColW[qi];
+      qColX.push(curQx);
+    }
+
+    function drawMasItemsHeader(ctx, topY) {
+      var hH = 74;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(M, topY, CW, hH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.4;
+      for (var i = 0; i < qColW.length; i++) {
+        ctx.strokeRect(qColX[i], topY, qColW[i], hH);
+      }
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('#', qColX[0] + qColW[0] / 2, topY + 32);
+      ctx.fillText('البند', qColX[1] + qColW[1] / 2, topY + 32);
+
+      var scaleHdrs = [
+        ['مطلقا', '', '0'],
+        ['شبه', 'مطلقا', '1'],
+        ['نادرا', '', '2'],
+        ['نصف', 'الوقت', '3'],
+        ['عادة', '', '4'],
+        ['أغلب', 'الأحيان', '5'],
+        ['دائما', '', '6']
+      ];
+      scaleHdrs.forEach(function (sh, sIdx) {
+        var cx = qColX[sIdx + 2] + qColW[sIdx + 2] / 2;
+        ctx.fillText(sh[0], cx, topY + 22);
+        if (sh[1]) ctx.fillText(sh[1], cx, topY + 42);
+        ctx.fillText(sh[2], cx, topY + 64);
+      });
+      return topY + hH;
+    }
+
+    function drawMasItemRow(ctx, itemIdx, topY) {
+      var qNum = itemIdx + 1;
+      var qText = masItems[itemIdx];
+      ctx.font = 'bold 15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      var qLines = wrapLines(ctx, qText, qColW[1] - 18, 3);
+      var rH = Math.max(54, qLines.length * 24 + 14);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(M, topY, CW, rH);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.2;
+      for (var i = 0; i < qColW.length; i++) {
+        ctx.strokeRect(qColX[i], topY, qColW[i], rH);
+      }
+
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 15px "Cairo", sans-serif';
+      ctx.fillText(String(qNum), qColX[0] + qColW[0] / 2, topY + 28);
+
+      ctx.font = 'bold 14.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      qLines.forEach(function (ln, lIdx) {
+        ctx.fillText(ln, qColX[1] + qColW[1] / 2, topY + 24 + lIdx * 22);
+      });
+
+      var chosenVal = answers[qNum];
+      if (chosenVal !== '' && chosenVal != null && !isNaN(parseInt(chosenVal, 10))) {
+        var scInt = parseInt(chosenVal, 10);
+        if (scInt >= 0 && scInt <= 6) {
+          var colIdx = 2 + scInt;
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('X', qColX[colIdx] + qColW[colIdx] / 2, topY + rH / 2 + 6);
+        }
+      }
+      return topY + rH;
+    }
+
+    y = drawMasItemsHeader(ctx1, y);
+    for (var i1 = 0; i1 < 13; i1++) {
+      y = drawMasItemRow(ctx1, i1, y);
+    }
+
+    // الصفحة الثانية: البنود (14 إلى 16) + جدول النتائج تلقائياً (بدون خانة المتوسط) + التحليل والنتيجة والتوصيات
+    var c2 = document.createElement('canvas');
+    c2.width = W; c2.height = H;
+    var ctx2 = c2.getContext('2d');
+    ctx2.fillStyle = '#FFFFFF';
+    ctx2.fillRect(0, 0, W, H);
+    ctx2.direction = 'rtl';
+
+    var y2 = 75;
+    for (var i2 = 13; i2 < 16; i2++) {
+      y2 = drawMasItemRow(ctx2, i2, y2);
+    }
+
+    y2 += 45;
+    // عنوان: النتائج
+    ctx2.fillStyle = '#000000';
+    ctx2.font = 'bold 22px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('النتائج', W / 2, y2);
+    var rTw = ctx2.measureText('النتائج').width;
+    ctx2.strokeStyle = '#000000';
+    ctx2.lineWidth = 1.8;
+    ctx2.beginPath();
+    ctx2.moveTo(W / 2 - rTw / 2 - 4, y2 + 6);
+    ctx2.lineTo(W / 2 + rTw / 2 + 4, y2 + 6);
+    ctx2.stroke();
+    y2 += 20;
+
+    // حساب جدول النتائج تلقائياً بدون خانة المتوسط
+    var factors = [
+      { key: 'sensory', title: 'استثارة ذاتية', items: [1, 5, 9, 13] },
+      { key: 'escape', title: 'هروب', items: [2, 6, 10, 14] },
+      { key: 'attention', title: 'انتباه', items: [3, 7, 11, 15] },
+      { key: 'tangible', title: 'أنشطة / أشياء\nمفضلة', items: [4, 8, 12, 16] }
+    ];
+    factors.forEach(function (f) {
+      var sum = 0;
+      f.scores = f.items.map(function (qNum) {
+        var v = answers[qNum];
+        var n = (v !== '' && v != null && !isNaN(parseInt(v, 10))) ? parseInt(v, 10) : 0;
+        sum += n;
+        return { qNum: qNum, score: (v !== '' && v != null && !isNaN(parseInt(v, 10))) ? n : '' };
+      });
+      f.total = sum;
+    });
+
+    // حساب الترتيب حسب أعلى مجموع (مع إعطاء نفس الترتيب عند التساوي كما في الوثيقة الرسمية)
+    var uniqueTotals = [];
+    factors.slice().sort(function (a, b) { return b.total - a.total; }).forEach(function (f) {
+      if (uniqueTotals.indexOf(f.total) < 0) uniqueTotals.push(f.total);
+    });
+    factors.forEach(function (f) {
+      var higherCount = factors.filter(function (other) { return other.total > f.total; }).length;
+      f.rank = higherCount + 1;
+    });
+
+    var rColW = [190, 234, 234, 234, 236];
+    var rColX = [];
+    var curRx = W - M;
+    for (var ri = 0; ri < rColW.length; ri++) {
+      curRx -= rColW[ri];
+      rColX.push(curRx);
+    }
+
+    // ترويسة جدول النتائج
+    var rHdrH = 68;
+    ctx2.strokeStyle = '#000000';
+    ctx2.lineWidth = 1.4;
+    for (var rc = 0; rc < 5; rc++) {
+      ctx2.strokeRect(rColX[rc], y2, rColW[rc], rHdrH);
+    }
+    ctx2.fillStyle = '#000000';
+    ctx2.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('العامل الوظيفي', rColX[0] + rColW[0] / 2, y2 + 38);
+    factors.forEach(function (f, fIdx) {
+      var lns = f.title.split('\n');
+      var cx = rColX[fIdx + 1] + rColW[fIdx + 1] / 2;
+      if (lns.length > 1) {
+        ctx2.fillText(lns[0], cx, y2 + 28);
+        ctx2.fillText(lns[1], cx, y2 + 54);
+      } else {
+        ctx2.fillText(lns[0], cx, y2 + 38);
+      }
+    });
+    y2 += rHdrH;
+
+    // 4 صفوف للبنود
+    for (var rowIdx = 0; rowIdx < 4; rowIdx++) {
+      var rowH = 44;
+      for (var cIdx = 0; cIdx < 5; cIdx++) {
+        ctx2.strokeRect(rColX[cIdx], y2, rColW[cIdx], rowH);
+      }
+      ctx2.font = 'bold 17px "Cairo", sans-serif';
+      ctx2.textAlign = 'center';
+      factors.forEach(function (f, fIdx) {
+        var itemObj = f.scores[rowIdx];
+        var scTxt = itemObj.score !== '' ? String(itemObj.score) : '0';
+        var formatted = '.' + itemObj.qNum + '   ---' + scTxt + '---';
+        ctx2.fillText(formatted, rColX[fIdx + 1] + rColW[fIdx + 1] / 2, y2 + 28);
+      });
+      y2 += rowH;
+    }
+
+    // صف المجموع (في خانة وحدها بدون خانة المتوسط!)
+    var totRowH = 48;
+    for (var tc = 0; tc < 5; tc++) {
+      ctx2.strokeRect(rColX[tc], y2, rColW[tc], totRowH);
+    }
+    ctx2.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx2.fillText('المجموع', rColX[0] + rColW[0] / 2, y2 + 31);
+    factors.forEach(function (f, fIdx) {
+      ctx2.fillText('____' + f.total + '____', rColX[fIdx + 1] + rColW[fIdx + 1] / 2, y2 + 31);
+    });
+    y2 += totRowH;
+
+    // صف الترتيب المعياري (مباشرة تحت المجموع بدون خانة المتوسط)
+    var rnkRowH = 56;
+    for (var kc = 0; kc < 5; kc++) {
+      ctx2.strokeRect(rColX[kc], y2, rColW[kc], rnkRowH);
+    }
+    ctx2.font = 'bold 17px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx2.fillText('الترتيب', rColX[0] + rColW[0] / 2, y2 + 24);
+    ctx2.fillText('المعياري', rColX[0] + rColW[0] / 2, y2 + 46);
+    factors.forEach(function (f, fIdx) {
+      ctx2.font = 'bold 18px "Cairo", sans-serif';
+      ctx2.fillText('____' + f.rank + '____', rColX[fIdx + 1] + rColW[fIdx + 1] / 2, y2 + 34);
+    });
+    y2 += rnkRowH + 42;
+
+    // الكتابة السفلية (التحليل، النتيجة، توصيات مبنية على النتيجة) مع تغليظ وتسطير العناوين تلقائياً
+    var outroBlock = mas.outro_text || (
+      'التحليل:\n' + (mas.analysis || '') + '\n' +
+      'النتيجة:\n' + (mas.result_summary || '') + '\n' +
+      'توصيات مبنية على النتيجة:\n' + (mas.recommendations || '')
+    );
+    drawMasFormattedTextOnCanvas(ctx2, outroBlock, W - M, y2, CW, H - 70);
+
+    var jpg1 = await canvasToJpegBytes(c1, 0.95);
+    var jpg2 = await canvasToJpegBytes(c2, 0.95);
+    return buildPdfBinary([
+      { data: jpg1, width: W, height: H },
+      { data: jpg2, width: W, height: H }
+    ]);
+  }
+
   root.DE_PDF = {
+    renderTargetBehaviorToPdf: renderTargetBehaviorToPdf,
+    renderMasBehaviorToPdf: renderMasBehaviorToPdf,
     renderBehaviorObservationToPdf: renderBehaviorObservationToPdf,
     buildPdfBinary: buildPdfBinary,
     canvasToJpegBytes: canvasToJpegBytes,
