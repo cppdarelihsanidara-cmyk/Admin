@@ -1431,7 +1431,7 @@
               } catch (eSave) {}
             }
             closeModal();
-            window.open('https://wa.me/' + validWa, '_blank');
+            window.open('https://wa.me/' + validWa, '_blank', 'noopener,noreferrer');
             toast('تم تحديث رقم الولي وفتح محادثة واتساب بنجاح!', 'ok');
           }
         }, makeSvgIcon('s-whatsapp'), h('span', { text: 'فتح واتساب ومراسلة الولي وحفظ الرقم' })),
@@ -1442,7 +1442,7 @@
           onclick: function () {
             closeModal();
             var d = normalizeArabicDigits(raw).replace(/\D/g, '').replace(/^0+/, '');
-            window.open('https://wa.me/213' + d, '_blank');
+            window.open('https://wa.me/213' + d, '_blank', 'noopener,noreferrer');
           }
         })
       )
@@ -1481,7 +1481,7 @@
       if (d.length === 8 && /^[567]/.test(d)) {
         d = d + '0';
       }
-      window.open('https://wa.me/213' + d, '_blank');
+      window.open('https://wa.me/213' + d, '_blank', 'noopener,noreferrer');
     });
 
     return btn;
@@ -2095,7 +2095,7 @@
                         type: 'button', class: 'btn small gold', text: 'تحميل / فتح الملف المرفق',
                         onclick: function () {
                           C.signedUrl('private-docs', rep.attachment_path, 60).then(function (url) {
-                            window.open(url, '_blank');
+                            window.open(url, '_blank', 'noopener,noreferrer');
                           }).catch(function (e) { toast(e.message, 'bad'); });
                         }
                       })
@@ -2111,7 +2111,7 @@
                 type: 'button', class: 'btn small gold', text: 'المرفق',
                 onclick: function () {
                   C.signedUrl('private-docs', rep.attachment_path, 60).then(function (url) {
-                    window.open(url, '_blank');
+                    window.open(url, '_blank', 'noopener,noreferrer');
                   }).catch(function (e) { toast(e.message, 'bad'); });
                 }
               }) : null
@@ -2261,7 +2261,7 @@
               h('div', { class: 'row-actions' },
                 rep.attachment_path ? rbtn('المرفق', function () {
                   C.signedUrl('private-docs', rep.attachment_path, 60).then(function (url) {
-                    window.open(url, '_blank');
+                    window.open(url, '_blank', 'noopener,noreferrer');
                   }).catch(function (e) { toast(e.message, 'bad'); });
                 }, 'light') : null,
                 rbtn('تعديل التقرير', function () {
@@ -8510,7 +8510,7 @@
               text: 'تحميل / فتح الملف المرفق',
               onclick: function () {
                 C.signedUrl('private-docs', r.attachment_path, 60).then(function (url) {
-                  window.open(url, '_blank');
+                  window.open(url, '_blank', 'noopener,noreferrer');
                 }).catch(function (e) { toast(e.message, 'bad'); });
               }
             })
@@ -11061,7 +11061,7 @@
             var cleanPhone = toWhatsAppPhone(k.phone);
             var msg = formatOfficialAbsenceMessage(k.full_name, dateInput.value);
             var waUrl = 'https://api.whatsapp.com/send?phone=' + cleanPhone + '&text=' + encodeURIComponent(msg);
-            window.open(waUrl, '_blank');
+            window.open(waUrl, '_blank', 'noopener,noreferrer');
           }
         }, makeSvgIcon('s-whatsapp'), h('span', { text: 'إرسال عبر واتساب' })));
       } else {
@@ -11549,7 +11549,23 @@
     $('#backBtn').hidden = m === 'creds';
     if (m === 'set') { setTimeout(function () { var p = $('#np1'); if (p) p.focus(); }, 0); }
   }
+  /* حذف كل بيانات الأطفال والأولياء المخزّنة محلياً (سجلات واتساب، الحضور، الإشعارات، نسخة بيانات المربيات)
+     كلما ظهرت شاشة الدخول: بعد الخروج أو انتهاء الجلسة أو الخمول، حتى لا تبقى على جهاز مشترك. */
+  function purgeLocalPII() {
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (/^de_(wa_logs|att_records_|notifications_cache|attendance_records|local_attendance_map)/.test(k)) localStorage.removeItem(k);
+      });
+    } catch (e1) {}
+    try {
+      Object.keys(sessionStorage).forEach(function (k) {
+        if (/^de_(portal_meta|edu_direct|staff)/.test(k)) sessionStorage.removeItem(k);
+      });
+    } catch (e2) {}
+  }
+
   function showLogin(m) {
+    purgeLocalPII();
     S.stopIdle && S.stopIdle();
     show('login');
     setMode('creds');
@@ -11697,6 +11713,16 @@
     showLogin(m);
   }
 
+  /* تأخير تصاعدي بعد 5 محاولات دخول فاشلة (طبقة إضافية فقط؛ الحد الحقيقي يُضبط في Supabase Auth) */
+  function loginFailState() { try { return JSON.parse(sessionStorage.getItem('de_login_fail') || '{}'); } catch (e) { return {}; } }
+  function loginFailRecord() {
+    var st = loginFailState(); st.n = (st.n || 0) + 1;
+    if (st.n >= 5) st.until = Date.now() + Math.min(15 * 60, 30 * Math.pow(2, st.n - 5)) * 1000;
+    try { sessionStorage.setItem('de_login_fail', JSON.stringify(st)); } catch (e) {}
+  }
+  function loginFailReset() { try { sessionStorage.removeItem('de_login_fail'); } catch (e) {} }
+  function loginLockRemaining() { var st = loginFailState(); return st.until && st.until > Date.now() ? Math.ceil((st.until - Date.now()) / 1000) : 0; }
+
   async function submitLogin(e) {
     e.preventDefault();
     msg($('#lErr'), '');
@@ -11706,23 +11732,37 @@
           var rawInput = normalizeArabicDigits(DE.clean($('#email').value, 254).trim());
           var pw = String($('#password').value || '').trim();
           if (!rawInput || !pw || pw.length > 72) return msg($('#lErr'), 'أدخل البريد الإلكتروني (أو رقم الهاتف) وكلمة المرور.');
-          var meta = await loadPortalMeta(true);
-          var em = resolveEducatorLoginEmail(rawInput, meta);
+          /* لا نقرأ بيانات المربيات قبل المصادقة: البريد يُستعمل كما هو، والهاتف يُحوَّل عبر دالة خادم تُرجع البريد فقط.
+             إن لم تُنشر الدالة بعد (ملف SQL رقم 19) نعود للطريقة القديمة حتى لا ينكسر الدخول. */
+          var em = '';
+          if (DE.isEmail(rawInput)) {
+            em = rawInput.toLowerCase();
+          } else {
+            try {
+              var rr = await C.rpc('resolve_login_email', { p_identifier: rawInput });
+              if (typeof rr === 'string' && DE.isEmail(rr)) em = rr.toLowerCase();
+            } catch (eRpc) {}
+            if (!em) { var meta = await loadPortalMeta(true); em = resolveEducatorLoginEmail(rawInput, meta); }
+          }
 
           if (!DE.isEmail(em)) {
             return msg($('#lErr'), 'أدخل بريدًا إلكترونيًا أو رقم هاتف مسجلاً في النظام.');
           }
 
+          var lock = loginLockRemaining();
+          if (lock > 0) return msg($('#lErr'), 'محاولات كثيرة خاطئة. انتظر ' + lock + ' ثانية ثم أعد المحاولة.');
           var signedInOk = false;
           var signInErr = null;
           try {
             var r = await C.signIn(em, pw);
+            loginFailReset();
             signedInOk = true;
             clearEducatorDirectSession();
             $('#password').value = '';
             if (r && r.mfa) { setMode('mfa'); $('#mfaCode').focus(); return; }
           } catch (errSign) {
             signInErr = errSign;
+            loginFailRecord();
           }
 
           if (!signedInOk) {
@@ -12299,7 +12339,7 @@
         h('button', {
           type: 'button',
           class: 'btn gold',
-          onclick: function () { window.open('parent.html', '_blank'); }
+          onclick: function () { window.open('parent.html', '_blank', 'noopener,noreferrer'); }
         }, makeSvgIcon('s-desktop'), h('span', { text: 'فتح فضاء الأولياء للمعاينة' }))
       )
     ));

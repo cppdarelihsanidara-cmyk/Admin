@@ -1,7 +1,19 @@
+# رؤوس الحماية (تعمل على Netlify وCloudflare Pages وما يدعم ملف _headers).
+# ملاحظة: GitHub Pages لا يقرأ هذا الملف؛ إن بقيتَ عليه ضع الموقع خلف Cloudflare (مجاني) وأضف هذه الرؤوس كـ Transform Rules،
+# وبقيت الحماية الأساسية داخل وسوم <meta> وملف frame-guard.js.
 /*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
-  Content-Security-Policy-Report-Only: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://qgjddtylriqdwvpihvmi.supabase.co wss://qgjddtylriqdwvpihvmi.supabase.co; frame-src https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:
+  Cross-Origin-Resource-Policy: same-origin
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://qgjddtylriqdwvpihvmi.supabase.co; media-src 'self' blob: https://qgjddtylriqdwvpihvmi.supabase.co; connect-src 'self' https://qgjddtylriqdwvpihvmi.supabase.co; frame-src https://www.youtube-nocookie.com https://player.vimeo.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+
+/sw.js
+  Cache-Control: no-cache
+/manage.html
+  Cache-Control: no-store
+/parent.html
+  Cache-Control: no-store
