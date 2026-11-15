@@ -2136,11 +2136,9 @@ function getEvalType(r) {
 }
 
 function getEvalTypeName(type) {
-  if (type === 'mas' || type === 'mas_behavior') return 'استمارة تقييم دوافع السلوك MAS';
-  if (type === 'target_behavior') return 'تقييم قياس السلوك المستهدف';
-  if (type === 'reinforcers') return 'استبيان تقييم المعززات';
+  if (type === 'mas') return 'استمارة تقييم دوافع السلوك (مدا - MAS)';
   if (type === 'observation') return 'استمارة ملاحظة سلوك';
-  return 'تقييم الأداء الحالي';
+  return 'تقرير اللجنة البيداغوجية والتربوية';
 }
 
 function getEvalTypeBadge(type) {
@@ -2669,8 +2667,8 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
         h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
         h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
         h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
-        h('div', { class: 'oep-fr-title', text: "RAPPORT D'ANALYSE QUALITATIF" }),
-        h('h2', { class: 'oep-report-heading', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
+        h('div', { class: 'oep-fr-title', text: "COMPTE RENDU DE L'EQUIPE PEDAGOGIQUE" }),
+        h('h2', { class: 'oep-report-heading', text: 'التقرير البيداغوجي الوصفي (تقرير الملاحظات والتوجيهات)' })
       ),
       logoImg
     );
@@ -2866,15 +2864,15 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
 
     var pTab1 = makeParentReportControlRow(
       'notes',
-      'معاينة التقرير النوعي',
-      "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)",
-      'تقرير_نوعي_تحليلي'
+      'التقرير الأول (الكتابي)',
+      'التقرير البيداغوجي الوصفي — تقرير الملاحظات والتوجيهات',
+      'تقرير_الملاحظات_والتوجيهات'
     );
     var pTab2 = makeParentReportControlRow(
       'statistics',
-      'معاينة التقرير الكمي',
-      'تقرير الكمي (quantitative)',
-      'تقرير_الكمي_quantitative'
+      'التقرير الثاني (الكمي)',
+      'التقرير التقييمي الكمي — كشف النتائج والأعمدة والدائرة النسبية',
+      'التقرير_الكمي_لنتائج_التقييم'
     );
 
     var printBtn = h('button', {

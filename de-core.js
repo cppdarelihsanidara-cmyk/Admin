@@ -182,18 +182,23 @@
       for (var k in extra) hd[k] = extra[k];
       return hd;
     }
-    async function raw(token, method, path, body, extra) {
+    async function raw(token, method, path, body, extra, timeoutMs) {
       var isBin = typeof Uint8Array !== 'undefined' && body instanceof Uint8Array;
       var hd = hdrs(token, extra || {});
       if (body !== undefined && !isBin) hd['Content-Type'] = 'application/json';
       var res;
-      try { res = await fetch(base + path, { method: method, headers: hd, body: body === undefined ? undefined : (isBin ? body : JSON.stringify(body)) }); }
+      var ctl = (timeoutMs && typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = ctl ? setTimeout(function () { ctl.abort(); }, timeoutMs) : null;
+      try { res = await fetch(base + path, { method: method, headers: hd, signal: ctl ? ctl.signal : undefined, body: body === undefined ? undefined : (isBin ? body : JSON.stringify(body)) }); }
       catch (e) {
-        var errText = path.indexOf('/functions/v1/') === 0
-          ? 'تعذّر الاتصال بالدالة السحابية. يرجى التأكد من نشر دالة admin-users في Supabase.'
-          : 'تعذّر الاتصال بالخادم. تحقق من الإنترنت.';
-        var ne = new Error(errText); ne.status = 0; throw ne;
-      }
+        var isFn = path.indexOf('/functions/v1/') === 0;
+        var fnName = isFn ? path.slice('/functions/v1/'.length).split('?')[0] : '';
+        var timedOut = !!(ctl && ctl.signal.aborted);
+        var errText = timedOut
+          ? 'انتهت مهلة الانتظار دون ردّ من الدالة السحابية ' + fnName + '. تحقق من نشرها وأسرار واتساب في Supabase ثم أعد المحاولة.'
+          : (isFn ? 'تعذّر الاتصال بالدالة السحابية ' + fnName + '. تأكد من نشرها في Supabase ومن الإنترنت.' : 'تعذّر الاتصال بالخادم. تحقق من الإنترنت.');
+        var ne = new Error(errText); ne.status = 0; ne.timeout = timedOut; throw ne;
+      } finally { if (timer) clearTimeout(timer); }
       var txt = await res.text(), j = null;
       try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = null; }
       if (!res.ok) {
@@ -220,12 +225,12 @@
         await expire(); var e = new Error('انتهت الجلسة. سجّل الدخول من جديد.'); e.status = 401; throw e;
       }
     }
-    async function authed(method, path, body, extra) {
+    async function authed(method, path, body, extra, timeoutMs) {
       await ensureFresh();
-      try { return await raw(session && session.access_token, method, path, body, extra); }
+      try { return await raw(session && session.access_token, method, path, body, extra, timeoutMs); }
       catch (e) {
         if (e.status === 401 && session) {
-          if (await refresh()) return raw(session.access_token, method, path, body, extra);
+          if (await refresh()) return raw(session.access_token, method, path, body, extra, timeoutMs);
           await expire(); e.message = 'انتهت الجلسة. سجّل الدخول من جديد.';
         }
         throw e;
@@ -321,7 +326,7 @@
     api.setPassword = function (pw) { return authed('PUT', '/auth/v1/user', { password: pw }); };
     api.rest = function (method, path, body, prefer) { return authed(method, '/rest/v1' + path, body, prefer ? { Prefer: prefer } : {}); };
     api.rpc = function (name, args) { return authed('POST', '/rest/v1/rpc/' + name, args || {}); };
-    api.fn = function (name, body) { return authed('POST', '/functions/v1/' + name, body); };
+    api.fn = function (name, body, timeoutMs) { return authed('POST', '/functions/v1/' + name, body, undefined, timeoutMs || 25000); };
     api.signedUrl = async function (bucket, path, seconds) {
       var r = await authed('POST', '/storage/v1/object/sign/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'), { expiresIn: seconds || 60 });
       var u = r && (r.signedURL || r.signedUrl);
