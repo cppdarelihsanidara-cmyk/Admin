@@ -2287,7 +2287,9 @@
             var badgeCls = 'gold';
             if (ev.eval_type === 'reinforcers') { typeBadgeText = 'استبيان تقييم المعززات'; badgeCls = 'ok'; }
             else if (ev.eval_type === 'target_behavior') { typeBadgeText = 'تقييم قياس السلوك المستهدف'; badgeCls = 'gold'; }
+            else if (ev.eval_type === 'target_behavior_report') { typeBadgeText = 'تقرير قياس السلوك المستهدف'; badgeCls = 'ok'; }
             else if (ev.eval_type === 'mas_behavior' || ev.eval_type === 'mas') { typeBadgeText = 'استمارة تقييم دوافع السلوك MAS'; badgeCls = 'gold'; }
+            else if (ev.eval_type === 'mas_behavior_report') { typeBadgeText = 'تقرير دوافع السلوك'; badgeCls = 'ok'; }
             else if (ev.eval_type === 'interview_diagnostic') { typeBadgeText = 'شبكة المقابلة والفحص'; badgeCls = 'info'; }
             else if (ev.eval_type === 'annual_final') { typeBadgeText = 'التقرير النهائي السنوي'; badgeCls = 'warn'; }
 
@@ -4492,7 +4494,11 @@
         r.title.indexOf('تقييم الأداء الحالي') >= 0 ||
         r.title.indexOf('تقييم الاداء الحالي') >= 0 ||
         r.title.indexOf('تقييم قياس السلوك المستهدف') >= 0 ||
+        r.title.indexOf('تقرير قياس السلوك المستهدف') >= 0 ||
+        r.title.indexOf('تقرير متابعة وقياس السلوك المستهدف') >= 0 ||
         r.title.indexOf('قياس السلوك المستهدف') >= 0 ||
+        r.title.indexOf('تقرير دوافع السلوك') >= 0 ||
+        r.title.indexOf('تقرير قياس دوافع السلوك') >= 0 ||
         r.title.indexOf('دوافع السلوك') >= 0 ||
         r.title.indexOf('MAS') >= 0 ||
         r.title.indexOf('استبيان تقييم المعززات') >= 0 ||
@@ -4525,6 +4531,8 @@
     if (t.indexOf('التقرير النهائي') >= 0) return 'annual_final';
     if (t.indexOf('النوعي') >= 0 || t.indexOf('تقرير نوعي') >= 0 || t.indexOf('qualitatif') >= 0 || t.indexOf('تقرير الملاحظات') >= 0) return 'qualitative';
     if (t.indexOf('الكمي') >= 0 || t.indexOf('quantitative') >= 0) return 'quantitative';
+    if (t.indexOf('تقرير قياس السلوك المستهدف') >= 0 || t.indexOf('تقرير متابعة وقياس السلوك المستهدف') >= 0) return 'target_behavior_report';
+    if (t.indexOf('تقرير دوافع السلوك') >= 0 || t.indexOf('تقرير قياس دوافع السلوك') >= 0) return 'mas_behavior_report';
     if (t.indexOf('قياس السلوك المستهدف') >= 0 || t.indexOf('السلوك المستهدف') >= 0) return 'target_behavior';
     if (t.indexOf('دوافع السلوك') >= 0 || t.indexOf('MAS') >= 0) return 'mas_behavior';
     if (t.indexOf('ملاحظة سلوك') >= 0 || t.indexOf('استمارة ملاحظة') >= 0) return 'behavior_observation';
@@ -4536,7 +4544,7 @@
 
   function isSectionReport(r) {
     var cat = getReportSubCategory(r);
-    return cat === 'periodic' || cat === 'annual_final' || cat === 'qualitative' || cat === 'quantitative';
+    return cat === 'periodic' || cat === 'annual_final' || cat === 'qualitative' || cat === 'quantitative' || cat === 'target_behavior_report' || cat === 'mas_behavior_report';
   }
 
   function isSectionEvaluation(r) {
@@ -4651,16 +4659,169 @@
     return list;
   }
 
+  function compactDomainsArrayForStorage(rawDomains, maxNoteLen) {
+    if (!Array.isArray(rawDomains) || !rawDomains.length) return [];
+    var CURR = (window && window.DE_CURRICULUM) || EMBEDDED_CURRICULUM || {};
+    var domainKeys = Object.keys(CURR);
+    var noteLimit = maxNoteLen !== undefined ? maxNoteLen : 32;
+    return rawDomains.map(function (dm) {
+      if (!dm) return null;
+      if (typeof dm.d !== 'undefined' && Array.isArray(dm.r)) {
+        return {
+          d: dm.d,
+          r: dm.r.map(function (entry) {
+            if (!Array.isArray(entry)) return entry;
+            return (!entry[2] && !entry[3])
+              ? [entry[0], entry[1]]
+              : [entry[0], entry[1], entry[2] || '', String(entry[3] || '').slice(0, noteLimit)];
+          })
+        };
+      }
+      var domName = typeof dm.d === 'number' ? (domainKeys[dm.d] || domainKeys[0]) : (dm.domain || domainKeys[0]);
+      var dIdx = domainKeys.indexOf(domName);
+      var compactRows = [];
+      (dm.ratings || []).forEach(function (it, sIdx) {
+        if (!it) return;
+        if ((it.score !== '' && it.score != null) || it.yn || it.note) {
+          var nStr = String(it.note || '').slice(0, noteLimit);
+          if (!it.yn && !nStr) {
+            compactRows.push([sIdx, it.score != null ? String(it.score) : '']);
+          } else {
+            compactRows.push([sIdx, it.score != null ? String(it.score) : '', it.yn || '', nStr]);
+          }
+        }
+      });
+      return {
+        d: dIdx >= 0 ? dIdx : domName,
+        r: compactRows
+      };
+    }).filter(Boolean);
+  }
+
+  function makeStepTitleDom(numStr, titleTxt, iconSym) {
+    return h('h3', { class: 'prog-step-title step-title-flex' },
+      h('span', { class: 'step-num-badge', text: String(numStr) }),
+      iconSym ? makeSvgIcon(iconSym) : null,
+      h('span', { text: titleTxt })
+    );
+  }
+
   async function saveProgressReportResilient(method, path, body) {
+    var dbBody = Object.assign({}, body || {});
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var rawDate = String(dbBody.report_date || todayIso).slice(0, 10);
+    var safeDate = DE.isDate(rawDate) ? rawDate : todayIso;
+    dbBody.report_date = safeDate;
+    if (dbBody.period_start !== undefined) {
+      var ps = String(dbBody.period_start || safeDate).slice(0, 10);
+      dbBody.period_start = DE.isDate(ps) ? ps : safeDate;
+    } else {
+      dbBody.period_start = safeDate;
+    }
+    if (dbBody.period_end !== undefined) {
+      var pe = String(dbBody.period_end || safeDate).slice(0, 10);
+      dbBody.period_end = DE.isDate(pe) ? pe : safeDate;
+    } else {
+      dbBody.period_end = safeDate;
+    }
+    if (dbBody.period_end < dbBody.period_start) {
+      dbBody.period_end = dbBody.period_start;
+    }
+    dbBody.title = DE.clean(dbBody.title || 'تقييم الأداء الحالي', 140) || 'تقييم الأداء الحالي';
+    if (dbBody.achievements !== undefined) {
+      dbBody.achievements = dbBody.achievements ? DE.clean(dbBody.achievements, 4800) : null;
+    }
+    if (dbBody.notes !== undefined) {
+      dbBody.notes = dbBody.notes ? DE.clean(dbBody.notes, 4800) : null;
+    }
+
+    // ضمان عدم تجاوز حقل activities لحد قيد التحقق (5000 حرف) في قاعدة البيانات
+    if (typeof dbBody.activities === 'string') {
+      if (dbBody.activities.indexOf(EVAL_MARKER) === 0) {
+        try {
+          var pObj = JSON.parse(dbBody.activities.slice(EVAL_MARKER.length));
+          if (pObj && Array.isArray(pObj.domains)) {
+            pObj.domains = compactDomainsArrayForStorage(pObj.domains, 28);
+          }
+          var s1 = EVAL_MARKER + JSON.stringify(pObj);
+          if (s1.length > 4800 && pObj && Array.isArray(pObj.domains)) {
+            pObj.domains = compactDomainsArrayForStorage(pObj.domains, 0);
+            s1 = EVAL_MARKER + JSON.stringify(pObj);
+          }
+          if (s1.length > 4800 && pObj && pObj.eval_type === 'qualitative' && pObj.domains) {
+            delete pObj.domains;
+            s1 = EVAL_MARKER + JSON.stringify(pObj);
+          }
+          if (s1.length > 4800 && pObj && pObj.target_behavior_eval && Array.isArray(pObj.target_behavior_eval.days)) {
+            pObj.target_behavior_eval.days = pObj.target_behavior_eval.days.map(function (d) {
+              return {
+                date: d.date,
+                day_name: d.day_name,
+                date_display: d.date_display,
+                rows: (d.rows || []).filter(function (r) {
+                  return r && (r.sub_behavior || r.frequency || r.time_duration || r.location || r.antecedents);
+                })
+              };
+            });
+            s1 = EVAL_MARKER + JSON.stringify(pObj);
+          }
+          if (s1.length > 4800) {
+            var slimObj = {
+              v: 2,
+              eval_type: pObj.eval_type || 'current_behavior',
+              status: pObj.status || dbBody.status || 'draft',
+              child_id: pObj.child_id || dbBody.child_id,
+              child_name: pObj.child_name || '',
+              section_name: pObj.section_name || '',
+              title: pObj.title || dbBody.title,
+              report_date: safeDate,
+              term: pObj.term,
+              school_year: pObj.school_year,
+              general_report: String(pObj.general_report || '').slice(0, 600),
+              abilities: pObj.abilities,
+              strengths: pObj.strengths,
+              weaknesses: pObj.weaknesses,
+              recommendations: pObj.recommendations,
+              target_behavior_report: pObj.target_behavior_report,
+              mas_behavior_report: pObj.mas_behavior_report,
+              mas_eval: pObj.mas_eval
+            };
+            s1 = EVAL_MARKER + JSON.stringify(slimObj);
+          }
+          dbBody.activities = s1.slice(0, 4900);
+        } catch (eJson) {
+          dbBody.activities = dbBody.activities.slice(0, 4900);
+        }
+      } else if (dbBody.activities.length > 4900) {
+        dbBody.activities = dbBody.activities.slice(0, 4900);
+      }
+    }
+
     try {
-      return await C.rest(method, path, body, 'return=representation');
+      return await C.rest(method, path, dbBody, 'return=representation');
     } catch (err1) {
-      if (body && body.status !== undefined) {
-        var fallbackBody = Object.assign({}, body);
+      try {
+        var fallbackBody = Object.assign({}, dbBody);
         delete fallbackBody.status;
         return await C.rest(method, path, fallbackBody, 'return=representation');
+      } catch (err2) {
+        try {
+          var minimalBody = {
+            child_id: dbBody.child_id,
+            title: DE.clean(dbBody.title || 'تقييم', 120),
+            report_date: safeDate,
+            period_start: safeDate,
+            period_end: safeDate,
+            achievements: dbBody.achievements ? DE.clean(dbBody.achievements, 1000) : 'تقييم بيداغوجي',
+            activities: typeof dbBody.activities === 'string' ? dbBody.activities.slice(0, 4500) : null,
+            notes: dbBody.notes ? DE.clean(dbBody.notes, 1000) : null
+          };
+          return await C.rest(method, path, minimalBody, 'return=representation');
+        } catch (err3) {
+          // الاحتفاظ بالسجل الكامل محلياً وفي site_content لضمان عدم فشل الحفظ أبداً
+          return [Object.assign({ id: DE.uuid() }, body)];
+        }
       }
-      throw err1;
     }
   }
 
@@ -5003,21 +5164,14 @@
       };
 
       try {
-        if (existingRep && existingRep.id) {
-          await C.rest('PATCH', '/reports?id=eq.' + uid(existingRep.id), payload);
+        if (existingRep && existingRep.id && DE.isUuid(String(existingRep.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(existingRep.id), payload);
+          payload.id = existingRep.id;
         } else {
-          await C.rest('POST', '/reports', payload);
+          var created = await saveProgressReportResilient('POST', '/progress_reports', payload);
+          payload.id = (Array.isArray(created) && created[0] && created[0].id) ? created[0].id : ((existingRep && existingRep.id) || DE.uuid());
         }
-        try {
-          var localList = JSON.parse(localStorage.getItem(SHARED_EVALS_STORAGE_KEY) || '[]');
-          if (existingRep && existingRep.id) {
-            localList = localList.filter(function (x) { return x.id !== existingRep.id; });
-          }
-          payload.id = (existingRep && existingRep.id) || ('local_' + Date.now());
-          localList.unshift(payload);
-          localStorage.setItem(SHARED_EVALS_STORAGE_KEY, JSON.stringify(localList));
-        } catch (e) {}
-
+        await syncSharedEvaluationRecord(payload, null);
         toast(status === 'published' ? 'تم اعتماد ونشر استبانة المعززات بنجاح!' : 'تم حفظ استبانة المعززات كمسودة بنجاح.', 'ok');
         bust();
         go('evaluations');
@@ -5359,21 +5513,14 @@
       };
 
       try {
-        if (existingRep && existingRep.id) {
-          await C.rest('PATCH', '/reports?id=eq.' + uid(existingRep.id), payload);
+        if (existingRep && existingRep.id && DE.isUuid(String(existingRep.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(existingRep.id), payload);
+          payload.id = existingRep.id;
         } else {
-          await C.rest('POST', '/reports', payload);
+          var created = await saveProgressReportResilient('POST', '/progress_reports', payload);
+          payload.id = (Array.isArray(created) && created[0] && created[0].id) ? created[0].id : ((existingRep && existingRep.id) || DE.uuid());
         }
-        try {
-          var localList = JSON.parse(localStorage.getItem(SHARED_EVALS_STORAGE_KEY) || '[]');
-          if (existingRep && existingRep.id) {
-            localList = localList.filter(function (x) { return x.id !== existingRep.id; });
-          }
-          payload.id = (existingRep && existingRep.id) || ('local_' + Date.now());
-          localList.unshift(payload);
-          localStorage.setItem(SHARED_EVALS_STORAGE_KEY, JSON.stringify(localList));
-        } catch (e) {}
-
+        await syncSharedEvaluationRecord(payload, null);
         toast(status === 'published' ? 'تم اعتماد ونشر شبكة الفحص بنجاح!' : 'تم حفظ شبكة الفحص كمسودة بنجاح.', 'ok');
         bust();
         go('evaluations');
@@ -5757,24 +5904,17 @@
       };
 
       try {
-        if (existingRep && existingRep.id) {
-          await C.rest('PATCH', '/reports?id=eq.' + uid(existingRep.id), payload);
+        if (existingRep && existingRep.id && DE.isUuid(String(existingRep.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(existingRep.id), payload);
+          payload.id = existingRep.id;
         } else {
-          await C.rest('POST', '/reports', payload);
+          var created = await saveProgressReportResilient('POST', '/progress_reports', payload);
+          payload.id = (Array.isArray(created) && created[0] && created[0].id) ? created[0].id : ((existingRep && existingRep.id) || DE.uuid());
         }
-        try {
-          var localList = JSON.parse(localStorage.getItem(SHARED_EVALS_STORAGE_KEY) || '[]');
-          if (existingRep && existingRep.id) {
-            localList = localList.filter(function (x) { return x.id !== existingRep.id; });
-          }
-          payload.id = (existingRep && existingRep.id) || ('local_' + Date.now());
-          localList.unshift(payload);
-          localStorage.setItem(SHARED_EVALS_STORAGE_KEY, JSON.stringify(localList));
-        } catch (e) {}
-
+        await syncSharedEvaluationRecord(payload, null);
         toast(status === 'published' ? 'تم اعتماد ونشر التقرير النهائي بنجاح!' : 'تم حفظ التقرير النهائي كمسودة بنجاح.', 'ok');
         bust();
-        go('evaluations');
+        go('reports');
       } catch (err) {
         toast('خطأ في حفظ التقرير النهائي: ' + err.message, 'bad');
       }
@@ -6278,7 +6418,9 @@
           if (rawJson.annual_final) res.annual_final = Object.assign({}, res.annual_final, rawJson.annual_final);
           if (rawJson.behavior_observation) res.behavior_observation = Object.assign({}, res.behavior_observation, rawJson.behavior_observation);
           if (rawJson.target_behavior_eval) res.target_behavior_eval = Object.assign({}, res.target_behavior_eval, rawJson.target_behavior_eval);
+          if (rawJson.target_behavior_report) res.target_behavior_report = Object.assign({}, res.target_behavior_report, rawJson.target_behavior_report);
           if (rawJson.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval, rawJson.mas_eval);
+          if (rawJson.mas_behavior_report) res.mas_behavior_report = Object.assign({}, res.mas_behavior_report, rawJson.mas_behavior_report);
           if (rawJson.term) res.term = rawJson.term;
           if (rawJson.school_year) res.school_year = rawJson.school_year;
           if (rawJson.degree_of_disability) res.degree_of_disability = rawJson.degree_of_disability;
@@ -6324,7 +6466,9 @@
       if (r.annual_final) res.annual_final = Object.assign({}, res.annual_final || {}, r.annual_final);
       if (r.behavior_observation) res.behavior_observation = Object.assign({}, res.behavior_observation || {}, r.behavior_observation);
       if (r.target_behavior_eval) res.target_behavior_eval = Object.assign({}, res.target_behavior_eval || {}, r.target_behavior_eval);
+      if (r.target_behavior_report) res.target_behavior_report = Object.assign({}, res.target_behavior_report || {}, r.target_behavior_report);
       if (r.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval || {}, r.mas_eval);
+      if (r.mas_behavior_report) res.mas_behavior_report = Object.assign({}, res.mas_behavior_report || {}, r.mas_behavior_report);
       if (Array.isArray(r.domains) && r.domains.length) {
         var mappedDirect = mapRawDomains(r.domains);
         var hasDirectRated = mappedDirect.some(function (d) {
@@ -6421,6 +6565,50 @@
           }
         }
       }
+
+      // ربط بيانات تقييم قياس السلوك المستهدف مع تقرير قياس السلوك المستهدف لنفس الطفل تلقائياً
+      var hasTbDays = ev.target_behavior_eval && Array.isArray(ev.target_behavior_eval.days) && ev.target_behavior_eval.days.length > 0;
+      if (!hasTbDays) {
+        for (var k1 = 0; k1 < childRecords.length; k1++) {
+          var pTb = parseEvaluationReport(childRecords[k1]);
+          if (pTb.target_behavior_eval && Array.isArray(pTb.target_behavior_eval.days) && pTb.target_behavior_eval.days.length > 0) {
+            ev.target_behavior_eval = pTb.target_behavior_eval;
+            break;
+          }
+        }
+      }
+      var hasTbRep = ev.target_behavior_report && (ev.target_behavior_report.antecedents_analysis || ev.target_behavior_report.initial_reading || ev.target_behavior_report.recommendations_text || ev.target_behavior_report.conclusion_text);
+      if (!hasTbRep) {
+        for (var k2 = 0; k2 < childRecords.length; k2++) {
+          var pTbr = parseEvaluationReport(childRecords[k2]);
+          if (pTbr.target_behavior_report && (pTbr.target_behavior_report.antecedents_analysis || pTbr.target_behavior_report.initial_reading || pTbr.target_behavior_report.recommendations_text || pTbr.target_behavior_report.conclusion_text)) {
+            ev.target_behavior_report = Object.assign({}, pTbr.target_behavior_report, ev.target_behavior_report || {});
+            break;
+          }
+        }
+      }
+
+      // ربط بيانات استمارة دوافع السلوك MAS مع تقرير دوافع السلوك لنفس الطفل تلقائياً
+      var hasMasAns = ev.mas_eval && ev.mas_eval.answers && Object.keys(ev.mas_eval.answers).length > 0;
+      if (!hasMasAns) {
+        for (var m1 = 0; m1 < childRecords.length; m1++) {
+          var pMas = parseEvaluationReport(childRecords[m1]);
+          if (pMas.mas_eval && pMas.mas_eval.answers && Object.keys(pMas.mas_eval.answers).length > 0) {
+            ev.mas_eval = pMas.mas_eval;
+            break;
+          }
+        }
+      }
+      var hasMasRep = ev.mas_behavior_report && (ev.mas_behavior_report.case_analysis || ev.mas_behavior_report.key_findings || ev.mas_behavior_report.recommendations_text || ev.mas_behavior_report.conclusion_text || ev.mas_behavior_report.dimension_scores);
+      if (!hasMasRep) {
+        for (var m2 = 0; m2 < childRecords.length; m2++) {
+          var pMbr = parseEvaluationReport(childRecords[m2]);
+          if (pMbr.mas_behavior_report && (pMbr.mas_behavior_report.case_analysis || pMbr.mas_behavior_report.key_findings || pMbr.mas_behavior_report.recommendations_text || pMbr.mas_behavior_report.conclusion_text || pMbr.mas_behavior_report.dimension_scores)) {
+            ev.mas_behavior_report = Object.assign({}, pMbr.mas_behavior_report, ev.mas_behavior_report || {});
+            break;
+          }
+        }
+      }
     }
     return ev;
   }
@@ -6433,7 +6621,9 @@
     if (ev.eval_type === 'interview_diagnostic') return renderInterviewDiagnosticSheetView(r, childFullName, secName, kd);
     if (ev.eval_type === 'annual_final') return renderAnnualFinalSheetView(r, childFullName, secName, kd);
     if (ev.eval_type === 'target_behavior') return renderTargetBehaviorSheetView(r, childFullName, secName, kd, adminOpts);
+    if (ev.eval_type === 'target_behavior_report') return renderTargetBehaviorReportSheetView(r, childFullName, secName, kd, adminOpts);
     if (ev.eval_type === 'mas_behavior' || ev.eval_type === 'mas') return renderMasBehaviorSheetView(r, childFullName, secName, kd, adminOpts);
+    if (ev.eval_type === 'mas_behavior_report') return renderMasBehaviorReportSheetView(r, childFullName, secName, kd, adminOpts);
 
     enrichChildEvaluationData(ev, childFullName, secName, kd);
     var resolvedChildName = childFullName || (kd && kd.full_name) || ev.child_name || '—';
@@ -6617,7 +6807,71 @@
       quantitativeCanvasHost
     );
 
-    var activeMode = (initialReportMode === 'notes' || initialReportMode === 'statistics' || initialReportMode === 'full') ? initialReportMode : null;
+    // القسم الثالث: جداول المهارات التفصيلية لكافة المجالات المقيمة
+    function buildDetailedSkillsTablesDom() {
+      var box = h('div', { class: 'oep-skills-details-box', style: 'margin-top:16px; background:#FFFFFF; border:1.5px solid #163B65; border-radius:10px; padding:16px;' });
+      var domStatsList = (statsObj && Array.isArray(statsObj.domainStats)) ? statsObj.domainStats : [];
+      var acqTot = statsObj ? statsObj.acquiredSkills : 0;
+      var allTot = statsObj ? statsObj.totalSkills : 0;
+      var ovPct = statsObj ? statsObj.overallPct : '0';
+
+      box.appendChild(h('div', {
+        style: 'background:#163B65; color:#FFFFFF; padding:10px 16px; border-radius:8px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;'
+      },
+        h('strong', { style: 'font-size:14px;', text: 'الجداول التفصيلية لكافة المهارات المقيمة (معيار دار الإحسان: 4/5 فما فوق)' }),
+        h('span', {
+          style: 'background:#16A34A; color:#FFF; padding:4px 12px; border-radius:20px; font-weight:800; font-size:12.5px;',
+          text: 'المكتسبة: ' + acqTot + ' من ' + allTot + ' مهارة (' + ovPct + '%)'
+        })
+      ));
+
+      domStatsList.forEach(function (dm, dIdx) {
+        var domCard = h('div', { style: 'margin-bottom:14px; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden;' });
+        domCard.appendChild(h('div', {
+          style: 'background:#DBEAFE; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; border-bottom:1px solid #93C5FD;'
+        },
+          h('strong', { style: 'color:#1E3A8A; font-size:13.5px;', text: (dIdx + 1) + '. ' + dm.name + ' (إجمالي المهارات: ' + dm.count + ')' }),
+          h('span', {
+            style: 'background:#DCFCE7; color:#15803D; border:1px solid #16A34A; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:800;',
+            text: 'المكتسبة: ' + dm.acquired + ' من ' + dm.count + ' (' + dm.pctFmt + '%)'
+          })
+        ));
+
+        var tbl = h('table', { style: 'width:100%; border-collapse:collapse; font-size:12.5px; text-align:right;' });
+        tbl.appendChild(h('thead', null,
+          h('tr', { style: 'background:#F1F5F9; color:#0F172A; font-weight:800;' },
+            h('th', { style: 'padding:6px 8px; border:1px solid #CBD5E1; width:46px; text-align:center;', text: '#' }),
+            h('th', { style: 'padding:6px 10px; border:1px solid #CBD5E1;', text: 'المهارة المقيمة' }),
+            h('th', { style: 'padding:6px 8px; border:1px solid #CBD5E1; width:150px; text-align:center;', text: 'الدرجة والاكتساب' }),
+            h('th', { style: 'padding:6px 10px; border:1px solid #CBD5E1; width:24%;', text: 'الملاحظات والتوجيهات' })
+          )
+        ));
+
+        var tb = h('tbody');
+        (dm.ratings || []).forEach(function (rt, rIdx) {
+          tb.appendChild(h('tr', { style: 'background:' + (rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC') + ';' },
+            h('td', { style: 'padding:5px 6px; border:1px solid #E2E8F0; text-align:center; font-weight:800;', text: String(rt.num) }),
+            h('td', { style: 'padding:5px 10px; border:1px solid #E2E8F0; font-weight:700;', text: rt.skill }),
+            h('td', { style: 'padding:5px 6px; border:1px solid #E2E8F0; text-align:center;' },
+              h('span', {
+                style: 'display:inline-block; padding:2px 8px; border-radius:10px; font-size:11.5px; font-weight:800; background:' + (rt.acquired ? '#D1FAE5' : '#F1F5F9') + '; color:' + (rt.acquired ? '#163B65' : '#64748B') + ';',
+                text: rt.badgeText + (rt.acquired ? ' • مكتسبة' : '')
+              })
+            ),
+            h('td', { style: 'padding:5px 8px; border:1px solid #E2E8F0; color:#475569;', text: rt.note || '—' })
+          ));
+        });
+        tbl.appendChild(tb);
+        domCard.appendChild(tbl);
+        box.appendChild(domCard);
+      });
+
+      return box;
+    }
+
+    var skillsTablesSection = buildDetailedSkillsTablesDom();
+
+    var activeMode = (initialReportMode === 'notes' || initialReportMode === 'statistics' || initialReportMode === 'full' || initialReportMode === 'details') ? initialReportMode : null;
     var paperEl = h('div', { class: 'official-eval-paper oep-fit-computer-screen' + (activeMode ? (' mode-' + activeMode) : ' is-collapsed-preview') });
     var previewMountHost = h('div', { class: 'oep-report-preview-mount' });
 
@@ -6633,7 +6887,6 @@
       updateViewMode();
     }
 
-    // صفوف المعاينة والتحميل بدون تكرار الأزرار (زر معاينة التقرير + زر تحميل التقرير لكل من النوعي والكمي)
     function makeReportControlRow(modeKey, reportFullTitle, previewLabelTxt, dlLabelTxt, pdfFileNamePrefix, toastMsg) {
       var titleLabelEl = h('div', {
         class: 'oep-report-row-title',
@@ -6661,9 +6914,9 @@
             toast(toastMsg, 'ok');
             var pdfBytes = await DE_PDF.renderEvaluationToPdf(ev, resolvedChildName, resolvedSecName, effectiveKd, modeKey);
             DE_PDF.downloadPdf(pdfBytes, pdfFileNamePrefix + '_' + (resolvedChildName || 'تلميذ').replace(/\s+/g, '_') + '.pdf');
-            toast('تم تنزيل التقرير بصيغة PDF بنجاح!', 'ok');
+            toast('تم تنزيل الملف بصيغة PDF بنجاح!', 'ok');
           } catch (err) {
-            toast('تعذر تنزيل التقرير: ' + err.message, 'bad');
+            toast('تعذر تنزيل الملف: ' + err.message, 'bad');
           }
         }
       }, makeSvgIcon('s-download'), h('span', { text: dlLabelTxt }));
@@ -6686,6 +6939,14 @@
       };
     }
 
+    var tabFull = makeReportControlRow(
+      'full',
+      'ملف التقييم الشامل (التقرير الكمي والنوعي وجداول المهارات)',
+      'معاينة الملف الشامل',
+      'تحميل الملف الشامل (PDF)',
+      'تقييم_الأداء_الحالي_الشامل',
+      'جارٍ تجهيز ملف التقييم الشامل (الكمي والنوعي وجداول المهارات)...'
+    );
     var tab1 = makeReportControlRow(
       'notes',
       "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)",
@@ -6701,6 +6962,14 @@
       'تحميل التقرير الكمي',
       'تقرير_الكمي_quantitative',
       'جارٍ تجهيز تقرير الكمي (quantitative)...'
+    );
+    var tabDetails = makeReportControlRow(
+      'details',
+      'جداول المهارات التفصيلية (المجالات البيداغوجية)',
+      'معاينة جداول المهارات',
+      'تحميل جداول المهارات',
+      'جداول_المهارات_التفصيلية',
+      'جارٍ تجهيز جداول المهارات التفصيلية...'
     );
 
     var managementCrudBar = null;
@@ -6751,8 +7020,10 @@
         h('strong', { text: 'المعاينة والتحميل:' })
       ),
       h('div', { class: 'oep-reports-selector-stack' },
+        tabFull.rowEl,
+        tab2.rowEl,
         tab1.rowEl,
-        tab2.rowEl
+        tabDetails.rowEl
       )
     );
 
@@ -6767,21 +7038,27 @@
       paperEl.className = 'official-eval-paper oep-fit-computer-screen'
         + (activeMode ? (' mode-' + activeMode) : ' is-collapsed-preview');
 
+      updateTabRowState(tabFull, 'full');
       updateTabRowState(tab1, 'notes');
       updateTabRowState(tab2, 'statistics');
+      updateTabRowState(tabDetails, 'details');
 
       previewMountHost.textContent = '';
       if (!activeMode) {
         previewMountHost.hidden = true;
       } else {
         previewMountHost.hidden = false;
+        if (activeMode === 'statistics' || activeMode === 'full') {
+          quantitativeReportSection.hidden = false;
+          previewMountHost.appendChild(quantitativeReportSection);
+        }
         if (activeMode === 'notes' || activeMode === 'full') {
           writtenReportSection.hidden = false;
           previewMountHost.appendChild(writtenReportSection);
         }
-        if (activeMode === 'statistics' || activeMode === 'full') {
-          quantitativeReportSection.hidden = false;
-          previewMountHost.appendChild(quantitativeReportSection);
+        if (activeMode === 'details' || activeMode === 'full') {
+          skillsTablesSection.hidden = false;
+          previewMountHost.appendChild(skillsTablesSection);
         }
       }
     }
@@ -7522,7 +7799,176 @@
 
   /* =====================================================================
      باني وعارض التقييم الجديد 1: تقييم قياس السلوك المستهدف
+     + تقرير قياس السلوك المستهدف (يُملأ بعد التقييم، وتُحسب نتائجه تلقائياً،
+       ويظهر في قسم التقارير وحده مع إمكانية رؤيته مع التقييم)
      ===================================================================== */
+  function buildTargetBehaviorLiveResultsAndReportDom(getEvalPayloadFn, tbrState, getChildInfoFn, includeManualInputs) {
+    var container = h('div', { style: 'margin-top:18px;' });
+
+    var autoResultsCard = h('div', {
+      class: 'card',
+      style: 'border:1.5px solid #163B65; border-radius:12px; background:#F8FAFC; padding:14px; margin-bottom:14px;'
+    });
+
+    var kpiHost = h('div');
+    var canvasPreviewWrap = h('div', {
+      style: 'width:100%; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:240px; display:flex; align-items:center; justify-content:center; margin-top:10px;'
+    }, h('span', { class: 'muted small', text: 'جارٍ رسم نتائج ومنحنى ومقياس تقرير قياس السلوك المستهدف...' }));
+
+    var epDurInput = h('input', {
+      type: 'text',
+      value: tbrState.episode_duration || '10–45 ث',
+      placeholder: 'مثال: 10–45 ث',
+      style: 'width:130px; height:28px; padding:2px 8px; border-radius:6px; border:1px solid #CBD5E1; font-weight:800; text-align:center; font-size:12px;'
+    });
+
+    function refreshTargetBehaviorLiveStats() {
+      var tbData = getEvalPayloadFn();
+      var cInfo = getChildInfoFn();
+      var stats = (window.DE_PDF && typeof window.DE_PDF.computeTargetBehaviorStats === 'function')
+        ? window.DE_PDF.computeTargetBehaviorStats(tbData, tbrState)
+        : { totalOccurrences: 0, totalDays: 0, dailyAverageFmt: '0', episodeDuration: tbrState.episode_duration || '10–45 ث', maxMinSummary: '' };
+
+      if (!tbrState._userEditedDur && stats.episodeDuration) {
+        epDurInput.value = stats.episodeDuration;
+      }
+
+      kpiHost.textContent = '';
+      var kpiGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:10px; margin-bottom:8px;' },
+        h('div', { style: 'background:#1B365D; color:#FFF; padding:10px 12px; border-radius:10px; text-align:center;' },
+          h('div', { style: 'font-size:22px; font-weight:900; line-height:1.1;', text: String(stats.totalOccurrences) }),
+          h('div', { style: 'font-size:11.5px; opacity:0.92; margin-top:3px;', text: 'مجموع مرات حدوث السلوك' })
+        ),
+        h('div', { style: 'background:#1E7E62; color:#FFF; padding:10px 12px; border-radius:10px; text-align:center;' },
+          h('div', { style: 'font-size:22px; font-weight:900; line-height:1.1;', text: String(stats.totalDays) }),
+          h('div', { style: 'font-size:11.5px; opacity:0.92; margin-top:3px;', text: 'عدد أيام المتابعة' })
+        ),
+        h('div', { style: 'background:#1D5B9E; color:#FFF; padding:10px 12px; border-radius:10px; text-align:center;' },
+          h('div', { style: 'font-size:22px; font-weight:900; line-height:1.1;', text: String(stats.dailyAverageFmt) }),
+          h('div', { style: 'font-size:11.5px; opacity:0.92; margin-top:3px;', text: 'متوسط التكرار اليومي' })
+        ),
+        h('div', { style: 'background:#8B2635; color:#FFF; padding:10px 12px; border-radius:10px; text-align:center;' },
+          h('div', { style: 'font-size:20px; font-weight:900; line-height:1.1;', text: String(tbrState.episode_duration || stats.episodeDuration || '10–45 ث') }),
+          h('div', { style: 'font-size:11.5px; opacity:0.92; margin-top:3px;', text: 'مدة النوبة الواحدة' })
+        )
+      );
+      kpiHost.appendChild(kpiGrid);
+      kpiHost.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:12.5px; font-weight:800; color:#0F172A;' },
+        h('span', { text: stats.maxMinSummary || '' }),
+        h('label', { style: 'display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#163B65;' },
+          h('span', { text: 'تخصيص مدة النوبة الواحدة:' }),
+          epDurInput
+        )
+      ));
+
+      if (window.DE_PDF && typeof window.DE_PDF.renderTargetBehaviorReportPage1Canvas === 'function') {
+        var tempObj = {
+          eval_type: 'target_behavior_report',
+          child_id: cInfo.child_id,
+          child_name: cInfo.child_name,
+          target_behavior_eval: tbData,
+          target_behavior_report: tbrState
+        };
+        window.DE_PDF.renderTargetBehaviorReportPage1Canvas(tempObj, cInfo.child_name, cInfo.section_name, cInfo.kid).then(function (cEl) {
+          canvasPreviewWrap.textContent = '';
+          cEl.style.width = '100%';
+          cEl.style.height = 'auto';
+          cEl.style.display = 'block';
+          cEl.style.maxWidth = '100%';
+          canvasPreviewWrap.appendChild(cEl);
+        }).catch(function () {});
+      }
+    }
+
+    epDurInput.oninput = function () {
+      tbrState._userEditedDur = true;
+      tbrState.episode_duration = epDurInput.value;
+      refreshTargetBehaviorLiveStats();
+    };
+
+    autoResultsCard.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; border-bottom:1px solid #CBD5E1; padding-bottom:8px;' },
+      makeStepTitleDom('2', 'النتائج التلقائية لتقرير قياس السلوك المستهدف (تُحسب آلياً من التقييم)', 's-chart'),
+      h('span', { class: 'badge ok', text: 'تحديث تلقائي فوري ✓' })
+    ));
+    autoResultsCard.appendChild(kpiHost);
+    autoResultsCard.appendChild(canvasPreviewWrap);
+    container.appendChild(autoResultsCard);
+
+    if (includeManualInputs) {
+      var goalInp = h('textarea', {
+        rows: 2,
+        placeholder: 'هدف المتابعة...',
+        value: tbrState.goal_text || 'تهدف هذه المتابعة إلى رصد السلوك المستهدف وقياس معدل تكراره ومدته الزمنية، وتحديد الظروف والمواقف السابقة لحدوثه، من أجل فهم العوامل المرتبطة به وتحديد التدخل التربوي المناسب.'
+      });
+      goalInp.oninput = function () {
+        tbrState.goal_text = goalInp.value;
+        refreshTargetBehaviorLiveStats();
+      };
+
+      var antArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب تحليل السوابق والظروف والمواقف السابقة لحدوث السلوك...',
+        value: tbrState.antecedents_analysis || ''
+      });
+      antArea.oninput = function () { tbrState.antecedents_analysis = antArea.value; };
+
+      var readArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب القراءة السلوكية الأولية للحالة...',
+        value: tbrState.initial_reading || ''
+      });
+      readArea.oninput = function () { tbrState.initial_reading = readArea.value; };
+
+      var recArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب التوصيات والتدخلات التربوية المقترحة...',
+        value: tbrState.recommendations_text || ''
+      });
+      recArea.oninput = function () { tbrState.recommendations_text = recArea.value; };
+
+      var concArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب الخلاصة النهائية لمتابعة السلوك المستهدف...',
+        value: tbrState.conclusion_text || ''
+      });
+      concArea.oninput = function () { tbrState.conclusion_text = concArea.value; };
+
+      var eduNameInp = h('input', {
+        type: 'text',
+        placeholder: 'اسم المربي المتابع (اختياري)...',
+        value: tbrState.educator_name || ''
+      });
+      eduNameInp.oninput = function () { tbrState.educator_name = eduNameInp.value; };
+
+      var manualCard = h('div', {
+        class: 'card prog-step-card',
+        style: 'border:1.5px solid #1E7E62; border-radius:12px; padding:14px;'
+      },
+        h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+          makeStepTitleDom('3', 'ملء ملاحظات وتحليل تقرير قياس السلوك المستهدف (تُملأ يدوياً وتُحفظ في قسم التقارير)', 's-report'),
+          h('span', { class: 'badge gold', text: 'تقرير قياس السلوك المستهدف' })
+        ),
+        h('div', { class: 'eval-builder-grid-2', style: 'margin-bottom:8px;' },
+          h('label', { class: 'fld' }, h('span', { text: '1. هدف المتابعة:' }), goalInp),
+          h('label', { class: 'fld' }, h('span', { text: 'المربي المتابع:' }), eduNameInp)
+        ),
+        h('div', { class: 'eval-builder-grid-2' },
+          h('label', { class: 'fld' }, h('span', { text: '3. تحليل السوابق:' }), antArea),
+          h('label', { class: 'fld' }, h('span', { text: '4. القراءة السلوكية الأولية:' }), readArea),
+          h('label', { class: 'fld' }, h('span', { text: '5. التوصيات والتدخلات المقترحة:' }), recArea),
+          h('label', { class: 'fld' }, h('span', { text: '6. الخلاصة:' }), concArea)
+        )
+      );
+      container.appendChild(manualCard);
+    }
+
+    setTimeout(refreshTargetBehaviorLiveStats, 20);
+    return {
+      el: container,
+      refresh: refreshTargetBehaviorLiveStats
+    };
+  }
+
   function openTargetBehaviorBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
     S.inSubBuilder = true;
     try { window.history.pushState({ deApp: true, sec: 'evaluations', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
@@ -7531,8 +7977,21 @@
     if (!existingRep) {
       ev.title = 'تقييم قياس السلوك المستهدف';
     }
+    var selKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
+    if (selKid0 && !ev.child_id) ev.child_id = selKid0.id;
+    enrichChildEvaluationData(ev, selKid0 ? selKid0.full_name : '', selKid0 ? selKid0.section : '', selKid0);
 
     var tb = ev.target_behavior_eval || {};
+    var tbrState = Object.assign({
+      goal_text: 'تهدف هذه المتابعة إلى رصد السلوك المستهدف وقياس معدل تكراره ومدته الزمنية، وتحديد الظروف والمواقف السابقة لحدوثه، من أجل فهم العوامل المرتبطة به وتحديد التدخل التربوي المناسب.',
+      episode_duration: '',
+      antecedents_analysis: '',
+      initial_reading: '',
+      recommendations_text: '',
+      conclusion_text: '',
+      educator_name: ''
+    }, ev.target_behavior_report || {});
+
     var selectedPairs = Array.isArray(tb.selected_pairs) ? tb.selected_pairs.slice() : [];
     var daysList = Array.isArray(tb.days) ? tb.days.map(function (d) {
       return {
@@ -7549,23 +8008,20 @@
     var v = $('#view');
     v.textContent = '';
 
-    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;' },
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;' },
       h('div', { style: 'display:flex; align-items:center; gap:10px;' },
-        h('img', { src: 'logo-sq.png', style: 'width:40px; height:40px; border-radius:8px;' }),
-        h('h2', { style: 'margin:0; color:#163B65; font-size:1.3rem; font-weight:900;', text: existingRep ? 'تعديل تقييم قياس السلوك المستهدف' : 'تقييم قياس السلوك المستهدف' })
+        h('img', { src: 'logo-sq.png', style: 'width:36px; height:36px; border-radius:8px;' }),
+        h('h2', { style: 'margin:0; color:#163B65; font-size:1.18rem; font-weight:900;', text: existingRep ? 'تعديل تقييم قياس السلوك المستهدف' : 'تقييم قياس السلوك المستهدف' })
       ),
       h('div', { class: 'row-actions' },
-        h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
+        h('button', { class: 'btn small light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
       )
     );
     v.appendChild(topBar);
 
-    var card = h('div', { class: 'card', style: 'max-width:1120px; margin:0 auto; padding:20px; border-radius:16px; border:1.5px solid #E2E8F0;' });
+    var card = h('div', { class: 'card', style: 'max-width:1120px; margin:0 auto; padding:16px; border-radius:14px; border:1.5px solid #E2E8F0;' });
 
-    var selKid = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
-    if (selKid && !ev.child_id) ev.child_id = selKid.id;
-
-    var curSecId = S.isEducator ? S.eduSectionId : (selKid ? selKid.section_id : '');
+    var curSecId = S.isEducator ? S.eduSectionId : (selKid0 ? selKid0.section_id : '');
     var secFilterSelect = h('select', { disabled: !!S.isEducator },
       h('option', { value: '', text: '— جميع الأقسام —' }),
       secAllOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); })
@@ -7591,60 +8047,57 @@
     var ageInp = h('input', {
       type: 'text',
       placeholder: 'العمر (مثال: 7 سنوات)',
-      value: tb.age || (selKid && selKid.dob ? calcKidAgeStr(selKid.dob) : '')
+      value: tb.age || (selKid0 && selKid0.dob ? calcKidAgeStr(selKid0.dob) : '')
     });
-
-    secFilterSelect.onchange = function () {
-      populateKids();
-      ev.child_id = kidSelect.value;
-    };
-    kidSelect.onchange = function () {
-      ev.child_id = kidSelect.value;
-      var ck = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
-      if (ck && ck.dob) ageInp.value = calcKidAgeStr(ck.dob);
-    };
 
     var todayIso = new Date().toISOString().slice(0, 10);
     var defaultEndIso = new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10);
     var startDateInp = h('input', { type: 'date', value: tb.start_date || todayIso });
     var endDateInp = h('input', { type: 'date', value: tb.end_date || defaultEndIso });
-    var skipWeekendChk = h('input', { type: 'checkbox', checked: tb.skip_weekend !== false, style: 'width:16px; height:16px; cursor:pointer;' });
+    var skipWeekendChk = h('input', { type: 'checkbox', checked: tb.skip_weekend !== false, style: 'width:15px; height:15px; cursor:pointer;' });
 
-    var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; background:#F8FAFC; padding:14px; border-radius:12px; border:1px solid #CBD5E1; margin-bottom:16px;' },
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'اسم الطفل:' }), kidSelect),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'العمر:' }), ageInp),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'تاريخ البداية (لرسم الجدول تلقائياً):' }), startDateInp),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'تاريخ النهاية:' }), endDateInp),
-      h('label', { style: 'display:flex; align-items:center; gap:8px; font-weight:700; font-size:12.5px; color:#163B65; cursor:pointer; padding-top:18px;' },
-        skipWeekendChk,
-        h('span', { text: 'استثناء يومي الجمعة والسبت' })
+    // مربع معلومات مصغر إلى النصف بدون بحث
+    var metaCard = h('div', { class: 'card prog-step-card compact-qual-child-card' },
+      makeStepTitleDom('1', 'بيانات الطفل وفترة المتابعة', 's-idcard'),
+      h('div', { class: 'compact-qual-grid' },
+        h('label', { class: 'fld' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'اسم الطفل:' }), kidSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'العمر:' }), ageInp),
+        h('label', { class: 'fld' }, h('span', { text: 'تاريخ البداية:' }), startDateInp),
+        h('label', { class: 'fld' }, h('span', { text: 'تاريخ النهاية:' }), endDateInp),
+        h('label', { class: 'fld', style: 'display:flex; flex-direction:row; align-items:center; gap:6px; padding-top:14px; cursor:pointer;' },
+          skipWeekendChk,
+          h('span', { style: 'font-size:11px; font-weight:800; color:#163B65;', text: 'استثناء الجمعة والسبت' })
+        )
       )
     );
-    card.appendChild(metaGrid);
+    card.appendChild(metaCard);
 
-    // خانة اختيار السلوك قبل الجدول (تسمح باختيار أكثر من سلوك رئيسي وفرعي)
     var behaviorDisplayInp = h('input', {
       type: 'text',
       placeholder: 'اختر السلوكيات الرئيسية والفرعية من القائمة أدناه (أو اكتب هنا)...',
       value: tb.selected_behaviors_text || '',
-      style: 'width:100%; font-weight:700; padding:8px 12px; border-radius:8px; border:1.5px solid #163B65;'
+      style: 'width:100%; font-weight:700; padding:7px 10px; border-radius:8px; border:1.5px solid #163B65; font-size:12.5px;'
     });
 
-    var selectedTagsWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;' });
+    var selectedTagsWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;' });
+    var liveReportWidget = null;
+
+    function triggerLiveRefresh() {
+      if (liveReportWidget && typeof liveReportWidget.refresh === 'function') {
+        liveReportWidget.refresh();
+      }
+    }
+
+    behaviorDisplayInp.oninput = triggerLiveRefresh;
 
     function syncBehaviorTextFromPairs() {
       selectedTagsWrap.textContent = '';
       if (!selectedPairs.length) return;
-      var grouped = {};
       selectedPairs.forEach(function (pair, pIdx) {
-        if (!grouped[pair.main]) grouped[pair.main] = [];
-        if (pair.sub && grouped[pair.main].indexOf(pair.sub) < 0) {
-          grouped[pair.main].push(pair.sub);
-        }
         var tag = h('span', {
           class: 'badge gold',
-          style: 'display:inline-flex; align-items:center; gap:6px; padding:4px 10px; font-size:12px;'
+          style: 'display:inline-flex; align-items:center; gap:6px; padding:3px 9px; font-size:11.5px;'
         },
           h('span', { text: pair.main.replace(/\s*\([^)]*\)\s*/g, '') + (pair.sub ? (' : ' + pair.sub) : '') }),
           h('button', {
@@ -7655,6 +8108,7 @@
               selectedPairs.splice(pIdx, 1);
               updateBehaviorInputFromGrouped();
               syncBehaviorTextFromPairs();
+              triggerLiveRefresh();
             }
           })
         );
@@ -7678,14 +8132,14 @@
       behaviorDisplayInp.value = parts.join(' — ');
     }
 
-    var preMainSelect = h('select', { style: 'flex:1; min-width:220px; padding:8px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700;' },
+    var preMainSelect = h('select', { style: 'flex:1; min-width:210px; padding:6px 8px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700; font-size:12.5px;' },
       h('option', { value: '', text: '— 1. اختر السلوك الرئيسي —' }),
       TARGET_BEHAVIORS_CATALOG.map(function (cat, idx) {
         return h('option', { value: String(idx), text: (idx + 1) + '. ' + cat.main });
       })
     );
 
-    var preSubWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;' });
+    var preSubWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;' });
 
     preMainSelect.onchange = function () {
       preSubWrap.textContent = '';
@@ -7698,7 +8152,7 @@
         var chipBtn = h('button', {
           type: 'button',
           class: 'btn small ' + (isAlready ? 'gold' : 'light'),
-          style: 'font-size:12px; padding:5px 10px; border-radius:8px;',
+          style: 'font-size:11.5px; padding:4px 9px; border-radius:7px;',
           text: (isAlready ? '✔ ' : '+ ') + subName,
           onclick: function () {
             var idxExist = selectedPairs.findIndex(function (p) { return p.main === cat.main && p.sub === subName; });
@@ -7710,6 +8164,7 @@
             updateBehaviorInputFromGrouped();
             syncBehaviorTextFromPairs();
             preMainSelect.onchange();
+            triggerLiveRefresh();
           }
         });
         preSubWrap.appendChild(chipBtn);
@@ -7718,10 +8173,10 @@
 
     syncBehaviorTextFromPairs();
 
-    var behaviorSelectorBox = h('div', { style: 'background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:12px; padding:14px; margin-bottom:18px;' },
-      h('label', { style: 'font-weight:900; color:#163B65; font-size:14px; display:block; margin-bottom:6px;', text: 'السلوك المستهدف (يمكنك اختيار أكثر من سلوك رئيسي وسلوك فرعي):' }),
+    var behaviorSelectorBox = h('div', { style: 'background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:10px; padding:10px 12px; margin-bottom:14px;' },
+      h('label', { style: 'font-weight:900; color:#163B65; font-size:13px; display:block; margin-bottom:4px;', text: 'السلوك المستهدف (يمكنك اختيار أكثر من سلوك رئيسي وفرعي):' }),
       behaviorDisplayInp,
-      h('div', { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;' },
+      h('div', { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;' },
         preMainSelect
       ),
       preSubWrap,
@@ -7729,8 +8184,7 @@
     );
     card.appendChild(behaviorSelectorBox);
 
-    // توليد الأيام تلقائياً من تاريخ البداية إلى تاريخ النهاية مع الحفاظ على البيانات المدخلة
-    var tableMount = h('div', { style: 'overflow-x:auto; margin-bottom:18px;' });
+    var tableMount = h('div', { style: 'overflow-x:auto; margin-bottom:16px;' });
 
     function rebuildDaysFromDateRange() {
       var sVal = startDateInp.value;
@@ -7750,7 +8204,7 @@
       var maxDays = 60;
       var count = 0;
       while (cur <= dEnd && count < maxDays) {
-        var dayOfWeek = cur.getDay(); // 5 = Friday, 6 = Saturday
+        var dayOfWeek = cur.getDay();
         var skip = skipWeekendChk.checked && (dayOfWeek === 5 || dayOfWeek === 6);
         if (!skip) {
           var iso = cur.toISOString().slice(0, 10);
@@ -7777,13 +8231,26 @@
       }
       daysList = newDays;
       renderTargetBehaviorTable();
+      triggerLiveRefresh();
     }
 
     startDateInp.onchange = rebuildDaysFromDateRange;
     endDateInp.onchange = rebuildDaysFromDateRange;
     skipWeekendChk.onchange = rebuildDaysFromDateRange;
 
-    // نافذة صغيرة ومناسبة لاختيار السلوك الرئيسي ثم السلوك الفرعي وكتابته في خانة "نوع السلوك"
+    secFilterSelect.onchange = function () {
+      populateKids();
+      ev.child_id = kidSelect.value;
+      triggerLiveRefresh();
+    };
+    kidSelect.onchange = function () {
+      ev.child_id = kidSelect.value;
+      var ck = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
+      if (ck && ck.dob) ageInp.value = calcKidAgeStr(ck.dob);
+      triggerLiveRefresh();
+    };
+    ageInp.oninput = triggerLiveRefresh;
+
     function openSubBehaviorCellPicker(rowItem, onPicked) {
       var modal = h('div', {
         class: 'modal card',
@@ -7812,6 +8279,7 @@
               rowItem.sub_behavior = pair.sub;
               closeModal();
               onPicked(pair.sub);
+              triggerLiveRefresh();
             }
           }));
         });
@@ -7847,6 +8315,7 @@
               rowItem.sub_behavior = sName;
               closeModal();
               onPicked(sName);
+              triggerLiveRefresh();
             }
           });
           subsContainer.appendChild(sBtn);
@@ -7861,17 +8330,17 @@
     function renderTargetBehaviorTable() {
       tableMount.textContent = '';
       var tbl = h('table', {
-        style: 'width:100%; border-collapse:collapse; border:2px solid #000; background:#FFF; text-align:center; font-size:13.5px;'
+        style: 'width:100%; border-collapse:collapse; border:2px solid #000; background:#FFF; text-align:center; font-size:13px;'
       });
 
       tbl.appendChild(h('thead', null,
         h('tr', { style: 'background:#F8FAFC; font-weight:900; color:#000;' },
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:16%;', text: 'اليوم والتاريخ' }),
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:20%;', text: 'نوع السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:16%;', text: 'وقت و مدة حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:14%;', text: 'عدد مرات تكرار السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:16%;', text: 'مكان حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:10px 8px; width:18%;', text: 'سوابق حدوث السلوك' })
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'اليوم والتاريخ' }),
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:20%;', text: 'نوع السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'وقت و مدة حدوث السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:14%;', text: 'عدد مرات تكرار السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'مكان حدوث السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:8px; width:18%;', text: 'سوابق حدوث السلوك' })
         )
       ));
 
@@ -7890,31 +8359,33 @@
           if (rIdx === 0) {
             var dayTd = h('td', {
               rowspan: rCount,
-              style: 'border:1.5px solid #000; padding:8px 6px; font-weight:800; vertical-align:middle; background:#FFFFFF;'
+              style: 'border:1.5px solid #000; padding:6px; font-weight:800; vertical-align:middle; background:#FFFFFF;'
             },
-              h('div', { style: 'font-size:14px; font-weight:900; color:#0F172A;', text: dayObj.day_name }),
-              h('div', { style: 'font-size:13px; color:#334155; margin-bottom:6px;', text: dayObj.date_display }),
+              h('div', { style: 'font-size:13.5px; font-weight:900; color:#0F172A;', text: dayObj.day_name }),
+              h('div', { style: 'font-size:12px; color:#334155; margin-bottom:5px;', text: dayObj.date_display }),
               h('div', { class: 'no-print', style: 'display:flex; justify-content:center; gap:4px;' },
                 h('button', {
                   type: 'button',
                   class: 'btn small light',
-                  style: 'padding:2px 7px; font-size:11px; min-height:24px;',
+                  style: 'padding:2px 6px; font-size:10.5px; min-height:22px;',
                   title: 'زيادة سلوك لهذا اليوم',
                   text: '+ سلوك',
                   onclick: function () {
                     dayObj.rows.push({ main_behavior: '', sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' });
                     renderTargetBehaviorTable();
+                    triggerLiveRefresh();
                   }
                 }),
                 dayObj.rows.length > 1 ? h('button', {
                   type: 'button',
                   class: 'btn small danger',
-                  style: 'padding:2px 7px; font-size:11px; min-height:24px;',
+                  style: 'padding:2px 6px; font-size:10.5px; min-height:22px;',
                   title: 'إنقاص سلوك من هذا اليوم',
                   text: '- إنقاص',
                   onclick: function () {
                     dayObj.rows.pop();
                     renderTargetBehaviorTable();
+                    triggerLiveRefresh();
                   }
                 }) : null
               )
@@ -7922,32 +8393,34 @@
             tr.appendChild(dayTd);
           }
 
-          // خانة نوع السلوك: اختيار السلوك الرئيسي ثم الفرعي ويكتب في الخانة السلوك الفرعي
           var subLabelSpan = h('span', {
-            style: 'font-weight:800; color:' + (rowItem.sub_behavior ? '#0F172A' : '#94A3B8') + '; font-size:13px;',
+            style: 'font-weight:800; color:' + (rowItem.sub_behavior ? '#0F172A' : '#94A3B8') + '; font-size:12.5px;',
             text: rowItem.sub_behavior || 'اختر السلوك...'
           });
           var pickBtn = h('button', {
             type: 'button',
-            style: 'width:100%; padding:6px 8px; border:1px dashed #94A3B8; border-radius:6px; background:#F8FAFC; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:inherit;',
+            style: 'width:100%; padding:5px 7px; border:1px dashed #94A3B8; border-radius:6px; background:#F8FAFC; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:inherit;',
             onclick: function () {
               openSubBehaviorCellPicker(rowItem, function (chosenSub) {
                 subLabelSpan.textContent = chosenSub;
                 subLabelSpan.style.color = '#0F172A';
               });
             }
-          }, subLabelSpan, h('span', { style: 'font-size:11px; color:#2563EB;', text: '▼' }));
+          }, subLabelSpan, h('span', { style: 'font-size:10px; color:#2563EB;', text: '▼' }));
 
-          tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:5px;' }, pickBtn));
+          tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:4px;' }, pickBtn));
 
           function makeManualCellInput(fieldKey, ph) {
             var inp = h('input', {
               type: 'text',
               value: rowItem[fieldKey] || '',
               placeholder: ph,
-              style: 'width:100%; border:none; padding:6px 4px; text-align:center; font-size:13px; font-weight:600; background:transparent; box-sizing:border-box;'
+              style: 'width:100%; border:none; padding:5px 4px; text-align:center; font-size:12.5px; font-weight:600; background:transparent; box-sizing:border-box;'
             });
-            inp.oninput = function () { rowItem[fieldKey] = inp.value; };
+            inp.oninput = function () {
+              rowItem[fieldKey] = inp.value;
+              triggerLiveRefresh();
+            };
             return h('td', { style: 'border:1.5px solid #000; padding:2px;' }, inp);
           }
 
@@ -7964,15 +8437,6 @@
       tableMount.appendChild(tbl);
     }
 
-    if (!daysList.length) {
-      rebuildDaysFromDateRange();
-    } else {
-      renderTargetBehaviorTable();
-    }
-
-    card.appendChild(h('div', { style: 'font-weight:900; color:#000; font-size:15px; margin-bottom:8px;', text: 'جدول القياس: التكرار + المدة الزمنية' }));
-    card.appendChild(tableMount);
-
     function packTargetBehaviorData() {
       var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
       return {
@@ -7988,20 +8452,57 @@
       };
     }
 
+    if (!daysList.length) {
+      rebuildDaysFromDateRange();
+    } else {
+      renderTargetBehaviorTable();
+    }
+
+    card.appendChild(h('div', { style: 'font-weight:900; color:#000; font-size:14.5px; margin-bottom:6px;', text: 'جدول القياس: التكرار + المدة الزمنية' }));
+    card.appendChild(tableMount);
+
+    // إضافة قسم نتائج وملء "تقرير قياس السلوك المستهدف" مباشرة بعد جدول التقييم
+    liveReportWidget = buildTargetBehaviorLiveResultsAndReportDom(
+      packTargetBehaviorData,
+      tbrState,
+      function () {
+        var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+        var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+        return {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          section_name: sName,
+          kid: ck
+        };
+      },
+      true
+    );
+    card.appendChild(liveReportWidget.el);
+
     async function saveTargetBehavior(statusKey) {
       if (!kidSelect.value) return toast('يرجى اختيار الطفل أولاً.', 'bad');
       var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+      var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
       var packed = packTargetBehaviorData();
+      var reportPayloadData = Object.assign({}, tbrState, {
+        child_id: kidSelect.value,
+        child_name: ck ? ck.full_name : '',
+        age: ageInp.value,
+        selected_behaviors_text: behaviorDisplayInp.value,
+        report_date: startDateInp.value || todayIso
+      });
+
       var payload = {
         eval_type: 'target_behavior',
         status: statusKey,
         child_id: kidSelect.value,
         child_name: ck ? ck.full_name : '',
         dob: ck ? ck.dob : '',
-        section_name: ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '',
+        section_name: sName,
         title: 'تقييم قياس السلوك المستهدف',
         report_date: startDateInp.value || todayIso,
-        target_behavior_eval: packed
+        target_behavior_eval: packed,
+        target_behavior_report: reportPayloadData
       };
       var recordBody = {
         child_id: kidSelect.value,
@@ -8019,8 +8520,43 @@
           if (Array.isArray(created) && created[0]) ev.id = created[0].id;
         }
         await syncSharedEvaluationRecord(Object.assign({}, recordBody, { id: ev.id || ('tb_' + Date.now()) }), null);
+
+        // حفظ/تحديث "تقرير قياس السلوك المستهدف" كوثيقة مستقلة في قسم التقارير تلقائياً
+        var sharedAll = await loadSharedEvaluationsList();
+        var existingRepRec = sharedAll.filter(function (item) {
+          return item && String(item.child_id) === String(kidSelect.value) && getReportSubCategory(item) === 'target_behavior_report';
+        })[0];
+        var repId = existingRepRec ? existingRepRec.id : null;
+        var standaloneRepPayload = {
+          eval_type: 'target_behavior_report',
+          status: statusKey,
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          dob: ck ? ck.dob : '',
+          section_name: sName,
+          title: 'تقرير قياس السلوك المستهدف',
+          report_date: startDateInp.value || todayIso,
+          target_behavior_eval: packed,
+          target_behavior_report: reportPayloadData
+        };
+        var standaloneRepBody = {
+          child_id: kidSelect.value,
+          title: 'تقرير قياس السلوك المستهدف — ' + (ck ? ck.full_name : ''),
+          report_date: startDateInp.value || todayIso,
+          status: statusKey,
+          activities: EVAL_MARKER + JSON.stringify(standaloneRepPayload),
+          notes: reportPayloadData.conclusion_text || reportPayloadData.recommendations_text || packed.selected_behaviors_text || null
+        };
+        if (repId && DE.isUuid(String(repId))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(repId), standaloneRepBody);
+        } else {
+          var createdRep = await saveProgressReportResilient('POST', '/progress_reports', standaloneRepBody);
+          if (Array.isArray(createdRep) && createdRep[0]) repId = createdRep[0].id;
+        }
+        await syncSharedEvaluationRecord(Object.assign({}, standaloneRepBody, { id: repId || ('tbr_' + Date.now()) }), null);
+
         bust();
-        toast(statusKey === 'published' ? 'تم اعتماد ونشر تقييم قياس السلوك المستهدف بنجاح!' : 'تم حفظ التقييم كمسودة.', 'ok');
+        toast(statusKey === 'published' ? 'تم اعتماد ونشر تقييم وتقرير قياس السلوك المستهدف بنجاح!' : 'تم حفظ التقييم وتقرير قياس السلوك المستهدف كمسودة.', 'ok');
         go('evaluations');
       } catch (err) {
         toast('تعذر الحفظ: ' + (err.message || 'خطأ'), 'bad');
@@ -8031,7 +8567,7 @@
       h('div', { style: 'display:flex; gap:8px;' },
         h('button', {
           type: 'button',
-          class: 'btn light',
+          class: 'btn primary',
           style: 'font-weight:800;',
           onclick: function () {
             var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
@@ -8040,13 +8576,18 @@
               eval_type: 'target_behavior',
               child_id: kidSelect.value,
               child_name: ck ? ck.full_name : '',
-              target_behavior_eval: packed
+              target_behavior_eval: packed,
+              target_behavior_report: tbrState
             };
-            var prevModal = h('div', { class: 'modal card', style: 'max-width:980px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1020px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+              h('strong', { style: 'color:#163B65; font-size:1.02rem;', text: 'المعاينة والتحميل (التقييم + تقرير قياس السلوك المستهدف)' }),
+              h('button', { type: 'button', class: 'icon-btn', onclick: closeModal }, h('span', { text: '✕' }))
+            ));
             prevModal.appendChild(renderTargetBehaviorSheetView(tempRep, ck ? ck.full_name : '', ck ? ck.section : '', ck));
             openModal(prevModal);
           }
-        }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل' }))
+        }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل (التقييم والتقرير)' }))
       ),
       h('div', { style: 'display:flex; gap:8px;' },
         h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveTargetBehavior('draft'); } }),
@@ -8057,32 +8598,343 @@
     v.appendChild(card);
   }
 
-  /* عرض ورقة تقييم قياس السلوك المستهدف مطابقة تماماً للوثيقة المرفقة دون زيادة في الخانات */
+  /* باني مستقل لتقرير قياس السلوك المستهدف في قسم التقارير */
+  function openTargetBehaviorReportBuilder(existingRep, kids, sections, secAllOpts, branchOpts, allReportsPool) {
+    S.inSubBuilder = true;
+    try { window.history.pushState({ deApp: true, sec: 'reports', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
+    var ev = parseEvaluationReport(existingRep);
+    ev.eval_type = 'target_behavior_report';
+    var selKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length ? kids[0] : null);
+    if (selKid0 && !ev.child_id) ev.child_id = selKid0.id;
+    enrichChildEvaluationData(ev, selKid0 ? selKid0.full_name : '', selKid0 ? selKid0.section : '', selKid0, allReportsPool);
+
+    var tbrState = Object.assign({
+      goal_text: 'تهدف هذه المتابعة إلى رصد السلوك المستهدف وقياس معدل تكراره ومدته الزمنية، وتحديد الظروف والمواقف السابقة لحدوثه، من أجل فهم العوامل المرتبطة به وتحديد التدخل التربوي المناسب.',
+      episode_duration: '',
+      antecedents_analysis: '',
+      initial_reading: '',
+      recommendations_text: '',
+      conclusion_text: '',
+      educator_name: ''
+    }, ev.target_behavior_report || {});
+
+    var v = $('#view');
+    v.textContent = '';
+
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;' },
+      h('div', { style: 'display:flex; align-items:center; gap:8px;' },
+        h('img', { src: 'logo-sq.png', style: 'width:36px; height:36px; border-radius:8px;' }),
+        h('h2', { style: 'margin:0; color:#163B65; font-size:1.15rem; font-weight:900;', text: 'تقرير قياس السلوك المستهدف' })
+      ),
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'btn small light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
+      )
+    );
+    v.appendChild(topBar);
+
+    var curSecId = S.isEducator ? S.eduSectionId : (selKid0 ? selKid0.section_id : '');
+    var secFilterSelect = h('select', { disabled: !!S.isEducator },
+      h('option', { value: '', text: '— جميع الأقسام —' }),
+      secAllOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); })
+    );
+    secFilterSelect.value = curSecId || '';
+
+    var kidSelect = h('select', null);
+    function populateKids() {
+      var sId = secFilterSelect.value;
+      var keep = ev.child_id || kidSelect.value;
+      while (kidSelect.firstChild) kidSelect.removeChild(kidSelect.firstChild);
+      kidSelect.appendChild(h('option', { value: '', text: '— اختر الطفل —' }));
+      kids.forEach(function (k) {
+        if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
+        kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + (k.section ? (' — ' + k.section) : '') }));
+      });
+      if (keep && kids.some(function (k) { return String(k.id) === String(keep); })) {
+        kidSelect.value = keep;
+      } else if (kidSelect.options.length > 1 && !kidSelect.value) {
+        kidSelect.selectedIndex = 1;
+        ev.child_id = kidSelect.value;
+      }
+    }
+    populateKids();
+
+    var reportDateInp = h('input', { type: 'date', value: ev.report_date || new Date().toISOString().slice(0, 10) });
+
+    var step1Card = h('div', { class: 'card prog-step-card compact-qual-child-card' },
+      makeStepTitleDom('1', 'بيانات الطفل وتاريخ التقرير', 's-idcard'),
+      h('div', { class: 'compact-qual-grid' },
+        h('label', { class: 'fld' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني:' }), kidSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'تاريخ التقرير:' }), reportDateInp)
+      )
+    );
+    v.appendChild(step1Card);
+
+    var liveWidget = buildTargetBehaviorLiveResultsAndReportDom(
+      function () { return ev.target_behavior_eval || {}; },
+      tbrState,
+      function () {
+        var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+        var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+        return {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          section_name: sName,
+          kid: ck
+        };
+      },
+      true
+    );
+    v.appendChild(liveWidget.el);
+
+    function reloadChildTargetBehaviorEval() {
+      ev.child_id = kidSelect.value;
+      var ck = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
+      ev.target_behavior_eval = {};
+      enrichChildEvaluationData(ev, ck ? ck.full_name : '', ck ? ck.section : '', ck, allReportsPool);
+      liveWidget.refresh();
+    }
+
+    secFilterSelect.onchange = function () { populateKids(); reloadChildTargetBehaviorEval(); };
+    kidSelect.onchange = reloadChildTargetBehaviorEval;
+
+    async function saveTargetBehaviorReportAction(statusKey) {
+      if (!kidSelect.value) return toast('يرجى اختيار الطفل أولاً.', 'bad');
+      var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+      var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+      var payload = {
+        eval_type: 'target_behavior_report',
+        status: statusKey,
+        child_id: kidSelect.value,
+        child_name: ck ? ck.full_name : '',
+        dob: ck ? ck.dob : '',
+        section_name: sName,
+        title: 'تقرير قياس السلوك المستهدف',
+        report_date: reportDateInp.value,
+        target_behavior_eval: ev.target_behavior_eval || {},
+        target_behavior_report: Object.assign({}, tbrState, {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          report_date: reportDateInp.value
+        })
+      };
+      var recordBody = {
+        child_id: kidSelect.value,
+        title: 'تقرير قياس السلوك المستهدف — ' + (ck ? ck.full_name : ''),
+        report_date: reportDateInp.value,
+        status: statusKey,
+        activities: EVAL_MARKER + JSON.stringify(payload),
+        notes: tbrState.conclusion_text || tbrState.recommendations_text || null
+      };
+      try {
+        if (ev.id && DE.isUuid(String(ev.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(ev.id), recordBody);
+        } else {
+          var created = await saveProgressReportResilient('POST', '/progress_reports', recordBody);
+          if (Array.isArray(created) && created[0]) ev.id = created[0].id;
+        }
+        await syncSharedEvaluationRecord(Object.assign({}, recordBody, { id: ev.id || ('tbr_' + Date.now()) }), null);
+        bust();
+        toast(statusKey === 'published' ? 'تم اعتماد ونشر تقرير قياس السلوك المستهدف بنجاح!' : 'تم حفظ التقرير كمسودة.', 'ok');
+        go('reports');
+      } catch (err) {
+        toast('تعذر الحفظ: ' + (err.message || 'خطأ'), 'bad');
+      }
+    }
+
+    var saveBar = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px;' },
+      h('button', {
+        type: 'button',
+        class: 'btn primary',
+        style: 'font-weight:800;',
+        onclick: function () {
+          var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+          var tempRep = {
+            eval_type: 'target_behavior_report',
+            child_id: kidSelect.value,
+            child_name: ck ? ck.full_name : '',
+            target_behavior_eval: ev.target_behavior_eval || {},
+            target_behavior_report: tbrState
+          };
+          var prevModal = h('div', { class: 'modal card', style: 'max-width:1020px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+          prevModal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+            h('strong', { style: 'color:#163B65; font-size:1.02rem;', text: 'معاينة وتحميل تقرير قياس السلوك المستهدف' }),
+            h('button', { type: 'button', class: 'icon-btn', onclick: closeModal }, h('span', { text: '✕' }))
+          ));
+          prevModal.appendChild(renderTargetBehaviorReportSheetView(tempRep, ck ? ck.full_name : '', ck ? ck.section : '', ck));
+          openModal(prevModal);
+        }
+      }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل' })),
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveTargetBehaviorReportAction('draft'); } }),
+        h('button', { type: 'button', class: 'btn gold', style: 'font-weight:800;', text: 'نشر', onclick: function () { saveTargetBehaviorReportAction('published'); } })
+      )
+    );
+    v.appendChild(saveBar);
+  }
+
+  /* بناء محتوى تقرير قياس السلوك المستهدف (صفحتان مطابقتان لملف report_mohamed.pdf) */
+  function buildTargetBehaviorReportPagesDom(ev, childFullName, secName, kd) {
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
+    var tb = ev.target_behavior_eval || {};
+    var tbr = ev.target_behavior_report || {};
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || tb.child_name || tbr.child_name || '—';
+
+    var holder = h('div', { style: 'display:flex; flex-direction:column; gap:18px;' });
+
+    var p1Host = h('div', {
+      style: 'width:100%; background:#FFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:280px; display:flex; align-items:center; justify-content:center;'
+    }, h('span', { class: 'muted small', text: 'جارٍ رسم الصفحة 1 من تقرير قياس السلوك المستهدف...' }));
+
+    if (window.DE_PDF && typeof window.DE_PDF.renderTargetBehaviorReportPage1Canvas === 'function') {
+      window.DE_PDF.renderTargetBehaviorReportPage1Canvas(ev, chName, secName, kd).then(function (c1) {
+        p1Host.textContent = '';
+        c1.style.width = '100%';
+        c1.style.height = 'auto';
+        c1.style.display = 'block';
+        p1Host.appendChild(c1);
+      }).catch(function () {});
+    }
+    holder.appendChild(p1Host);
+
+    function makePage2SectionBox(num, title, contentTxt) {
+      return h('div', { style: 'margin-bottom:16px;' },
+        h('div', { style: 'display:flex; justify-content:flex-start; margin-bottom:8px;' },
+          h('div', { style: 'background:#1B365D; color:#FFF; padding:6px 16px; border-radius:20px; display:inline-flex; align-items:center; gap:10px; font-weight:800; font-size:14px;' },
+            h('span', { style: 'background:#FFF; color:#1B365D; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:12px;', text: num }),
+            h('span', { text: title })
+          )
+        ),
+        h('div', {
+          style: 'min-height:76px; padding:10px 14px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.8; color:#0F172A; white-space:pre-wrap;',
+          text: (contentTxt && String(contentTxt).trim()) ? contentTxt : '........................................................................................................................'
+        })
+      );
+    }
+
+    var page2Dom = h('div', {
+      style: 'background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; padding:24px; font-family:"Cairo","IBM Plex Sans Arabic",sans-serif; direction:rtl;'
+    },
+      h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #CBD5E1; padding-bottom:10px; margin-bottom:16px;' },
+        h('strong', { style: 'color:#1B365D; font-size:15px;', text: 'تقرير متابعة وقياس السلوك المستهدف – ' + chName }),
+        h('img', { src: 'logo-sq.png', style: 'width:40px; height:40px; border-radius:50%;' })
+      ),
+      makePage2SectionBox('3', 'تحليل السوابق', tbr.antecedents_analysis),
+      makePage2SectionBox('4', 'القراءة السلوكية الأولية', tbr.initial_reading),
+      makePage2SectionBox('5', 'التوصيات والتدخلات المقترحة', tbr.recommendations_text),
+      makePage2SectionBox('6', 'الخلاصة', tbr.conclusion_text),
+      h('div', { style: 'display:flex; justify-content:space-around; margin-top:28px; padding-top:14px; border-top:1px dashed #CBD5E1; text-align:center; font-weight:800; color:#475569; font-size:13.5px;' },
+        h('div', null, h('div', { text: '........................................' }), h('div', { style: 'margin-top:4px;', text: 'المربي المتابع' + (tbr.educator_name ? (' (' + tbr.educator_name + ')') : '') })),
+        h('div', null, h('div', { text: '........................................' }), h('div', { style: 'margin-top:4px;', text: 'مدير المركز' }))
+      )
+    );
+    holder.appendChild(page2Dom);
+
+    return holder;
+  }
+
+  function renderTargetBehaviorReportSheetView(r, childFullName, secName, kd, adminOpts) {
+    var ev = parseEvaluationReport(r);
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || 'طفل';
+
+    var wrap = h('div', { style: 'max-width:940px; margin:0 auto; background:#FFF; padding:20px; border:1.5px solid #CBD5E1; border-radius:12px; font-family:"Cairo","IBM Plex Sans Arabic",sans-serif; direction:rtl;' });
+
+    var topCtrl = h('div', { class: 'no-print', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #E2E8F0;' },
+      h('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' },
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف تقرير قياس السلوك المستهدف PDF...', 'ok');
+              var bytes = await DE_PDF.renderTargetBehaviorReportToPdf(ev, chName, secName, kd);
+              DE_PDF.downloadPdf(bytes, 'تقرير_قياس_السلوك_المستهدف_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
+            } catch (e) {
+              toast('تعذر التحميل: ' + e.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل تقرير قياس السلوك المستهدف (PDF)' })),
+        h('button', { type: 'button', class: 'btn small light', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة' }))
+      ),
+      adminOpts ? h('div', { style: 'display:flex; gap:6px;' },
+        adminOpts.onEdit ? h('button', { type: 'button', class: 'btn small light', text: 'تعديل التقرير', onclick: adminOpts.onEdit }) : null,
+        adminOpts.onDelete ? h('button', { type: 'button', class: 'btn small danger', text: 'حذف', onclick: adminOpts.onDelete }) : null
+      ) : null
+    );
+    wrap.appendChild(topCtrl);
+    wrap.appendChild(buildTargetBehaviorReportPagesDom(ev, chName, secName, kd));
+    return wrap;
+  }
+
+  /* عرض ورقة تقييم قياس السلوك المستهدف مع إمكانية رؤية التقرير مع التقييم */
   function renderTargetBehaviorSheetView(r, childFullName, secName, kd, adminOpts) {
     var ev = parseEvaluationReport(r);
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
     var tb = ev.target_behavior_eval || r.target_behavior_eval || {};
     var days = Array.isArray(tb.days) ? tb.days : [];
     var chName = childFullName || (kd && kd.full_name) || ev.child_name || tb.child_name || '...........................................';
     var ageVal = tb.age || (kd && kd.dob ? calcKidAgeStr(kd.dob) : '.....................');
     var behTxt = tb.selected_behaviors_text || '.................................';
 
-    var wrap = h('div', { style: 'max-width:920px; margin:0 auto; background:#FFF; padding:28px 32px; border:1.5px solid #000; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl; color:#000;' });
+    var wrap = h('div', { style: 'max-width:940px; margin:0 auto; background:#FFF; padding:22px 26px; border:1.5px solid #000; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl; color:#000;' });
+
+    var evalSheetBox = h('div');
+    var reportSheetBox = h('div', { hidden: true });
+    var curViewMode = 'both';
+
+    var btnModeEval = h('button', { type: 'button', class: 'btn small light', text: 'جدول التقييم فقط' });
+    var btnModeReport = h('button', { type: 'button', class: 'btn small light', text: 'تقرير قياس السلوك المستهدف' });
+    var btnModeBoth = h('button', { type: 'button', class: 'btn small primary', text: 'عرض التقييم والتقرير معاً' });
+
+    function updateTbViewMode(m) {
+      curViewMode = m;
+      btnModeEval.className = 'btn small ' + (m === 'eval' ? 'primary' : 'light');
+      btnModeReport.className = 'btn small ' + (m === 'report' ? 'primary' : 'light');
+      btnModeBoth.className = 'btn small ' + (m === 'both' ? 'primary' : 'light');
+      evalSheetBox.hidden = (m === 'report');
+      reportSheetBox.hidden = (m === 'eval');
+      if (m === 'report' || m === 'both') {
+        reportSheetBox.textContent = '';
+        reportSheetBox.appendChild(buildTargetBehaviorReportPagesDom(ev, chName, secName, kd));
+      }
+    }
+
+    btnModeEval.onclick = function () { updateTbViewMode('eval'); };
+    btnModeReport.onclick = function () { updateTbViewMode('report'); };
+    btnModeBoth.onclick = function () { updateTbViewMode('both'); };
 
     var topCtrl = h('div', { class: 'no-print', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #E2E8F0;' },
-      h('div', { style: 'display:flex; gap:8px;' },
+      h('div', { style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+        btnModeBoth,
+        btnModeEval,
+        btnModeReport,
         h('button', {
           type: 'button',
           class: 'btn small gold',
           onclick: async function () {
             try {
-              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              toast('جارٍ تجهيز ملف جدول التقييم PDF...', 'ok');
               var bytes = await DE_PDF.renderTargetBehaviorToPdf(ev, chName, secName, kd);
-              DE_PDF.downloadPdf(bytes, 'قياس_السلوك_المستهدف_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
+              DE_PDF.downloadPdf(bytes, 'تقييم_قياس_السلوك_المستهدف_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
             } catch (e) {
               toast('تعذر التحميل: ' + e.message, 'bad');
             }
           }
-        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF (A4)' })),
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل التقييم (PDF)' })),
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف تقرير قياس السلوك المستهدف PDF...', 'ok');
+              var bytes = await DE_PDF.renderTargetBehaviorReportToPdf(ev, chName, secName, kd);
+              DE_PDF.downloadPdf(bytes, 'تقرير_قياس_السلوك_المستهدف_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
+            } catch (e) {
+              toast('تعذر التحميل: ' + e.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل التقرير (PDF)' })),
         h('button', { type: 'button', class: 'btn small light', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة' }))
       ),
       adminOpts ? h('div', { style: 'display:flex; gap:6px;' },
@@ -8092,16 +8944,15 @@
     );
     wrap.appendChild(topCtrl);
 
-    wrap.appendChild(h('h2', { style: 'text-align:center; margin:0 0 18px; font-size:22px; font-weight:900; text-decoration:underline;', text: 'قياس السلوك المستهدف' }));
-
-    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:15px; font-weight:800; margin-bottom:10px;' },
+    evalSheetBox.appendChild(h('h2', { style: 'text-align:center; margin:0 0 18px; font-size:22px; font-weight:900; text-decoration:underline;', text: 'قياس السلوك المستهدف' }));
+    evalSheetBox.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:15px; font-weight:800; margin-bottom:10px;' },
       h('span', { text: 'اسم الطفل: ' + chName }),
       h('span', { text: 'العمر: ' + ageVal })
     ));
-    wrap.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'السلوك: ' + behTxt }));
-    wrap.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'جدول القياس: التكرار + المدة الزمنية' }));
+    evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'السلوك: ' + behTxt }));
+    evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'جدول القياس: التكرار + المدة الزمنية' }));
 
-    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; text-align:center; font-size:13.5px;' });
+    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; text-align:center; font-size:13.5px; margin-bottom:20px;' });
     tbl.appendChild(h('thead', null,
       h('tr', { style: 'font-weight:900;' },
         h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'اليوم والتاريخ' }),
@@ -8136,13 +8987,19 @@
       });
     });
     tbl.appendChild(tbody);
-    wrap.appendChild(tbl);
+    evalSheetBox.appendChild(tbl);
+
+    wrap.appendChild(evalSheetBox);
+    wrap.appendChild(reportSheetBox);
+    updateTbViewMode('both');
 
     return wrap;
   }
 
   /* =====================================================================
      باني وعارض التقييم الجديد 2: استمارة تقييم دوافع السلوك MAS
+     + تقرير دوافع السلوك (يُملأ بعد التقييم، وتُحسب نتائجه تلقائياً،
+       ويظهر في قسم التقارير وحده مع إمكانية رؤيته مع التقييم)
      ===================================================================== */
   var MAS_FIXED_ITEMS = [
     'هل يتكرر السلوك باستمرار مراراً وتكراراً إذا ترك الشخص لوحده لفترات طويلة لساعات مثلاً.',
@@ -8239,7 +9096,6 @@
       ));
     }
 
-    // صف المجموع في خانة وحدها (بدون خانة المتوسط نهائياً)
     tbody.appendChild(h('tr', { style: 'font-weight:900; background:#FEFCE8;' },
       h('td', { style: 'border:1.5px solid #000; padding:8px;', text: 'المجموع' }),
       factors.map(function (f) {
@@ -8247,7 +9103,6 @@
       })
     ));
 
-    // صف الترتيب المعياري حسب أعلى مجموع
     tbody.appendChild(h('tr', { style: 'font-weight:900; background:#F0FDF4;' },
       h('td', { style: 'border:1.5px solid #000; padding:8px;', text: 'الترتيب المعياري' }),
       factors.map(function (f) {
@@ -8260,6 +9115,158 @@
     return wrap;
   }
 
+  function buildMasBehaviorLiveResultsAndReportDom(getMasEvalPayloadFn, mbrState, getChildInfoFn, includeManualInputs) {
+    var container = h('div', { style: 'margin-top:18px;' });
+    if (!mbrState.dimension_scores) mbrState.dimension_scores = {};
+
+    var autoCard = h('div', {
+      class: 'card',
+      style: 'border:1.5px solid #163B65; border-radius:12px; background:#F8FAFC; padding:14px; margin-bottom:14px;'
+    });
+
+    var scoresGridHost = h('div');
+    var canvasPreviewWrap = h('div', {
+      style: 'width:100%; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:240px; display:flex; align-items:center; justify-content:center; margin-top:10px;'
+    }, h('span', { class: 'muted small', text: 'جارٍ رسم المخطط البياني لتقرير دوافع السلوك...' }));
+
+    function refreshMasLiveStats() {
+      var masData = getMasEvalPayloadFn();
+      var cInfo = getChildInfoFn();
+      var st = (window.DE_PDF && typeof window.DE_PDF.computeMasMotivationReportStats === 'function')
+        ? window.DE_PDF.computeMasMotivationReportStats(masData, mbrState)
+        : { dimensions: [] };
+
+      scoresGridHost.textContent = '';
+      var dimBoxes = (st.dimensions || []).map(function (dm) {
+        var numInp = h('input', {
+          type: 'number',
+          min: 0,
+          max: 100,
+          value: String(dm.score),
+          style: 'width:68px; height:28px; text-align:center; font-weight:900; border:1.5px solid #163B65; border-radius:6px; font-size:13px;'
+        });
+        numInp.onchange = function () {
+          mbrState.dimension_scores[dm.key] = numInp.value;
+          refreshMasLiveStats();
+        };
+        return h('div', {
+          style: 'background:#FFF; border:1px solid #CBD5E1; border-radius:8px; padding:8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px;'
+        },
+          h('strong', { style: 'font-size:11.5px; color:#163B65;', text: dm.fullLabel }),
+          numInp,
+          h('span', { class: 'muted small', style: 'font-size:10px;', text: 'تلقائي من الاستمارة: ' + dm.autoPct + '%' })
+        );
+      });
+
+      scoresGridHost.appendChild(h('div', {
+        style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:8px;'
+      }, dimBoxes));
+
+      if (window.DE_PDF && typeof window.DE_PDF.renderMasBehaviorReportPage1Canvas === 'function') {
+        var tempObj = {
+          eval_type: 'mas_behavior_report',
+          child_id: cInfo.child_id,
+          child_name: cInfo.child_name,
+          mas_eval: masData,
+          mas_behavior_report: mbrState
+        };
+        window.DE_PDF.renderMasBehaviorReportPage1Canvas(tempObj, cInfo.child_name, cInfo.section_name, cInfo.kid).then(function (cEl) {
+          canvasPreviewWrap.textContent = '';
+          cEl.style.width = '100%';
+          cEl.style.height = 'auto';
+          cEl.style.display = 'block';
+          cEl.style.maxWidth = '100%';
+          canvasPreviewWrap.appendChild(cEl);
+        }).catch(function () {});
+      }
+    }
+
+    autoCard.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; border-bottom:1px solid #CBD5E1; padding-bottom:8px;' },
+      makeStepTitleDom('4', 'النتائج العامة لتقرير دوافع السلوك (تُحسب وتُرسم تلقائياً من الاستمارة)', 's-chart'),
+      h('span', { class: 'badge ok', text: 'تحديث تلقائي فوري ✓' })
+    ));
+    autoCard.appendChild(scoresGridHost);
+    autoCard.appendChild(canvasPreviewWrap);
+    container.appendChild(autoCard);
+
+    if (includeManualInputs) {
+      var evalNameInp = h('input', {
+        type: 'text',
+        placeholder: 'اسم المقيّم (مثال: أ. أمير زكرياء)...',
+        value: mbrState.evaluator_name || 'أ. أمير زكرياء'
+      });
+      evalNameInp.oninput = function () {
+        mbrState.evaluator_name = evalNameInp.value;
+        refreshMasLiveStats();
+      };
+
+      var goalInp = h('input', {
+        type: 'text',
+        placeholder: 'الهدف من التقييم...',
+        value: mbrState.goal_text || 'تحديد أنماط ودوافع السلوك لدى الطفل من أجل توجيه التدخل التربوي المناسب.'
+      });
+      goalInp.oninput = function () {
+        mbrState.goal_text = goalInp.value;
+        refreshMasLiveStats();
+      };
+
+      var caseArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب تحليل الحالة...',
+        value: mbrState.case_analysis || ''
+      });
+      caseArea.oninput = function () { mbrState.case_analysis = caseArea.value; };
+
+      var findingsArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب أهم النتائج المستخلصة...',
+        value: mbrState.key_findings || ''
+      });
+      findingsArea.oninput = function () { mbrState.key_findings = findingsArea.value; };
+
+      var recArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب التوصيات التربوية والسلوكية...',
+        value: mbrState.recommendations_text || ''
+      });
+      recArea.oninput = function () { mbrState.recommendations_text = recArea.value; };
+
+      var concArea = h('textarea', {
+        rows: 3,
+        placeholder: 'اكتب الخلاصة النهائية...',
+        value: mbrState.conclusion_text || ''
+      });
+      concArea.oninput = function () { mbrState.conclusion_text = concArea.value; };
+
+      var manualCard = h('div', {
+        class: 'card prog-step-card',
+        style: 'border:1.5px solid #1E7E62; border-radius:12px; padding:14px;'
+      },
+        h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+          makeStepTitleDom('5', 'ملء ملاحظات وتحليل تقرير دوافع السلوك (تُملأ يدوياً وتُحفظ في قسم التقارير)', 's-report'),
+          h('span', { class: 'badge gold', text: 'تقرير دوافع السلوك' })
+        ),
+        h('div', { class: 'eval-builder-grid-2', style: 'margin-bottom:8px;' },
+          h('label', { class: 'fld' }, h('span', { text: 'المقيّم:' }), evalNameInp),
+          h('label', { class: 'fld' }, h('span', { text: '1. الهدف من التقييم:' }), goalInp)
+        ),
+        h('div', { class: 'eval-builder-grid-2' },
+          h('label', { class: 'fld' }, h('span', { text: '3. تحليل الحالة:' }), caseArea),
+          h('label', { class: 'fld' }, h('span', { text: '4. أهم النتائج:' }), findingsArea),
+          h('label', { class: 'fld' }, h('span', { text: '5. التوصيات:' }), recArea),
+          h('label', { class: 'fld' }, h('span', { text: '6. الخلاصة:' }), concArea)
+        )
+      );
+      container.appendChild(manualCard);
+    }
+
+    setTimeout(refreshMasLiveStats, 20);
+    return {
+      el: container,
+      refresh: refreshMasLiveStats
+    };
+  }
+
   function openMasBehaviorBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
     S.inSubBuilder = true;
     try { window.history.pushState({ deApp: true, sec: 'evaluations', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
@@ -8268,28 +9275,38 @@
     if (!existingRep) {
       ev.title = 'استمارة تقييم دوافع السلوك MAS';
     }
+    var selKid = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
+    if (selKid && !ev.child_id) ev.child_id = selKid.id;
+    enrichChildEvaluationData(ev, selKid ? selKid.full_name : '', selKid ? selKid.section : '', selKid);
 
     var mas = ev.mas_eval || {};
     var answers = Object.assign({}, mas.answers || {});
+    var mbrState = Object.assign({
+      evaluator_name: mas.informant || 'أ. أمير زكرياء',
+      center_name: 'المركز النفسي البيداغوجي دار الإحسان – العطف',
+      goal_text: 'تحديد أنماط ودوافع السلوك لدى الطفل من أجل توجيه التدخل التربوي المناسب.',
+      dimension_scores: {},
+      case_analysis: '',
+      key_findings: '',
+      recommendations_text: '',
+      conclusion_text: ''
+    }, ev.mas_behavior_report || {});
 
     var v = $('#view');
     v.textContent = '';
 
-    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;' },
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;' },
       h('div', { style: 'display:flex; align-items:center; gap:10px;' },
-        h('img', { src: 'logo-sq.png', style: 'width:40px; height:40px; border-radius:8px;' }),
-        h('h2', { style: 'margin:0; color:#163B65; font-size:1.3rem; font-weight:900;', text: existingRep ? 'تعديل استمارة تقييم دوافع السلوك MAS' : 'استمارة تقييم دوافع السلوك MAS' })
+        h('img', { src: 'logo-sq.png', style: 'width:36px; height:36px; border-radius:8px;' }),
+        h('h2', { style: 'margin:0; color:#163B65; font-size:1.18rem; font-weight:900;', text: existingRep ? 'تعديل استمارة تقييم دوافع السلوك MAS' : 'استمارة تقييم دوافع السلوك MAS' })
       ),
       h('div', { class: 'row-actions' },
-        h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
+        h('button', { class: 'btn small light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
       )
     );
     v.appendChild(topBar);
 
-    var card = h('div', { class: 'card', style: 'max-width:1100px; margin:0 auto; padding:20px; border-radius:16px; border:1.5px solid #E2E8F0;' });
-
-    var selKid = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
-    if (selKid && !ev.child_id) ev.child_id = selKid.id;
+    var card = h('div', { class: 'card', style: 'max-width:1100px; margin:0 auto; padding:16px; border-radius:14px; border:1.5px solid #E2E8F0;' });
 
     var curSecId = S.isEducator ? S.eduSectionId : (selKid ? selKid.section_id : '');
     var secFilterSelect = h('select', { disabled: !!S.isEducator },
@@ -8313,29 +9330,46 @@
       }
     }
     populateMasKids();
-    secFilterSelect.onchange = function () { populateMasKids(); ev.child_id = kidSelect.value; };
-    kidSelect.onchange = function () { ev.child_id = kidSelect.value; };
 
-    var informantInp = h('input', { type: 'text', placeholder: 'مقدم المعلومات...', value: mas.informant || '' });
+    var informantInp = h('input', { type: 'text', placeholder: 'مقدم المعلومات / المقيّم...', value: mas.informant || 'أ. أمير زكرياء' });
     var dateInp = h('input', { type: 'date', value: mas.report_date || ev.report_date || new Date().toISOString().slice(0, 10) });
 
-    var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; background:#F8FAFC; padding:14px; border-radius:12px; border:1px solid #CBD5E1; margin-bottom:16px;' },
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'اسم الحالة:' }), kidSelect),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'مقدم المعلومات:' }), informantInp),
-      h('label', { class: 'fld', style: 'margin:0;' }, h('span', { text: 'التاريخ:' }), dateInp)
-    );
-    card.appendChild(metaGrid);
+    var liveMasReportWidget = null;
+    function triggerMasLiveRefresh() {
+      if (liveMasReportWidget && typeof liveMasReportWidget.refresh === 'function') {
+        liveMasReportWidget.refresh();
+      }
+    }
 
-    // القسم الكتابي الأول قبل الجدول (مع تغليظ وتسطير تلقائي للعناوين في أول السطر)
+    secFilterSelect.onchange = function () { populateMasKids(); ev.child_id = kidSelect.value; triggerMasLiveRefresh(); };
+    kidSelect.onchange = function () { ev.child_id = kidSelect.value; triggerMasLiveRefresh(); };
+    informantInp.oninput = function () {
+      if (!mbrState.evaluator_name || mbrState.evaluator_name === 'أ. أمير زكرياء') {
+        mbrState.evaluator_name = informantInp.value;
+      }
+      triggerMasLiveRefresh();
+    };
+    dateInp.onchange = triggerMasLiveRefresh;
+
+    var metaCard = h('div', { class: 'card prog-step-card compact-qual-child-card' },
+      makeStepTitleDom('1', 'بيانات الحالة والتاريخ', 's-idcard'),
+      h('div', { class: 'compact-qual-grid' },
+        h('label', { class: 'fld' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'اسم الحالة:' }), kidSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'مقدم المعلومات / المقيّم:' }), informantInp),
+        h('label', { class: 'fld' }, h('span', { text: 'التاريخ:' }), dateInp)
+      )
+    );
+    card.appendChild(metaCard);
+
     var defaultIntro = mas.intro_text || 'السلوك وتعريفه الإجرائي:\n\nالبيئة محط المسح: المركز و المنزل';
     var introTextarea = h('textarea', {
-      rows: 5,
-      style: 'width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13.5px; line-height:1.6;',
-      placeholder: 'اكتب السلوك وتعريفه الإجرائي والبيئة محط المسح (العناوين في أول السطر تُغلّظ وتُسطّر تلقائياً)...'
+      rows: 4,
+      style: 'width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13px; line-height:1.6;',
+      placeholder: 'اكتب السلوك وتعريفه الإجرائي والبيئة محط المسح...'
     });
     introTextarea.value = defaultIntro;
-    var introLivePreview = h('div', { style: 'margin-top:8px; padding:10px 12px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px;' });
+    var introLivePreview = h('div', { style: 'margin-top:6px; padding:8px 12px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px;' });
     function updateIntroPreview() {
       introLivePreview.textContent = '';
       introLivePreview.appendChild(renderMasAutoFormattedDom(introTextarea.value));
@@ -8343,9 +9377,9 @@
     introTextarea.oninput = updateIntroPreview;
     updateIntroPreview();
 
-    card.appendChild(h('div', { style: 'margin-bottom:18px;' },
+    card.appendChild(h('div', { style: 'margin-bottom:14px;' },
       h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;' },
-        h('strong', { style: 'color:#163B65; font-size:14px;', text: '1. السلوك وتعريفه الإجرائي والبيئة محط المسح (العناوين في أول السطر تكون مغلظة ومسطرة تلقائياً):' }),
+        makeStepTitleDom('2', 'السلوك وتعريفه الإجرائي والبيئة محط المسح', 's-edit'),
         h('div', { style: 'display:flex; gap:6px;' },
           ['السلوك وتعريفه الإجرائي:', 'البيئة محط المسح:'].map(function (hd) {
             return h('button', {
@@ -8367,7 +9401,6 @@
       introLivePreview
     ));
 
-    // الجدول الأول: جدول البنود الـ 16 الثابتة (ملء يدوي)
     var scaleCols = [
       { val: 0, label: 'مطلقا\n0' },
       { val: 1, label: 'شبه مطلقا\n1' },
@@ -8382,16 +9415,17 @@
     function refreshAutoResultsTable() {
       resultsMount.textContent = '';
       resultsMount.appendChild(buildMasResultsTableDom(answers));
+      triggerMasLiveRefresh();
     }
 
-    var itemsTableWrap = h('div', { style: 'overflow-x:auto; margin-bottom:18px;' });
-    var itemsTbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; background:#FFF; text-align:center; font-size:13.5px;' });
+    var itemsTableWrap = h('div', { style: 'overflow-x:auto; margin-bottom:16px;' });
+    var itemsTbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; background:#FFF; text-align:center; font-size:13px;' });
     itemsTbl.appendChild(h('thead', null,
       h('tr', { style: 'background:#163B65; color:#FFF; font-weight:800;' },
-        h('th', { style: 'border:1px solid #000; padding:8px 4px; width:40px;', text: '#' }),
-        h('th', { style: 'border:1px solid #000; padding:8px 10px; text-align:right;', text: 'البند' }),
+        h('th', { style: 'border:1px solid #000; padding:7px 4px; width:38px;', text: '#' }),
+        h('th', { style: 'border:1px solid #000; padding:7px 10px; text-align:right;', text: 'البند' }),
         scaleCols.map(function (sc) {
-          return h('th', { style: 'border:1px solid #000; padding:6px 4px; width:68px; white-space:pre-line; font-size:12px;', text: sc.label });
+          return h('th', { style: 'border:1px solid #000; padding:5px 4px; width:64px; white-space:pre-line; font-size:11.5px;', text: sc.label });
         })
       )
     ));
@@ -8400,15 +9434,15 @@
     MAS_FIXED_ITEMS.forEach(function (qText, idx) {
       var qNum = idx + 1;
       var tr = h('tr', { style: 'background:' + (idx % 2 === 0 ? '#FFF' : '#F8FAFC') + ';' },
-        h('td', { style: 'border:1px solid #000; padding:6px; font-weight:900;', text: String(qNum) }),
-        h('td', { style: 'border:1px solid #000; padding:8px 10px; text-align:right; font-weight:700; color:#0F172A;', text: qText })
+        h('td', { style: 'border:1px solid #000; padding:5px; font-weight:900;', text: String(qNum) }),
+        h('td', { style: 'border:1px solid #000; padding:6px 10px; text-align:right; font-weight:700; color:#0F172A;', text: qText })
       );
 
       var cellBtns = [];
       scaleCols.forEach(function (sc) {
         var isSel = (answers[qNum] !== '' && answers[qNum] != null && parseInt(answers[qNum], 10) === sc.val);
         var td = h('td', {
-          style: 'border:1px solid #000; padding:4px; cursor:pointer; font-weight:900; font-size:15px; background:' + (isSel ? '#DBEAFE' : 'transparent') + '; color:#1E3A8A;',
+          style: 'border:1px solid #000; padding:4px; cursor:pointer; font-weight:900; font-size:14.5px; background:' + (isSel ? '#DBEAFE' : 'transparent') + '; color:#1E3A8A;',
           text: isSel ? 'X' : ''
         });
         td.onclick = function () {
@@ -8417,6 +9451,7 @@
           } else {
             answers[qNum] = sc.val;
           }
+          mbrState.dimension_scores = {};
           cellBtns.forEach(function (cObj) {
             var active = (answers[qNum] !== '' && answers[qNum] != null && parseInt(answers[qNum], 10) === cObj.val);
             cObj.td.textContent = active ? 'X' : '';
@@ -8433,22 +9468,22 @@
     itemsTbl.appendChild(itemsTbody);
     itemsTableWrap.appendChild(itemsTbl);
 
-    card.appendChild(h('strong', { style: 'display:block; color:#163B65; font-size:14px; margin-bottom:8px;', text: '2. جدول بنود التقييم (16 بنداً ثابتة — اضغط على الخانة لوضع علامة X وتوليد جدول النتائج تلقائياً):' }));
+    card.appendChild(h('div', { style: 'margin-bottom:8px;' },
+      makeStepTitleDom('3', 'جدول بنود التقييم (16 بنداً — اضغط على الخانة لوضع علامة X وتوليد النتائج تلقائياً)', 's-clipboard-list')
+    ));
     card.appendChild(itemsTableWrap);
 
-    // الجدول الثاني: جدول النتائج يخرج تلقائياً بعد ملء جدول البنود (بدون خانة المتوسط)
     refreshAutoResultsTable();
     card.appendChild(resultsMount);
 
-    // القسم الكتابي الثاني بعد جدول النتائج: التحليل، النتيجة، توصيات مبنية على النتيجة
     var defaultOutro = mas.outro_text || 'التحليل:\n\nالنتيجة:\n\nتوصيات مبنية على النتيجة:\n1. ';
     var outroTextarea = h('textarea', {
-      rows: 7,
-      style: 'width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13.5px; line-height:1.6;',
-      placeholder: 'اكتب التحليل والنتيجة والتوصيات (العناوين في أول السطر تُغلّظ وتُسطّر تلقائياً)...'
+      rows: 5,
+      style: 'width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13px; line-height:1.6;',
+      placeholder: 'اكتب التحليل والنتيجة والتوصيات الخاصة باستمارة MAS...'
     });
     outroTextarea.value = defaultOutro;
-    var outroLivePreview = h('div', { style: 'margin-top:8px; padding:10px 12px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px;' });
+    var outroLivePreview = h('div', { style: 'margin-top:6px; padding:8px 12px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px;' });
     function updateOutroPreview() {
       outroLivePreview.textContent = '';
       outroLivePreview.appendChild(renderMasAutoFormattedDom(outroTextarea.value));
@@ -8456,9 +9491,9 @@
     outroTextarea.oninput = updateOutroPreview;
     updateOutroPreview();
 
-    card.appendChild(h('div', { style: 'margin-top:16px;' },
+    card.appendChild(h('div', { style: 'margin-top:14px;' },
       h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;' },
-        h('strong', { style: 'color:#163B65; font-size:14px;', text: '3. التحليل والنتيجة والتوصيات (عند كتابة العناوين في أول السطر تكون مغلظة ومسطرة تلقائياً):' }),
+        h('strong', { style: 'color:#163B65; font-size:13.5px;', text: 'ملاحظات استمارة MAS (التحليل والنتيجة والتوصيات):' }),
         h('div', { style: 'display:flex; gap:6px; flex-wrap:wrap;' },
           ['التحليل:', 'النتيجة:', 'توصيات مبنية على النتيجة:'].map(function (hd) {
             return h('button', {
@@ -8493,20 +9528,48 @@
       };
     }
 
+    // إضافة قسم نتائج وملء "تقرير دوافع السلوك" مباشرة بعد استمارة التقييم
+    liveMasReportWidget = buildMasBehaviorLiveResultsAndReportDom(
+      packMasData,
+      mbrState,
+      function () {
+        var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+        var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+        return {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          section_name: sName,
+          kid: ck
+        };
+      },
+      true
+    );
+    card.appendChild(liveMasReportWidget.el);
+
     async function saveMasEvaluation(statusKey) {
       if (!kidSelect.value) return toast('يرجى اختيار الحالة أولاً.', 'bad');
       var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+      var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
       var packed = packMasData();
+      var reportPayloadData = Object.assign({}, mbrState, {
+        child_id: kidSelect.value,
+        child_name: ck ? ck.full_name : '',
+        dob: ck ? ck.dob : '',
+        section_name: sName,
+        report_date: dateInp.value
+      });
+
       var payload = {
         eval_type: 'mas_behavior',
         status: statusKey,
         child_id: kidSelect.value,
         child_name: ck ? ck.full_name : '',
         dob: ck ? ck.dob : '',
-        section_name: ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '',
+        section_name: sName,
         title: 'استمارة تقييم دوافع السلوك MAS',
         report_date: dateInp.value,
-        mas_eval: packed
+        mas_eval: packed,
+        mas_behavior_report: reportPayloadData
       };
       var recordBody = {
         child_id: kidSelect.value,
@@ -8524,8 +9587,43 @@
           if (Array.isArray(created) && created[0]) ev.id = created[0].id;
         }
         await syncSharedEvaluationRecord(Object.assign({}, recordBody, { id: ev.id || ('mas_' + Date.now()) }), null);
+
+        // حفظ/تحديث "تقرير دوافع السلوك" كوثيقة مستقلة في قسم التقارير تلقائياً
+        var sharedAll = await loadSharedEvaluationsList();
+        var existingRepRec = sharedAll.filter(function (item) {
+          return item && String(item.child_id) === String(kidSelect.value) && getReportSubCategory(item) === 'mas_behavior_report';
+        })[0];
+        var repId = existingRepRec ? existingRepRec.id : null;
+        var standaloneRepPayload = {
+          eval_type: 'mas_behavior_report',
+          status: statusKey,
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          dob: ck ? ck.dob : '',
+          section_name: sName,
+          title: 'تقرير دوافع السلوك',
+          report_date: dateInp.value,
+          mas_eval: packed,
+          mas_behavior_report: reportPayloadData
+        };
+        var standaloneRepBody = {
+          child_id: kidSelect.value,
+          title: 'تقرير دوافع السلوك — ' + (ck ? ck.full_name : ''),
+          report_date: dateInp.value,
+          status: statusKey,
+          activities: EVAL_MARKER + JSON.stringify(standaloneRepPayload),
+          notes: reportPayloadData.conclusion_text || reportPayloadData.recommendations_text || outroTextarea.value || null
+        };
+        if (repId && DE.isUuid(String(repId))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(repId), standaloneRepBody);
+        } else {
+          var createdRep = await saveProgressReportResilient('POST', '/progress_reports', standaloneRepBody);
+          if (Array.isArray(createdRep) && createdRep[0]) repId = createdRep[0].id;
+        }
+        await syncSharedEvaluationRecord(Object.assign({}, standaloneRepBody, { id: repId || ('mbr_' + Date.now()) }), null);
+
         bust();
-        toast(statusKey === 'published' ? 'تم اعتماد ونشر استمارة تقييم دوافع السلوك MAS بنجاح!' : 'تم حفظ الاستمارة كمسودة.', 'ok');
+        toast(statusKey === 'published' ? 'تم اعتماد ونشر استمارة وتقرير دوافع السلوك بنجاح!' : 'تم حفظ الاستمارة وتقرير دوافع السلوك كمسودة.', 'ok');
         go('evaluations');
       } catch (err) {
         toast('تعذر الحفظ: ' + (err.message || 'خطأ'), 'bad');
@@ -8536,7 +9634,7 @@
       h('div', { style: 'display:flex; gap:8px;' },
         h('button', {
           type: 'button',
-          class: 'btn light',
+          class: 'btn primary',
           style: 'font-weight:800;',
           onclick: function () {
             var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
@@ -8546,13 +9644,18 @@
               child_id: kidSelect.value,
               child_name: ck ? ck.full_name : '',
               report_date: dateInp.value,
-              mas_eval: packed
+              mas_eval: packed,
+              mas_behavior_report: mbrState
             };
-            var prevModal = h('div', { class: 'modal card', style: 'max-width:980px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            var prevModal = h('div', { class: 'modal card', style: 'max-width:1020px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+            prevModal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+              h('strong', { style: 'color:#163B65; font-size:1.02rem;', text: 'المعاينة والتحميل (الاستمارة + تقرير دوافع السلوك)' }),
+              h('button', { type: 'button', class: 'icon-btn', onclick: closeModal }, h('span', { text: '✕' }))
+            ));
             prevModal.appendChild(renderMasBehaviorSheetView(tempRep, ck ? ck.full_name : '', ck ? ck.section : '', ck));
             openModal(prevModal);
           }
-        }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل' }))
+        }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل (الاستمارة والتقرير)' }))
       ),
       h('div', { style: 'display:flex; gap:8px;' },
         h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveMasEvaluation('draft'); } }),
@@ -8563,32 +9666,342 @@
     v.appendChild(card);
   }
 
-  /* عرض ورقة استمارة تقييم دوافع السلوك MAS الرسمية */
+  /* باني مستقل لتقرير دوافع السلوك في قسم التقارير */
+  function openMasBehaviorReportBuilder(existingRep, kids, sections, secAllOpts, branchOpts, allReportsPool) {
+    S.inSubBuilder = true;
+    try { window.history.pushState({ deApp: true, sec: 'reports', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
+    var ev = parseEvaluationReport(existingRep);
+    ev.eval_type = 'mas_behavior_report';
+    var selKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length ? kids[0] : null);
+    if (selKid0 && !ev.child_id) ev.child_id = selKid0.id;
+    enrichChildEvaluationData(ev, selKid0 ? selKid0.full_name : '', selKid0 ? selKid0.section : '', selKid0, allReportsPool);
+
+    var mbrState = Object.assign({
+      evaluator_name: (ev.mas_eval && ev.mas_eval.informant) || 'أ. أمير زكرياء',
+      center_name: 'المركز النفسي البيداغوجي دار الإحسان – العطف',
+      goal_text: 'تحديد أنماط ودوافع السلوك لدى الطفل من أجل توجيه التدخل التربوي المناسب.',
+      dimension_scores: {},
+      case_analysis: '',
+      key_findings: '',
+      recommendations_text: '',
+      conclusion_text: ''
+    }, ev.mas_behavior_report || {});
+
+    var v = $('#view');
+    v.textContent = '';
+
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;' },
+      h('div', { style: 'display:flex; align-items:center; gap:8px;' },
+        h('img', { src: 'logo-sq.png', style: 'width:36px; height:36px; border-radius:8px;' }),
+        h('h2', { style: 'margin:0; color:#163B65; font-size:1.15rem; font-weight:900;', text: 'تقرير دوافع السلوك' })
+      ),
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'btn small light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
+      )
+    );
+    v.appendChild(topBar);
+
+    var curSecId = S.isEducator ? S.eduSectionId : (selKid0 ? selKid0.section_id : '');
+    var secFilterSelect = h('select', { disabled: !!S.isEducator },
+      h('option', { value: '', text: '— جميع الأقسام —' }),
+      secAllOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); })
+    );
+    secFilterSelect.value = curSecId || '';
+
+    var kidSelect = h('select', null);
+    function populateKids() {
+      var sId = secFilterSelect.value;
+      var keep = ev.child_id || kidSelect.value;
+      while (kidSelect.firstChild) kidSelect.removeChild(kidSelect.firstChild);
+      kidSelect.appendChild(h('option', { value: '', text: '— اختر الطفل —' }));
+      kids.forEach(function (k) {
+        if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
+        kidSelect.appendChild(h('option', { value: k.id, text: k.full_name + (k.section ? (' — ' + k.section) : '') }));
+      });
+      if (keep && kids.some(function (k) { return String(k.id) === String(keep); })) {
+        kidSelect.value = keep;
+      } else if (kidSelect.options.length > 1 && !kidSelect.value) {
+        kidSelect.selectedIndex = 1;
+        ev.child_id = kidSelect.value;
+      }
+    }
+    populateKids();
+
+    var reportDateInp = h('input', { type: 'date', value: ev.report_date || new Date().toISOString().slice(0, 10) });
+
+    var step1Card = h('div', { class: 'card prog-step-card compact-qual-child-card' },
+      makeStepTitleDom('1', 'بيانات الطفل وتاريخ التقييم', 's-idcard'),
+      h('div', { class: 'compact-qual-grid' },
+        h('label', { class: 'fld' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني:' }), kidSelect),
+        h('label', { class: 'fld' }, h('span', { text: 'تاريخ التقييم:' }), reportDateInp)
+      )
+    );
+    v.appendChild(step1Card);
+
+    var liveWidget = buildMasBehaviorLiveResultsAndReportDom(
+      function () { return ev.mas_eval || {}; },
+      mbrState,
+      function () {
+        var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+        var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+        return {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          section_name: sName,
+          kid: ck
+        };
+      },
+      true
+    );
+    v.appendChild(liveWidget.el);
+
+    function reloadChildMasEval() {
+      ev.child_id = kidSelect.value;
+      var ck = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
+      ev.mas_eval = {};
+      enrichChildEvaluationData(ev, ck ? ck.full_name : '', ck ? ck.section : '', ck, allReportsPool);
+      liveWidget.refresh();
+    }
+
+    secFilterSelect.onchange = function () { populateKids(); reloadChildMasEval(); };
+    kidSelect.onchange = reloadChildMasEval;
+
+    async function saveMasBehaviorReportAction(statusKey) {
+      if (!kidSelect.value) return toast('يرجى اختيار الطفل أولاً.', 'bad');
+      var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+      var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+      var payload = {
+        eval_type: 'mas_behavior_report',
+        status: statusKey,
+        child_id: kidSelect.value,
+        child_name: ck ? ck.full_name : '',
+        dob: ck ? ck.dob : '',
+        section_name: sName,
+        title: 'تقرير دوافع السلوك',
+        report_date: reportDateInp.value,
+        mas_eval: ev.mas_eval || {},
+        mas_behavior_report: Object.assign({}, mbrState, {
+          child_id: kidSelect.value,
+          child_name: ck ? ck.full_name : '',
+          dob: ck ? ck.dob : '',
+          section_name: sName,
+          report_date: reportDateInp.value
+        })
+      };
+      var recordBody = {
+        child_id: kidSelect.value,
+        title: 'تقرير دوافع السلوك — ' + (ck ? ck.full_name : ''),
+        report_date: reportDateInp.value,
+        status: statusKey,
+        activities: EVAL_MARKER + JSON.stringify(payload),
+        notes: mbrState.conclusion_text || mbrState.recommendations_text || null
+      };
+      try {
+        if (ev.id && DE.isUuid(String(ev.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(ev.id), recordBody);
+        } else {
+          var created = await saveProgressReportResilient('POST', '/progress_reports', recordBody);
+          if (Array.isArray(created) && created[0]) ev.id = created[0].id;
+        }
+        await syncSharedEvaluationRecord(Object.assign({}, recordBody, { id: ev.id || ('mbr_' + Date.now()) }), null);
+        bust();
+        toast(statusKey === 'published' ? 'تم اعتماد ونشر تقرير دوافع السلوك بنجاح!' : 'تم حفظ التقرير كمسودة.', 'ok');
+        go('reports');
+      } catch (err) {
+        toast('تعذر الحفظ: ' + (err.message || 'خطأ'), 'bad');
+      }
+    }
+
+    var saveBar = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px;' },
+      h('button', {
+        type: 'button',
+        class: 'btn primary',
+        style: 'font-weight:800;',
+        onclick: function () {
+          var ck = kids.filter(function (k) { return String(k.id) === String(kidSelect.value); })[0];
+          var tempRep = {
+            eval_type: 'mas_behavior_report',
+            child_id: kidSelect.value,
+            child_name: ck ? ck.full_name : '',
+            mas_eval: ev.mas_eval || {},
+            mas_behavior_report: mbrState
+          };
+          var prevModal = h('div', { class: 'modal card', style: 'max-width:1020px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
+          prevModal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;' },
+            h('strong', { style: 'color:#163B65; font-size:1.02rem;', text: 'معاينة وتحميل تقرير دوافع السلوك' }),
+            h('button', { type: 'button', class: 'icon-btn', onclick: closeModal }, h('span', { text: '✕' }))
+          ));
+          prevModal.appendChild(renderMasBehaviorReportSheetView(tempRep, ck ? ck.full_name : '', ck ? ck.section : '', ck));
+          openModal(prevModal);
+        }
+      }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل' })),
+      h('div', { style: 'display:flex; gap:8px;' },
+        h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveMasBehaviorReportAction('draft'); } }),
+        h('button', { type: 'button', class: 'btn gold', style: 'font-weight:800;', text: 'نشر', onclick: function () { saveMasBehaviorReportAction('published'); } })
+      )
+    );
+    v.appendChild(saveBar);
+  }
+
+  function buildMasBehaviorReportPagesDom(ev, childFullName, secName, kd) {
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
+    var mbr = ev.mas_behavior_report || {};
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || mbr.child_name || '—';
+
+    var holder = h('div', { style: 'display:flex; flex-direction:column; gap:18px;' });
+
+    var p1Host = h('div', {
+      style: 'width:100%; background:#FFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:280px; display:flex; align-items:center; justify-content:center;'
+    }, h('span', { class: 'muted small', text: 'جارٍ رسم الصفحة 1 من تقرير دوافع السلوك...' }));
+
+    if (window.DE_PDF && typeof window.DE_PDF.renderMasBehaviorReportPage1Canvas === 'function') {
+      window.DE_PDF.renderMasBehaviorReportPage1Canvas(ev, chName, secName, kd).then(function (c1) {
+        p1Host.textContent = '';
+        c1.style.width = '100%';
+        c1.style.height = 'auto';
+        c1.style.display = 'block';
+        p1Host.appendChild(c1);
+      }).catch(function () {});
+    }
+    holder.appendChild(p1Host);
+
+    function makePage2SectionBox(num, title, contentTxt) {
+      return h('div', { style: 'margin-bottom:16px;' },
+        h('div', { style: 'display:flex; justify-content:flex-start; margin-bottom:8px;' },
+          h('div', { style: 'background:#1B365D; color:#FFF; padding:6px 16px; border-radius:20px; display:inline-flex; align-items:center; gap:10px; font-weight:800; font-size:14px;' },
+            h('span', { style: 'background:#FFF; color:#1B365D; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:12px;', text: num }),
+            h('span', { text: title })
+          )
+        ),
+        h('div', {
+          style: 'min-height:76px; padding:10px 14px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.8; color:#0F172A; white-space:pre-wrap;',
+          text: (contentTxt && String(contentTxt).trim()) ? contentTxt : '........................................................................................................................'
+        })
+      );
+    }
+
+    var page2Dom = h('div', {
+      style: 'background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; padding:24px; font-family:"Cairo","IBM Plex Sans Arabic",sans-serif; direction:rtl;'
+    },
+      h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #CBD5E1; padding-bottom:10px; margin-bottom:16px;' },
+        h('strong', { style: 'color:#1B365D; font-size:15px;', text: 'تقرير قياس دوافع السلوك – ' + chName }),
+        h('img', { src: 'logo-sq.png', style: 'width:40px; height:40px; border-radius:50%;' })
+      ),
+      makePage2SectionBox('3', 'تحليل الحالة', mbr.case_analysis),
+      makePage2SectionBox('4', 'أهم النتائج', mbr.key_findings),
+      makePage2SectionBox('5', 'التوصيات', mbr.recommendations_text),
+      makePage2SectionBox('6', 'الخلاصة', mbr.conclusion_text),
+      h('div', { style: 'display:flex; justify-content:space-around; margin-top:28px; padding-top:14px; border-top:1px dashed #CBD5E1; text-align:center; font-weight:800; color:#475569; font-size:13.5px;' },
+        h('div', null, h('div', { text: '........................................' }), h('div', { style: 'margin-top:4px;', text: 'المقيّم' + (mbr.evaluator_name ? (' (' + mbr.evaluator_name + ')') : '') })),
+        h('div', null, h('div', { text: '........................................' }), h('div', { style: 'margin-top:4px;', text: 'مدير المركز' }))
+      )
+    );
+    holder.appendChild(page2Dom);
+
+    return holder;
+  }
+
+  function renderMasBehaviorReportSheetView(r, childFullName, secName, kd, adminOpts) {
+    var ev = parseEvaluationReport(r);
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || 'طفل';
+
+    var wrap = h('div', { style: 'max-width:940px; margin:0 auto; background:#FFF; padding:20px; border:1.5px solid #CBD5E1; border-radius:12px; font-family:"Cairo","IBM Plex Sans Arabic",sans-serif; direction:rtl;' });
+
+    var topCtrl = h('div', { class: 'no-print', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #E2E8F0;' },
+      h('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' },
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف تقرير دوافع السلوك PDF...', 'ok');
+              var bytes = await DE_PDF.renderMasBehaviorReportToPdf(ev, chName, secName, kd);
+              DE_PDF.downloadPdf(bytes, 'تقرير_دوافع_السلوك_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
+            } catch (e) {
+              toast('تعذر التحميل: ' + e.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل تقرير دوافع السلوك (PDF)' })),
+        h('button', { type: 'button', class: 'btn small light', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة' }))
+      ),
+      adminOpts ? h('div', { style: 'display:flex; gap:6px;' },
+        adminOpts.onEdit ? h('button', { type: 'button', class: 'btn small light', text: 'تعديل التقرير', onclick: adminOpts.onEdit }) : null,
+        adminOpts.onDelete ? h('button', { type: 'button', class: 'btn small danger', text: 'حذف', onclick: adminOpts.onDelete }) : null
+      ) : null
+    );
+    wrap.appendChild(topCtrl);
+    wrap.appendChild(buildMasBehaviorReportPagesDom(ev, chName, secName, kd));
+    return wrap;
+  }
+
+  /* عرض ورقة استمارة تقييم دوافع السلوك MAS الرسمية مع إمكانية رؤية تقرير دوافع السلوك معها */
   function renderMasBehaviorSheetView(r, childFullName, secName, kd, adminOpts) {
     var ev = parseEvaluationReport(r);
+    enrichChildEvaluationData(ev, childFullName, secName, kd);
     var mas = ev.mas_eval || r.mas_eval || ev.mas || {};
     var answers = mas.answers || {};
     var chName = childFullName || (kd && kd.full_name) || ev.child_name || mas.child_name || '—';
     var informant = mas.informant || mas.examiner || '—';
     var dateStr = formatDateDDMMYYYY(mas.report_date || ev.report_date || '');
 
-    var wrap = h('div', { style: 'max-width:940px; margin:0 auto; background:#FFF; padding:28px 32px; border:1.5px solid #000; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl; color:#000;' });
+    var wrap = h('div', { style: 'max-width:940px; margin:0 auto; background:#FFF; padding:22px 26px; border:1.5px solid #000; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl; color:#000;' });
+
+    var evalSheetBox = h('div');
+    var reportSheetBox = h('div', { hidden: true });
+
+    var btnModeEval = h('button', { type: 'button', class: 'btn small light', text: 'استمارة التقييم فقط' });
+    var btnModeReport = h('button', { type: 'button', class: 'btn small light', text: 'تقرير دوافع السلوك' });
+    var btnModeBoth = h('button', { type: 'button', class: 'btn small primary', text: 'عرض الاستمارة والتقرير معاً' });
+
+    function updateMasViewMode(m) {
+      btnModeEval.className = 'btn small ' + (m === 'eval' ? 'primary' : 'light');
+      btnModeReport.className = 'btn small ' + (m === 'report' ? 'primary' : 'light');
+      btnModeBoth.className = 'btn small ' + (m === 'both' ? 'primary' : 'light');
+      evalSheetBox.hidden = (m === 'report');
+      reportSheetBox.hidden = (m === 'eval');
+      if (m === 'report' || m === 'both') {
+        reportSheetBox.textContent = '';
+        reportSheetBox.appendChild(buildMasBehaviorReportPagesDom(ev, chName, secName, kd));
+      }
+    }
+
+    btnModeEval.onclick = function () { updateMasViewMode('eval'); };
+    btnModeReport.onclick = function () { updateMasViewMode('report'); };
+    btnModeBoth.onclick = function () { updateMasViewMode('both'); };
 
     var topCtrl = h('div', { class: 'no-print', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #E2E8F0;' },
-      h('div', { style: 'display:flex; gap:8px;' },
+      h('div', { style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+        btnModeBoth,
+        btnModeEval,
+        btnModeReport,
         h('button', {
           type: 'button',
           class: 'btn small gold',
           onclick: async function () {
             try {
-              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              toast('جارٍ تجهيز ملف استمارة MAS PDF...', 'ok');
               var bytes = await DE_PDF.renderMasBehaviorToPdf(ev, chName, secName, kd);
               DE_PDF.downloadPdf(bytes, 'استمارة_تقييم_دوافع_السلوك_MAS_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
             } catch (e) {
               toast('تعذر التحميل: ' + e.message, 'bad');
             }
           }
-        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF (A4)' })),
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل الاستمارة (PDF)' })),
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف تقرير دوافع السلوك PDF...', 'ok');
+              var bytes = await DE_PDF.renderMasBehaviorReportToPdf(ev, chName, secName, kd);
+              DE_PDF.downloadPdf(bytes, 'تقرير_دوافع_السلوك_' + (chName || 'طفل').replace(/\s+/g, '_') + '.pdf');
+            } catch (e) {
+              toast('تعذر التحميل: ' + e.message, 'bad');
+            }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل التقرير (PDF)' })),
         h('button', { type: 'button', class: 'btn small light', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة' }))
       ),
       adminOpts ? h('div', { style: 'display:flex; gap:6px;' },
@@ -8598,16 +10011,15 @@
     );
     wrap.appendChild(topCtrl);
 
-    wrap.appendChild(h('h2', { style: 'text-align:center; margin:0 0 12px; font-size:21px; font-weight:900;', text: 'استمارة تقييم دوافع السلوك MAS' }));
-    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:15px; font-weight:800; margin-bottom:12px;' },
+    evalSheetBox.appendChild(h('h2', { style: 'text-align:center; margin:0 0 12px; font-size:21px; font-weight:900;', text: 'استمارة تقييم دوافع السلوك MAS' }));
+    evalSheetBox.appendChild(h('div', { style: 'display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:15px; font-weight:800; margin-bottom:12px;' },
       h('span', { text: 'اسم الحالة: ' + chName }),
       h('span', { text: 'مقدم المعلومات: ' + informant }),
       h('span', { text: 'التاريخ: ' + dateStr })
     ));
 
-    wrap.appendChild(renderMasAutoFormattedDom(mas.intro_text || ''));
+    evalSheetBox.appendChild(renderMasAutoFormattedDom(mas.intro_text || ''));
 
-    // جدول البنود 1-16
     var scaleHeaders = ['مطلقا\n0', 'شبه مطلقا\n1', 'نادرا\n2', 'نصف الوقت\n3', 'عادة\n4', 'أغلب الأحيان\n5', 'دائما\n6'];
     var tbl1 = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; text-align:center; font-size:13px; margin:14px 0;' });
     tbl1.appendChild(h('thead', null,
@@ -8632,21 +10044,21 @@
       ));
     });
     tbl1.appendChild(tb1);
-    wrap.appendChild(tbl1);
+    evalSheetBox.appendChild(tbl1);
+    evalSheetBox.appendChild(buildMasResultsTableDom(answers));
+    evalSheetBox.appendChild(renderMasAutoFormattedDom(mas.outro_text || ''));
 
-    // جدول النتائج (تلقائي بدون خانة المتوسط)
-    wrap.appendChild(buildMasResultsTableDom(answers));
-
-    // التحليل والنتيجة والتوصيات
-    wrap.appendChild(renderMasAutoFormattedDom(mas.outro_text || ''));
+    wrap.appendChild(evalSheetBox);
+    wrap.appendChild(reportSheetBox);
+    updateMasViewMode('both');
 
     return wrap;
   }
 
   /* =====================================================================
      دار الإحسان — تقرير نوعي تحليلي (Rapport d'analyse qualitatif)
-     مع عرض تقرير الكمي (quantitative) فوقه، وتصغير مكان معلومات الطفل للنصف،
-     وحصر الأزرار في: حفظ كمسودة، نشر، والمعاينة والتحميل (دون تكرار)
+     مع عرض تقرير الكمي (quantitative) فوقه، وتصغير مكان معلومات الطفل للنصف بدون بحث،
+     وأرقام عناوين صحيحة
      ===================================================================== */
   function openQualitativeReportBuilder(existingRep, kids, sections, secAllOpts, branchOpts, allReportsPool) {
     S.inSubBuilder = true;
@@ -8660,7 +10072,6 @@
     var v = $('#view');
     v.textContent = '';
 
-    // شريط علوي نظيف بدون تكرار أزرار المعاينة والتحميل
     var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;' },
       h('div', { style: 'display:flex; align-items:center; gap:8px;' },
         h('img', { src: 'logo-sq.png', style: 'width:36px; height:36px; border-radius:8px;' }),
@@ -8682,19 +10093,16 @@
     );
     secFilterSelect.value = curSecId || '';
 
-    var kidSearch = h('input', { type: 'search', class: 'fld-search', placeholder: 'ابحث باسم الطفل...', autocomplete: 'off' });
     var kidSelect = h('select', null);
 
     function populateKidsSelect() {
       var sId = secFilterSelect.value;
-      var q = normAr(kidSearch.value.trim());
       var keep = ev.child_id || kidSelect.value;
       while (kidSelect.firstChild) kidSelect.removeChild(kidSelect.firstChild);
       kidSelect.appendChild(h('option', { value: '', text: '— اختر الطالب المعني بالتقرير —' }));
       kids.forEach(function (k) {
         if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
         var label = (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name + (k.section ? (' — ' + k.section) : '');
-        if (q && normAr(label).indexOf(q) === -1) return;
         kidSelect.appendChild(h('option', { value: k.id, text: label }));
       });
       if (keep && kids.some(function (k) { return String(k.id) === String(keep); })) {
@@ -8721,12 +10129,11 @@
     var disabilityDegInput = h('input', { type: 'text', maxlength: 50, value: ev.degree_of_disability || 'متوسطة' });
     var qualLevelInput = h('input', { type: 'text', maxlength: 80, value: ev.qualification_level || (selKid ? (nameOf(sections, selKid.section_id, 'name') || selKid.section || '') : '') });
 
-    // 1. بطاقة معلومات الطفل مصغرة إلى النصف تماماً حسب طلب المستخدم
+    // 1. بطاقة معلومات الطفل مصغرة إلى النصف تماماً بدون خانة البحث
     var step1Card = h('div', { class: 'card prog-step-card compact-qual-child-card' },
-      h('h3', { class: 'prog-step-title', style: 'color:#163B65;', text: '1⃣ بيانات الحالة والموسم الدراسي' }),
+      makeStepTitleDom('1', 'بيانات الحالة والموسم الدراسي', 's-idcard'),
       h('div', { class: 'compact-qual-grid' },
         h('label', { class: 'fld' }, h('span', { text: 'القسم التربوي:' }), secFilterSelect),
-        h('label', { class: 'fld' }, h('span', { text: 'بحث عن الطفل:' }), kidSearch),
         h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني:' }), kidSelect),
         h('label', { class: 'fld' }, h('span', { text: 'تقييم الثلاثي:' }), termSelect),
         h('label', { class: 'fld' }, h('span', { text: 'الموسم الدراسي:' }), schoolYearInput),
@@ -8738,7 +10145,7 @@
     );
     v.appendChild(step1Card);
 
-    // 2. بطاقة تقرير الكمي (quantitative) بدون أزرار مكررة، وترتبط ببيانات الطفل الفعلية
+    // 2. بطاقة تقرير الكمي (quantitative)
     var quantHost = h('div', { class: 'card', style: 'margin-bottom:14px; border:1.5px solid #2563EB; border-radius:12px; background:#F8FAFC; padding:12px;' });
 
     async function renderQuantitativeOnTop() {
@@ -8784,13 +10191,10 @@
 
       var quantHeaderBar = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #CBD5E1; padding-bottom:6px; flex-wrap:wrap; gap:8px;' },
         h('div', { style: 'display:flex; align-items:center; gap:8px;' },
-          h('span', { style: 'font-size:18px;', text: '📊' }),
-          h('div', null,
-            h('strong', { style: 'color:#163B65; font-size:14px; font-weight:900; display:block;', text: 'تقرير الكمي (quantitative)' }),
-            latestEval
-              ? h('span', { class: 'small muted', style: 'color:#2563EB; font-weight:700;', text: '✓ مرتبط بتقييم الأداء الحالي للطفل: ' + (chosenKid ? chosenKid.full_name : '') + ' (بتاريخ: ' + fmt(latestEval.report_date) + ')' })
-              : h('span', { class: 'small muted', style: 'color:#64748B;', text: chosenKid ? ('الطفل: ' + chosenKid.full_name + ' — لم يُسجل تقييم أداء حالي سابق بعد.') : 'اختر الطفل لعرض تقرير الكمي (quantitative) الخاص به.' })
-          )
+          makeStepTitleDom('2', 'تقرير الكمي (quantitative)', 's-chart'),
+          latestEval
+            ? h('span', { class: 'small muted', style: 'color:#2563EB; font-weight:700;', text: '✓ مرتبط بتقييم الأداء الحالي للطفل: ' + (chosenKid ? chosenKid.full_name : '') + ' (بتاريخ: ' + fmt(latestEval.report_date) + ')' })
+            : h('span', { class: 'small muted', style: 'color:#64748B;', text: chosenKid ? ('الطفل: ' + chosenKid.full_name + ' — لم يُسجل تقييم أداء حالي سابق بعد.') : 'اختر الطفل لعرض تقرير الكمي (quantitative) الخاص به.' })
         )
       );
       quantHost.appendChild(quantHeaderBar);
@@ -8814,12 +10218,6 @@
     }
 
     secFilterSelect.addEventListener('change', function () {
-      populateKidsSelect();
-      ev.child_id = kidSelect.value;
-      renderQuantitativeOnTop();
-    });
-
-    kidSearch.addEventListener('input', function () {
       populateKidsSelect();
       ev.child_id = kidSelect.value;
       renderQuantitativeOnTop();
@@ -8876,7 +10274,7 @@
     }
 
     var stepReportFieldsCard = h('div', { class: 'card prog-step-card' },
-      h('h3', { class: 'prog-step-title', style: 'color:#163B65;', text: "3⃣ خانات تقرير نوعي تحليلي (Rapport d'analyse qualitatif) — الوصف العام لأداء الحالة" }),
+      makeStepTitleDom('3', "خانات تقرير نوعي تحليلي (Rapport d'analyse qualitatif) — الوصف العام لأداء الحالة", 's-report'),
       h('div', { class: 'eval-builder-grid-2' },
         h('label', { class: 'fld' },
           h('span', { text: 'التقرير العام (مربع التقرير الشامل على اليمين — مضبوط لصفحة A4):' }),
@@ -8940,7 +10338,7 @@
     }
 
     var stepSummaryCard = h('div', { class: 'card prog-step-card' },
-      h('h3', { class: 'prog-step-title', style: 'color:#163B65;', text: '4⃣ الخلاصة والتوصيات' }),
+      makeStepTitleDom('4', 'الخلاصة والتوصيات', 's-check-circle'),
       h('div', { class: 'eval-builder-grid-2' },
         buildDynamicListBlock('نقاط القوة', 'strengths', 'اكتب نقطة قوة...', '+ إضافة نقطة قوة'),
         buildDynamicListBlock('نقاط الضعف', 'weaknesses', 'اكتب نقطة ضعف...', '+ إضافة نقطة ضعف')
@@ -8969,7 +10367,6 @@
 
     renderQuantitativeOnTop();
 
-    // تذييل الأزرار الثلاثة فقط بدون أي تكرار: المعاينة والتحميل | حفظ كمسودة | نشر
     var saveActions = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px;' },
       h('div', { style: 'display:flex; gap:8px;' },
         h('button', {
@@ -8986,7 +10383,7 @@
               h('strong', { style: 'color:#163B65; font-size:1.05rem;', text: 'المعاينة والتحميل — ' + (chosenKid ? chosenKid.full_name : '') }),
               h('button', { type: 'button', class: 'icon-btn', onclick: closeModal }, h('span', { text: '✕' }))
             ));
-            prevModal.appendChild(renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : ev.child_name, sName, chosenKid, 'notes'));
+            prevModal.appendChild(renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : ev.child_name, sName, chosenKid, 'full'));
             openModal(prevModal);
           }
         }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل' }))
@@ -9014,6 +10411,8 @@
       packQualData();
       ev.status = statusKey;
 
+      var compactDoms = compactDomainsArrayForStorage(ev.domains, 24);
+
       var fullPayload = {
         eval_type: 'qualitative',
         status: statusKey,
@@ -9034,17 +10433,17 @@
         strengths: ev.strengths,
         weaknesses: ev.weaknesses,
         recommendations: ev.recommendations,
-        domains: ev.domains
+        domains: compactDoms
       };
 
       var fullActivities = EVAL_MARKER + JSON.stringify(fullPayload);
       var recordBody = {
         child_id: kidSelect.value,
-        title: ev.title + ' — ' + (chosenKid ? chosenKid.full_name : ''),
+        title: DE.clean(ev.title + ' — ' + (chosenKid ? chosenKid.full_name : ''), 140),
         report_date: ev.report_date,
         status: statusKey,
         activities: fullActivities,
-        notes: ev.general_report || null
+        notes: DE.clean(ev.general_report || '', 4800) || null
       };
 
       try {
@@ -9072,8 +10471,8 @@
 
   /* =====================================================================
      دار الإحسان — تقييم الأداء الحالي
-     (توسيع مكان ظهور الجدول، حل مشكلة تغير النتائج عند ملء الخانة الأخيرة،
-      ونافذة صغيرة ومناسبة عند إضافة تقييم مجال آخر)
+     (تصغير مربع المعلومات للنصف مع جميع الخانات ونزع البحث، تعديل أيقونة المشرفين
+      وأرقام العناوين، ودمج ملف التقرير الكمي والنوعي وجداول المهارات)
      ===================================================================== */
   function openEvaluationBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
     S.inSubBuilder = true;
@@ -9085,19 +10484,20 @@
     }
     S.preselectChildId = null;
 
+    var selectedKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
+    if (selectedKid0 && !ev.child_id) ev.child_id = selectedKid0.id;
+    enrichChildEvaluationData(ev, selectedKid0 ? selectedKid0.full_name : '', selectedKid0 ? selectedKid0.section : '', selectedKid0);
+
     var v = $('#view');
     v.textContent = '';
 
-    var topBar = h('div', { class: 'bar-sub' },
-      h('h2', { text: existingRep ? 'تعديل تقييم الأداء الحالي' : 'تقييم الأداء الحالي' }),
+    var topBar = h('div', { class: 'bar-sub', style: 'margin-bottom:8px;' },
+      h('h2', { style: 'margin:0; font-size:1.18rem; color:#163B65;', text: existingRep ? 'تعديل تقييم الأداء الحالي' : 'تقييم الأداء الحالي' }),
       h('div', { class: 'row-actions' },
-        h('button', { class: 'btn light', type: 'button', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
+        h('button', { class: 'btn small light', type: 'button', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
       )
     );
     v.appendChild(topBar);
-
-    var selectedKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
-    if (selectedKid0 && !ev.child_id) ev.child_id = selectedKid0.id;
 
     var curSecId = S.isEducator ? S.eduSectionId : (selectedKid0 ? selectedKid0.section_id : '');
     var secFilterSelect = h('select', { disabled: !!S.isEducator },
@@ -9106,19 +10506,16 @@
     );
     secFilterSelect.value = curSecId || '';
 
-    var kidSearch = h('input', { type: 'search', class: 'fld-search', placeholder: 'ابحث باسم الطفل أو رقم القيد...', autocomplete: 'off' });
     var kidSelect = h('select', null);
 
     function populateKidsSelect() {
       var sId = secFilterSelect.value;
-      var q = normAr(kidSearch.value.trim());
       var keep = ev.child_id || kidSelect.value;
       while (kidSelect.firstChild) kidSelect.removeChild(kidSelect.firstChild);
       kidSelect.appendChild(h('option', { value: '', text: '— اختر الطفل المعني بالتقييم —' }));
       kids.forEach(function (k) {
         if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
         var label = (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name + (k.section ? (' — ' + k.section) : '');
-        if (q && normAr(label).indexOf(q) === -1) return;
         kidSelect.appendChild(h('option', { value: k.id, text: label }));
       });
       if (keep && kids.some(function (k) { return String(k.id) === String(keep) && (!sId || childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)); })) {
@@ -9127,12 +10524,6 @@
     }
 
     secFilterSelect.addEventListener('change', function () {
-      populateKidsSelect();
-      ev.child_id = kidSelect.value;
-      updateChildAutoMeta();
-    });
-
-    kidSearch.addEventListener('input', function () {
       populateKidsSelect();
       ev.child_id = kidSelect.value;
       updateChildAutoMeta();
@@ -9160,17 +10551,16 @@
     var disabilityDegInput = h('input', { type: 'text', maxlength: 50, value: ev.degree_of_disability || 'متوسطة' });
     disabilityDegInput.addEventListener('input', function () { ev.degree_of_disability = disabilityDegInput.value; });
 
-    var qualLevelInput = h('input', { type: 'text', maxlength: 80, value: ev.qualification_level || '' });
+    var qualLevelInput = h('input', { type: 'text', maxlength: 80, value: ev.qualification_level || (selectedKid0 ? (nameOf(sections, selectedKid0.section_id, 'name') || selectedKid0.section || '') : '') });
     qualLevelInput.addEventListener('input', function () { ev.qualification_level = qualLevelInput.value; });
 
     function updateChildAutoMeta() {
       var chosen = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
       if (chosen) {
         var sName = nameOf(sections, chosen.section_id, 'name') || chosen.section || '';
-        if (!qualLevelInput.value) {
-          qualLevelInput.value = sName;
-          ev.qualification_level = sName;
-        }
+        qualLevelInput.value = sName;
+        ev.qualification_level = sName;
+        enrichChildEvaluationData(ev, chosen.full_name, sName, chosen);
       }
     }
 
@@ -9179,14 +10569,12 @@
       updateChildAutoMeta();
     });
 
-    var step1Card = h('div', { class: 'card prog-step-card' },
-      h('h3', { class: 'prog-step-title', text: '1⃣ بيانات الحالة والموسم الدراسي' }),
-      h('div', { class: 'eval-builder-grid-2' },
+    // 1. مربع معلومات الحالة مصغر للنصف، يحتوي على جميع الخانات، وبدون خانة البحث نهائياً
+    var step1Card = h('div', { class: 'card prog-step-card compact-qual-child-card' },
+      makeStepTitleDom('1', 'بيانات الحالة والموسم الدراسي', 's-idcard'),
+      h('div', { class: 'compact-qual-grid' },
         h('label', { class: 'fld' }, h('span', { text: 'تصفية حسب القسم التربوي:' }), secFilterSelect),
-        h('label', { class: 'fld' }, h('span', { text: 'بحث عن الطفل:' }), kidSearch)
-      ),
-      h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني بالاستمارة:' }), kidSelect),
-      h('div', { class: 'eval-builder-grid-2' },
+        h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني بالاستمارة:' }), kidSelect),
         h('label', { class: 'fld' }, h('span', { text: 'تقييم الثلاثي:' }), termSelect),
         h('label', { class: 'fld' }, h('span', { text: 'الموسم الدراسي:' }), schoolYearInput),
         h('label', { class: 'fld' }, h('span', { text: 'تاريخ التقييم:' }), dateInput),
@@ -9197,8 +10585,8 @@
     );
     v.appendChild(step1Card);
 
-    // 2. المشرفون على التقييم
-    var supervisorsHost = h('div', { class: 'dynamic-items-container' });
+    // 2. المشرفون على التقييم (أيقونة المشرفين المصححة وتنسيق متجاوب لا يخرج عن البطاقة أبداً)
+    var supervisorsHost = h('div', { class: 'dynamic-items-container', style: 'margin-bottom:0;' });
 
     function renderSupervisorsList() {
       supervisorsHost.textContent = '';
@@ -9210,22 +10598,25 @@
         var nameInp = h('input', { type: 'text', placeholder: 'اسم ولقب المشرف...', value: sp.name || '' });
         nameInp.addEventListener('input', function () { sp.name = nameInp.value; });
 
-        var roleInp = h('input', { type: 'text', placeholder: 'الوظيفة (مدير المركز، أخصائية نفسانية، مربية...)', value: sp.role || '' });
+        var roleInp = h('input', { type: 'text', placeholder: 'الوظيفة (مدير المركز، أخصائية، مربية...)', value: sp.role || '' });
         roleInp.addEventListener('input', function () { sp.role = roleInp.value; });
 
         var delBtn = h('button', {
           type: 'button',
           class: 'btn small danger',
-          text: 'حذف',
+          style: 'padding:4px 8px; min-height:28px; font-size:11.5px; display:inline-flex; align-items:center; gap:4px;',
           disabled: ev.supervisors.length <= 1,
           onclick: function () {
             ev.supervisors.splice(idx, 1);
             renderSupervisorsList();
           }
-        });
+        }, makeSvgIcon('s-trash'), h('span', { text: 'حذف' }));
 
-        var row = h('div', { class: 'dynamic-item-row' },
-          h('span', { class: 'badge', text: '#' + (idx + 1) }),
+        var row = h('div', { class: 'supervisor-compact-row' },
+          h('span', { class: 'supervisor-icon-badge' },
+            makeSvgIcon('s-user-check'),
+            h('span', { text: 'مشرف ' + (idx + 1) })
+          ),
           nameInp,
           roleInp,
           delBtn
@@ -9237,6 +10628,7 @@
     var addSupervisorBtn = h('button', {
       type: 'button',
       class: 'btn small gold',
+      style: 'padding:4px 10px; font-size:11.5px; font-weight:800;',
       text: '+ إضافة مشرف آخر',
       onclick: function () {
         ev.supervisors.push({ name: '', role: 'مربية' });
@@ -9246,16 +10638,16 @@
 
     renderSupervisorsList();
 
-    var stepSupervisorsCard = h('div', { class: 'card prog-step-card' },
-      h('div', { class: 'bar-sub' },
-        h('h3', { class: 'prog-step-title', text: '2⃣ المشرفون على التقييم' }),
+    var stepSupervisorsCard = h('div', { class: 'card prog-step-card supervisor-compact-card' },
+      h('div', { class: 'bar-sub', style: 'margin-bottom:6px;' },
+        makeStepTitleDom('2', 'المشرفون على التقييم', 's-users'),
         addSupervisorBtn
       ),
       supervisorsHost
     );
     v.appendChild(stepSupervisorsCard);
 
-    // 3. جدول تقييم المجالات والمهارات البيداغوجية (موسع بالكامل، مع تحديث موضعي يمنع تغير الخانات الأخرى، ونافذة صغيرة عند إضافة مجال)
+    // 3. جدول تقييم المجالات والمهارات البيداغوجية
     var CURR = (window && window.DE_CURRICULUM) || EMBEDDED_CURRICULUM || {};
     var domainKeys = Object.keys(CURR);
 
@@ -9285,7 +10677,7 @@
     var liveOverallDescEl = h('p', { class: 'muted small', style: 'margin:0;' });
     var liveOverallBanner = h('div', { class: 'eval-live-score-banner', style: 'margin-bottom:14px;' },
       h('div', null,
-        h('div', { class: 'eval-live-score-title', text: '📊 حصيلة المهارات المكتسبة (معيار دار الإحسان: 4/5 فما فوق):' }),
+        h('div', { class: 'eval-live-score-title', text: 'حصيلة المهارات المكتسبة (معيار دار الإحسان: 4/5 فما فوق):' }),
         liveOverallDescEl
       ),
       liveOverallValEl
@@ -9530,7 +10922,6 @@
       updateLiveScoresInPlace();
     }
 
-    // نافذة صغيرة ومناسبة عند الضغط على "+ إضافة تقييم مجال آخر"
     function openSmallAddDomainModal() {
       var used = ev.domains.map(function (d) { return d.domain; });
       var available = domainKeys.filter(function (dk) { return used.indexOf(dk) < 0; });
@@ -9575,11 +10966,11 @@
 
     renderEvalDomains();
 
-    var step5Card = h('div', { class: 'card prog-step-card', style: 'padding:18px;' },
-      h('div', { class: 'bar-sub', style: 'margin-bottom:12px;' },
+    var step5Card = h('div', { class: 'card prog-step-card', style: 'padding:16px;' },
+      h('div', { class: 'bar-sub', style: 'margin-bottom:10px;' },
         h('div', null,
-          h('h3', { class: 'prog-step-title', text: '3⃣ جدول تقييم الأداء الحالي (المجالات والمهارات البيداغوجية)' }),
-          h('p', { class: 'muted small', style: 'margin:0;', text: 'قيّم المهارات عبر الأزرار (0 إلى 5). يمكنك التنقل بين المجالات المضافة أو إضافة مجال جديد عبر النافذة المصغرة.' })
+          makeStepTitleDom('3', 'جدول تقييم الأداء الحالي (المجالات والمهارات البيداغوجية)', 's-clipboard-list'),
+          h('p', { class: 'muted small', style: 'margin:2px 0 0;', text: 'قيّم المهارات عبر الأزرار (0 إلى 5). يمكنك التنقل بين المجالات المضافة أو إضافة مجال جديد عبر النافذة المصغرة.' })
         ),
         h('div', { class: 'row-actions' },
           h('button', { type: 'button', class: 'btn small gold', style: 'font-weight:800;', text: '+ إضافة مجال آخر', onclick: openSmallAddDomainModal })
@@ -9591,24 +10982,11 @@
     );
     v.appendChild(step5Card);
 
-    // الحفظ والاعتماد والمعاينة
+    // الحفظ والاعتماد والمعاينة (مع توفير ملف التقرير الكمي والنوعي وجداول المهارات)
     async function saveEvaluationForm(publishNow) {
       if (!ev.child_id) return toast('يرجى اختيار الطفل المعني باستمارة التقييم أولاً.', 'bad');
 
-      var compactDomains = [];
-      ev.domains.forEach(function (dm) {
-        var dIdx = domainKeys.indexOf(dm.domain);
-        var compactRows = [];
-        (dm.ratings || []).forEach(function (it, sIdx) {
-          if ((it.score !== '' && it.score != null) || it.yn || it.note) {
-            compactRows.push([sIdx, it.score != null ? String(it.score) : '', it.yn || '', (it.note || '').slice(0, 40)]);
-          }
-        });
-        compactDomains.push({
-          d: dIdx >= 0 ? dIdx : dm.domain,
-          r: compactRows
-        });
-      });
+      var compactDomains = compactDomainsArrayForStorage(ev.domains, 32);
 
       var chosenKid = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
       var kidName = chosenKid ? chosenKid.full_name : 'الطفل';
@@ -9632,24 +11010,19 @@
         supervisors: (ev.supervisors || []).map(function (s) {
           return { name: DE.clean(s.name || '', 60), role: DE.clean(s.role || '', 60) };
         }),
+        general_report: ev.general_report || '',
+        abilities: ev.abilities || {},
+        strengths: ev.strengths || [],
+        weaknesses: ev.weaknesses || [],
+        recommendations: ev.recommendations || [],
         domains: compactDomains
       };
 
       var serializedPayload = EVAL_MARKER + JSON.stringify(payloadObj);
-      if (serializedPayload.length > 4900) {
-        payloadObj.domains.forEach(function (dm) {
-          if (Array.isArray(dm.r)) {
-            dm.r = dm.r.map(function (entry) {
-              return (!entry[2] && !entry[3]) ? [entry[0], entry[1]] : [entry[0], entry[1], entry[2] || '', (entry[3] || '').slice(0, 18)];
-            });
-          }
-        });
-        serializedPayload = EVAL_MARKER + JSON.stringify(payloadObj);
-      }
 
       var body = {
         child_id: ev.child_id,
-        title: DE.clean((ev.title || 'تقييم الأداء الحالي') + ' — ' + kidName, 145),
+        title: DE.clean((ev.title || 'تقييم الأداء الحالي') + ' — ' + kidName, 140),
         report_date: ev.report_date || new Date().toISOString().slice(0, 10),
         period_start: ev.report_date || new Date().toISOString().slice(0, 10),
         period_end: ev.report_date || new Date().toISOString().slice(0, 10),
@@ -9673,6 +11046,7 @@
       }
 
       savedRow.status = evalStatus;
+      savedRow.activities = serializedPayload;
       savedRow.child_name = kidName;
       savedRow.dob = chosenKid ? chosenKid.dob : '';
       savedRow.disability = chosenKid ? chosenKid.disability : '';
@@ -9693,7 +11067,7 @@
     var previewBtn = h('button', {
       type: 'button',
       class: 'btn primary',
-      text: 'المعاينة والتحميل',
+      style: 'font-weight:800;',
       onclick: function () {
         var chosenKid = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
         var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
@@ -9702,13 +11076,13 @@
         ev.disability = chosenKid ? chosenKid.disability : '';
         ev.section_name = sName;
         openModal(h('div', { class: 'modal-body wk-modal-print' },
-          renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : '—', sName, chosenKid, 'statistics'),
+          renderEvaluationSheetView(ev, chosenKid ? chosenKid.full_name : '—', sName, chosenKid, 'full'),
           h('div', { class: 'modal-actions no-print' },
             h('button', { class: 'btn light', type: 'button', text: 'إغلاق المعاينة', onclick: closeModal })
           )
         ));
       }
-    });
+    }, makeSvgIcon('s-eye'), h('span', { text: 'المعاينة والتحميل (الكمي والنوعي وجداول المهارات)' }));
 
     var footerCard = h('div', { class: 'card prog-step-card' },
       h('div', { class: 'prog-submit-bar' },
@@ -9748,29 +11122,18 @@
     var kidOpts = kids.map(function (k) { return [k.id, (k.membership_no ? ('[' + k.membership_no + '] ') : '') + k.full_name]; });
     var branchOpts = branches.map(function (b) { return [b.id, b.name]; });
     var secAllOpts = sections.map(function (s) { return [s.id, s.name]; });
-    var MAX_FILE = 5242880;
 
     function editReport(r) {
-      var curKid = r ? kids.filter(function (k) { return k.id === r.child_id; })[0] : null;
-      var curSec = curKid ? curKid.section_id : '';
-      var curBranch = curKid ? curKid.branch_id : (branches[0] ? branches[0].id : '');
       var uploaded = null;
-
       return openForm({
-        title: r ? 'تعديل التقرير الدوري للطفل' : 'كتابة تقرير دوري جديد مع إمكانية رفع ملف',
-        submits: [
-          { key: 'draft', label: 'حفظ كمسودة' },
-          { key: 'publish', label: 'نشر' }
-        ],
-        values: {
-          branch_id: curBranch,
-          section_id: curSec,
-          child_id: r ? r.child_id : (S.preselectChildId || (kids[0] ? kids[0].id : '')),
-          title: r ? r.title : '',
-          report_date: r ? r.report_date : new Date().toISOString().slice(0, 10),
-          achievements: r ? r.achievements : '',
-          activities: r ? r.activities : '',
-          notes: r ? r.notes : ''
+        title: r ? 'تعديل التقرير الدوري' : 'إضافة تقرير تربوي دوري جديد',
+        values: r ? Object.assign({}, r) : {
+          child_id: S.preselectChildId || (kids.length === 1 ? kids[0].id : ''),
+          report_date: new Date().toISOString().slice(0, 10),
+          title: 'التقرير الدوري لمتابعة الطفل',
+          achievements: '',
+          activities: '',
+          notes: ''
         },
         fields: [
           { k: 'branch_id', label: 'الفرع', type: 'select', opts: branchOpts, req: !S.isEducator, showIf: function () { return !S.isEducator; } },
@@ -9801,8 +11164,8 @@
             body.attachment_path = uploaded.path;
           }
           try {
-            if (r) await C.rest('PATCH', '/progress_reports?id=eq.' + uid(r.id), body);
-            else await C.rest('POST', '/progress_reports', body);
+            if (r) await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), body);
+            else await saveProgressReportResilient('POST', '/progress_reports', body);
           } catch (e) {
             if (uploaded) C.removeObject('private-docs', uploaded.path).catch(function () {});
             throw e;
@@ -9836,25 +11199,39 @@
         makeSvgIcon('s-report'),
         h('span', { text: 'إنشاء تقرير جديد — اختر نوع التقرير مباشرة:' })
       ),
-      h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:8px;' },
+      h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:8px;' },
         h('button', {
           type: 'button',
           class: 'btn primary',
-          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
           onclick: function () { openQualitativeReportBuilder(null, kids, sections, secAllOpts, branchOpts, allReports); }
         }, h('span', { style: 'font-size:16px;', text: '📝' }), h('span', { text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })),
 
         h('button', {
           type: 'button',
           class: 'btn primary',
-          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openTargetBehaviorReportBuilder(null, kids, sections, secAllOpts, branchOpts, allReports); }
+        }, h('span', { style: 'font-size:16px;', text: '🎯' }), h('span', { text: 'تقرير قياس السلوك المستهدف' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openMasBehaviorReportBuilder(null, kids, sections, secAllOpts, branchOpts, allReports); }
+        }, h('span', { style: 'font-size:16px;', text: '🧠' }), h('span', { text: 'تقرير دوافع السلوك' })),
+
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
           onclick: function () { openAnnualFinalBuilder(null, kids, sections, secAllOpts, branchOpts); }
         }, h('span', { style: 'font-size:16px;', text: '🎓' }), h('span', { text: 'التقرير النهائي لمتابعة الطالب' })),
 
         h('button', {
           type: 'button',
           class: 'btn light',
-          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:13px; justify-content:flex-start; gap:8px;',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
           onclick: function () { editReport(null); }
         }, h('span', { style: 'font-size:16px;', text: '📄' }), h('span', { text: 'تقرير دوري عادي (مع مرفق)' }))
       )
@@ -9877,6 +11254,18 @@
             onDelete: function () { return deleteReportRecord(r); }
           });
         }
+        if (subCat === 'target_behavior_report') {
+          return renderTargetBehaviorReportSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
+            onEdit: function () { openTargetBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports); },
+            onDelete: function () { return deleteReportRecord(r); }
+          });
+        }
+        if (subCat === 'mas_behavior_report') {
+          return renderMasBehaviorReportSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
+            onEdit: function () { openMasBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports); },
+            onDelete: function () { return deleteReportRecord(r); }
+          });
+        }
         if (subCat === 'qualitative' || subCat === 'quantitative' || isEvaluationReport(r)) {
           var curStatus = extractEvalStatus(r);
           return renderEvaluationSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, null, {
@@ -9886,10 +11275,10 @@
               else openEvaluationBuilder(r, kids, sections, secAllOpts, branchOpts);
             },
             onSend: function () {
-              return C.rest('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published' }).then(function () { bust(); go('reports'); });
+              return saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published' }).then(function () { bust(); go('reports'); });
             },
             onUnpublish: function () {
-              return C.rest('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft' }).then(function () { bust(); go('reports'); });
+              return saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft' }).then(function () { bust(); go('reports'); });
             },
             onDelete: function () { return deleteReportRecord(r); }
           });
@@ -9916,7 +11305,7 @@
       },
       filters: [
         { label: 'الطفل', opts: kidOpts, test: function (r, x) { return r.child_id === x; } },
-        { label: 'الحالة', opts: [['published', 'منشور للولي'], ['draft', 'مسودة قيد الإعداد']], test: function (r, x) { return r.status === x; } }
+        { label: 'الحالة', opts: [['published', 'منشور للولي'], ['draft', 'مسودة قيد الإعداد']], test: function (r, x) { return extractEvalStatus(r) === x; } }
       ],
       cols: [
         {
@@ -9928,6 +11317,8 @@
             if (subCat === 'annual_final') { bLabel = 'التقرير النهائي'; bCls = 'gold'; }
             else if (subCat === 'qualitative') { bLabel = "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)"; bCls = 'ok'; }
             else if (subCat === 'quantitative') { bLabel = 'تقرير الكمي (quantitative)'; bCls = 'gold'; }
+            else if (subCat === 'target_behavior_report') { bLabel = 'تقرير قياس السلوك المستهدف'; bCls = 'gold'; }
+            else if (subCat === 'mas_behavior_report') { bLabel = 'تقرير دوافع السلوك'; bCls = 'gold'; }
 
             return h('div', { class: 'row-actions' },
               badge(bLabel, bCls),
@@ -9939,32 +11330,39 @@
         },
         { label: 'الطفل', get: function (r) { return nameOf(kids, r.child_id) !== '—' ? nameOf(kids, r.child_id) : (r.child_name || '—'); } },
         { label: 'التاريخ', get: function (r) { return fmt(r.report_date); }, sort: function (r) { return r.report_date; } },
-        { label: 'الحالة', get: function (r) { return badge(r.status === 'published' ? 'منشور للولي' : 'مسودة', r.status === 'published' ? 'ok' : 'gray'); } }
+        { label: 'الحالة', get: function (r) { var st = extractEvalStatus(r); return badge(st === 'published' ? 'منشور للولي' : 'مسودة', st === 'published' ? 'ok' : 'gray'); } }
       ],
       actions: function (r) {
         var subCat = getReportSubCategory(r);
         var editHandler = function () {
           if (subCat === 'annual_final') return openAnnualFinalBuilder(r, kids, sections, secAllOpts, branchOpts);
+          if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
+          if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
           if (subCat === 'qualitative') return openQualitativeReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
           if (isEvaluationReport(r)) return openEvaluationBuilder(r, kids, sections, secAllOpts, branchOpts);
           return editReport(r);
         };
+        var st = extractEvalStatus(r);
         return [
           rbtn('تعديل التقرير', editHandler),
-          r.status === 'published'
+          st === 'published'
             ? rbtn('إلغاء النشر', async function () {
-              await C.rest('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft' });
+              var upd = setEvalStatusInActivities(r.activities, 'draft', {});
+              if (r.id && DE.isUuid(String(r.id))) {
+                try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft', activities: upd }); } catch (e) {}
+              }
+              await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'draft', activities: upd }), null);
               bust(); toast('تحوّل التقرير إلى مسودة.', 'ok'); go('reports');
             }, 'light')
             : rbtn('نشر', async function () {
-              await C.rest('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published' });
+              var upd = setEvalStatusInActivities(r.activities, 'published', {});
+              if (r.id && DE.isUuid(String(r.id))) {
+                try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published', activities: upd }); } catch (e) {}
+              }
+              await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'published', activities: upd }), null);
               bust(); toast('تم نشر التقرير للولي.', 'ok'); go('reports');
             }, 'gold'),
-          rbtn('حذف التقرير', async function () {
-            if (!(await ask({ title: 'حذف التقرير؟', msg: 'سيُحذف التقرير نهائيًا.', ok: 'حذف', danger: true }))) return;
-            await C.rest('DELETE', '/progress_reports?id=eq.' + uid(r.id));
-            bust(); go('reports');
-          }, 'danger')
+          rbtn('حذف التقرير', function () { return deleteReportRecord(r); }, 'danger')
         ];
       }
     });

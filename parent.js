@@ -2137,16 +2137,21 @@ function getEvalType(r) {
 
 function getEvalTypeName(type) {
   if (type === 'mas' || type === 'mas_behavior') return 'استمارة تقييم دوافع السلوك MAS';
+  if (type === 'mas_behavior_report') return 'تقرير دوافع السلوك';
   if (type === 'target_behavior') return 'تقييم قياس السلوك المستهدف';
+  if (type === 'target_behavior_report') return 'تقرير قياس السلوك المستهدف';
   if (type === 'reinforcers') return 'استبيان تقييم المعززات';
   if (type === 'observation') return 'استمارة ملاحظة سلوك';
   return 'تقييم الأداء الحالي';
 }
 
 function getEvalTypeBadge(type) {
-  if (type === 'mas') return badge('تقييم دوافع السلوك (MAS)', 'gold');
+  if (type === 'mas' || type === 'mas_behavior') return badge('استمارة تقييم دوافع السلوك MAS', 'gold');
+  if (type === 'mas_behavior_report') return badge('تقرير دوافع السلوك', 'ok');
+  if (type === 'target_behavior') return badge('تقييم قياس السلوك المستهدف', 'gold');
+  if (type === 'target_behavior_report') return badge('تقرير قياس السلوك المستهدف', 'ok');
   if (type === 'observation') return badge('استمارة ملاحظة سلوك', 'blue');
-  return badge('تقرير بيداغوجي شامل', 'ok');
+  return badge('تقييم الأداء الحالي', 'ok');
 }
 
 /* ---------- حساب نقاط مقياس MAS ---------- */
