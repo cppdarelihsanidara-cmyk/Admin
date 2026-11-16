@@ -11997,10 +11997,10 @@
      - 4 إحصائيات علوية دقيقة محسوبة من البيانات الفعلية.
      - 3 حالات للحضور: حاضر (present) | غائب (absent) | لم يسجل (unrecorded).
      - زرين رئيسيين فقط: «حفظ الحضور والغياب» و «إرسال إشعارات الغياب عبر WhatsApp».
-     - إرسال عبر Meta Cloud API من الرقم الثابت (0564779067) مع منع التكرار (Idempotency).
+     - إرسال عبر Meta Cloud API من رقم الإدارة المسجَّل في Meta فقط مع منع التكرار (Idempotency).
      - سجل مختصر لمتابعة حالات الرسائل (قيد الإرسال، تم القبول، تم التسليم، تمت القراءة، فشل).
      ===================================================================== */
-  var OFFICIAL_WA_SENDER = '0564779067';
+  // الإرسال حصراً عبر رقم Meta المسجَّل في الخادم (META_PHONE_NUMBER_ID)؛ لا يُحدَّد المرسل من المتصفح.
 
   // التحقق وتنسيق رقم الهاتف الجزائري للواتساب
   function validateAlgerianPhone(raw) {
@@ -12110,7 +12110,7 @@
       id: window.DE && DE.uuid ? DE.uuid() : ('wa-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
       created_at: nowIso,
       sent_date: dateStr,
-      sender_phone: OFFICIAL_WA_SENDER,
+      sender_phone: '',
       phone: rawPhone,
       normalized_phone: phCheck.normalized,
       child_id: kid.id,
@@ -12160,6 +12160,7 @@
       if (resp && (resp.success === true || resp.status === 'accepted') && resp.wamid) {
         logEntry.status = 'accepted';
         logEntry.wamid = resp.wamid;
+        logEntry.sender_phone = resp.sender || '';
         logEntry.error_message = '';
       } else {
         logEntry.status = 'failed';
@@ -12194,15 +12195,9 @@
     var rawKids = d[0][0] || [];
     var sections = d[0][2] || [];
     var dbAttendance = [];
-    // مسح كافة الغيابات المسجلة فوراً استجابة لطلب الإدارة والبدء بسجل نظيف
-    try {
-      localStorage.removeItem('de_attendance_records');
-      localStorage.removeItem('de_local_attendance_map');
-      if (typeof C !== 'undefined' && C.rest) {
-        C.rest('DELETE', '/attendance?date=gte.1970-01-01').catch(function () {});
-      }
-    } catch (e) {}
-    dbAttendance = [];
+    // [إصلاح] كان هنا حذف تلقائي لكل سجلات الحضور من قاعدة البيانات عند كل فتح للقسم.
+    // أُوقف نهائياً: يُحمَّل الحضور المحفوظ كما هو، والمسح اليدوي متاح فقط من الإعدادات بعد تأكيد.
+    dbAttendance = Array.isArray(d[1]) ? d[1] : [];
 
     var dbWaLogs = Array.isArray(d[2]) ? d[2] : [];
     var dbWaReplies = Array.isArray(d[3]) ? d[3] : [];
@@ -12478,12 +12473,24 @@
           type: 'button',
           class: 'att-wa-direct-btn',
           title: 'فتح محادثة واتساب مع الولي وإرسال رسالة الغياب المعتمدة',
-          onclick: function (e) {
+          onclick: async function (e) {
             e.stopPropagation();
-            var cleanPhone = toWhatsAppPhone(k.phone);
-            var msg = formatOfficialAbsenceMessage(k.full_name, dateInput.value);
-            var waUrl = 'https://api.whatsapp.com/send?phone=' + cleanPhone + '&text=' + encodeURIComponent(msg);
-            window.open(waUrl, '_blank');
+            var btnEl = e.currentTarget;
+            if (btnEl.disabled) return;
+            if (!confirm('إرسال إشعار الغياب إلى ولي ' + (k.full_name || '') + ' من رقم الإدارة المسجَّل في Meta؟')) return;
+            btnEl.disabled = true;
+            toast('جارٍ حفظ الحضور ثم الإرسال…', 'ok');
+            try {
+              var saved = await persistAttendance(true);
+              if (!saved) { toast('تعذّر حفظ الحضور في قاعدة البيانات، فلم يُرسل شيء.', 'bad'); return; }
+              var res = await sendSingleAbsenceNotification(k, dateInput.value, false);
+              if (res.status === 'accepted' || res.status === 'sent' || res.status === 'delivered') {
+                toast('قبلت Meta الطلب' + (res.sender_phone ? ' (المرسل: ' + res.sender_phone + ')' : '') + '. التسليم الفعلي يظهر في سجل الإرسال.', 'ok');
+              } else {
+                toast('لم يُرسل: ' + (res.error_message || 'سبب غير معروف'), 'bad');
+              }
+              renderTracking();
+            } finally { btnEl.disabled = false; }
           }
         }, makeSvgIcon('s-whatsapp'), h('span', { text: 'إرسال عبر واتساب' })));
       } else {
@@ -12971,7 +12978,21 @@
     $('#backBtn').hidden = m === 'creds';
     if (m === 'set') { setTimeout(function () { var p = $('#np1'); if (p) p.focus(); }, 0); }
   }
+  // مسح بيانات الأطفال والأولياء المخزّنة محلياً (سجل واتساب، الحضور، كاش الإشعارات) عند كل ظهور لشاشة الدخول
+  function purgeSensitiveLocalData() {
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && (k === 'de_wa_logs_v3' || k === 'de_notifications_cache_v2' || k === 'de_attendance_records' ||
+                  k === 'de_local_attendance_map' || k.indexOf('de_att_records_') === 0)) rm.push(k);
+      }
+      rm.forEach(function (k) { localStorage.removeItem(k); });
+      sessionStorage.removeItem('de_portal_meta_v1');
+    } catch (e) {}
+  }
   function showLogin(m) {
+    purgeSensitiveLocalData();
     S.stopIdle && S.stopIdle();
     show('login');
     setMode('creds');
