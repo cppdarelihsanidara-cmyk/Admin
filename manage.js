@@ -913,10 +913,28 @@
         if (!item || !item.id) return;
         var existingIdx = merged.findIndex(function (m) { return m && String(m.id) === String(item.id); });
         if (existingIdx >= 0) {
-          if (item.status) merged[existingIdx].status = item.status;
-          if (item.activities) merged[existingIdx].activities = item.activities;
-          if (item.title) merged[existingIdx].title = item.title;
-          if (item.report_date) merged[existingIdx].report_date = item.report_date;
+          var dbItem = merged[existingIdx];
+          if (item.status) dbItem.status = item.status;
+          // تفضيل النسخة الكاملة والصالحة من activities حتى لا تختفي المعلومات عند التعديل بعد النشر
+          if (item.activities) {
+            var shLen = String(item.activities).length;
+            var dbLen = String(dbItem.activities || '').length;
+            var shValid = true;
+            if (String(item.activities).indexOf(EVAL_MARKER) === 0) {
+              try { JSON.parse(String(item.activities).slice(EVAL_MARKER.length)); } catch (eV) { shValid = false; }
+            }
+            var dbValid = true;
+            if (String(dbItem.activities || '').indexOf(EVAL_MARKER) === 0) {
+              try { JSON.parse(String(dbItem.activities).slice(EVAL_MARKER.length)); } catch (eV2) { dbValid = false; }
+            }
+            if ((shValid && !dbValid) || (shValid && shLen >= dbLen)) {
+              dbItem.activities = item.activities;
+            }
+          }
+          if (item.achievements && (!dbItem.achievements || String(item.achievements).length >= String(dbItem.achievements).length)) dbItem.achievements = item.achievements;
+          if (item.notes && (!dbItem.notes || String(item.notes).length >= String(dbItem.notes).length)) dbItem.notes = item.notes;
+          if (item.title) dbItem.title = item.title;
+          if (item.report_date) dbItem.report_date = item.report_date;
         } else {
           merged.push(item);
         }
@@ -981,10 +999,16 @@
     var m = $('#modal'), c = $('#modalCard'); c.textContent = ''; c.appendChild(card);
     var wasHidden = m.hidden;
     m.hidden = false; document.body.style.overflow = 'hidden';
+    m.scrollTop = 0; c.scrollTop = 0;
     if (wasHidden) {
       try { window.history.pushState({ deApp: true, sec: S.sec, center: S.activeCenter, modal: true }, ''); } catch (e) {}
     }
-    var first = c.querySelector('input,select,textarea,button'); if (first) first.focus();
+    var isPreview = !!(card && (card.classList && (card.classList.contains('wk-modal-print') || card.classList.contains('eval-preview-full')) || card.querySelector && card.querySelector('.official-eval-paper, .wk-modal-print, .epi-sheet-paper')));
+    if (!isPreview) {
+      var first = c.querySelector('input,select,textarea');
+      if (first) { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }
+    }
+    requestAnimationFrame(function () { m.scrollTop = 0; c.scrollTop = 0; });
   }
   function closeModal() { $('#modal').hidden = true; $('#modalCard').textContent = ''; document.body.style.overflow = ''; }
   function ask(o) {
@@ -1005,8 +1029,8 @@
     var id = 'f_' + f.k, input, getv;
     var hint = h('small', { class: 'hint', text: f.hint || '' });
     if (f.type === 'textarea') {
-      input = h('textarea', { id: id, maxlength: f.max || 2000, rows: 4 }); input.value = val || '';
-      getv = function () { return DE.clean(input.value, f.max || 2000); };
+      input = h('textarea', { id: id, rows: 4 }); input.value = val || '';
+      getv = function () { return String(input.value || '').trim(); };
     } else if (f.type === 'select') {
       var allOpts = (f.opts || []).slice();
       input = h('select', { id: id }, h('option', { value: '', text: '— اختر —' }), allOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); }));
@@ -2256,8 +2280,39 @@
                     window.open(url, '_blank');
                   }).catch(function (e) { toast(e.message, 'bad'); });
                 }, 'light') : null,
-                rbtn('تعديل التقرير', function () {
+                rbtn('👁 معاينة', function () {
+                  var dModal = h('div', { class: 'modal-body wk-modal-print eval-preview-full' },
+                    h('div', { style: 'display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #163B65; padding-bottom:10px; margin-bottom:12px;' },
+                      h('img', { src: 'logo.png', style: 'width:58px; height:58px; object-fit:contain;' }),
+                      h('h2', { style: 'margin:0; flex:1; text-align:center;', text: rep.title }),
+                      h('span', { class: 'badge ok', text: fmt(rep.report_date) })
+                    ),
+                    rep.achievements ? h('div', { style: 'margin-bottom:10px;' }, h('h4', { text: 'المكتسبات والمهارات المحققة:' }), h('p', { class: 'txt', text: rep.achievements })) : null,
+                    rep.activities ? h('div', { style: 'margin-bottom:10px;' }, h('h4', { text: 'الأنشطة والورشات المنجزة:' }), h('p', { class: 'txt', text: rep.activities })) : null,
+                    rep.notes ? h('div', { style: 'margin-bottom:10px;' }, h('h4', { text: 'ملاحظات وتوجيهات للأولياء:' }), h('p', { class: 'txt', text: rep.notes })) : null,
+                    h('div', { class: 'modal-actions no-print' },
+                      h('button', { class: 'btn light', type: 'button', text: 'إغلاق', onclick: closeModal }),
+                      h('button', { class: 'btn gold', type: 'button', text: '📄 تحميل PDF', onclick: async function () {
+                        try {
+                          toast('جارٍ إنشاء ملف PDF...', 'ok');
+                          var bytes = await window.DE_PDF.renderReportToPdf(rep, r, secName, nameOf(branches, r.branch_id, 'name') || '');
+                          window.DE_PDF.downloadPdf(bytes, (rep.title || 'تقرير').replace(/\s+/g, '_') + '.pdf');
+                        } catch (e) { toast('تعذر التحميل: ' + e.message, 'bad'); }
+                      } })
+                    )
+                  );
+                  openModal(dModal);
+                }, 'gold'),
+                rbtn('📄 تحميل', async function () {
+                  try {
+                    toast('جارٍ إنشاء ملف PDF...', 'ok');
+                    var bytes = await window.DE_PDF.renderReportToPdf(rep, r, secName, nameOf(branches, r.branch_id, 'name') || '');
+                    window.DE_PDF.downloadPdf(bytes, (rep.title || 'تقرير').replace(/\s+/g, '_') + '.pdf');
+                  } catch (e) { toast('تعذر التحميل: ' + e.message, 'bad'); }
+                }, 'light'),
+                rbtn('✏️ تعديل', function () {
                   S.preselectChildId = r.id;
+                  S._editReportTarget = rep;
                   go('reports');
                 }, 'light')
               )
@@ -2266,7 +2321,7 @@
           });
         }
 
-        // 4. قسم استمارات وتقارير التقييم للطفل (معاينة فقط بدون تعديل حسب طلب المستخدم)
+        // 4. قسم استمارات وتقارير التقييم للطفل (معاينة + تعديل + تحميل PDF)
         var childEvals = (allReports || []).filter(function (rep) {
           return rep.child_id === r.id && isEvaluationReport(rep);
         });
@@ -2291,6 +2346,7 @@
             else if (ev.eval_type === 'mas_behavior' || ev.eval_type === 'mas') { typeBadgeText = 'استمارة تقييم دوافع السلوك MAS'; badgeCls = 'gold'; }
             else if (ev.eval_type === 'mas_behavior_report') { typeBadgeText = 'تقرير دوافع السلوك'; badgeCls = 'ok'; }
             else if (ev.eval_type === 'interview_diagnostic') { typeBadgeText = 'شبكة المقابلة والفحص'; badgeCls = 'info'; }
+            else if (ev.eval_type === 'epilepsy_followup') { typeBadgeText = 'Suivi médico-fonctionnel (Épilepsie)'; badgeCls = 'warn'; }
             else if (ev.eval_type === 'annual_final') { typeBadgeText = 'التقرير النهائي السنوي'; badgeCls = 'warn'; }
 
             var evCard = h('div', { class: 'child-sub-item-card', style: 'display:flex; justify-content:space-between; align-items:center; padding:12px 14px; margin-bottom:8px; border:1px solid #CBD5E1; border-radius:10px; background:#F8FAF9;' },
@@ -2302,8 +2358,42 @@
                 h('div', { class: 'muted small', style: 'margin-top:3px;', text: 'التاريخ: ' + fmt(evRep.report_date) + ' • الحالة: ' + (evRep.status === 'published' ? 'معتمدة ومنشورة للولي' : 'مسودة') })
               ),
               h('div', { class: 'row-actions' },
-                rbtn('👁 معاينة التقرير', function () {
-                  openModal(h('div', { class: 'modal-body wk-modal-print', style: 'max-width:980px; width:95%;' },
+                rbtn('✏️ تعديل', function () {
+                  var subCat = getReportSubCategory(evRep);
+                  var secAllOptsLocal = sections.map(function (s) { return [s.id, s.name]; });
+                  var branchOptsLocal = branches.map(function (b) { return [b.id, b.name]; });
+                  if (subCat === 'epilepsy_followup' && typeof openEpilepsyFollowupBuilder === 'function') return openEpilepsyFollowupBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'target_behavior') return openTargetBehaviorBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal, allReports);
+                  if (subCat === 'mas_behavior' || subCat === 'mas') return openMasBehaviorBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal, allReports);
+                  if (subCat === 'behavior_observation') return openBehaviorObservationBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'reinforcers') return openReinforcersBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'interview_diagnostic') return openInterviewDiagnosticBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'annual_final') return openAnnualFinalBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                  if (subCat === 'qualitative') return openQualitativeReportBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal, allReports);
+                  return openEvaluationBuilder(evRep, rows, sections, secAllOptsLocal, branchOptsLocal);
+                }, 'light'),
+                rbtn('📄 تحميل PDF', async function () {
+                  try {
+                    toast('جارٍ إنشاء ملف PDF...', 'ok');
+                    var subCat = getReportSubCategory(evRep);
+                    var bytes;
+                    if (subCat === 'epilepsy_followup' && window.DE_PDF.renderEpilepsyFollowupToPdf) bytes = await window.DE_PDF.renderEpilepsyFollowupToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'target_behavior' && window.DE_PDF.renderTargetBehaviorToPdf) bytes = await window.DE_PDF.renderTargetBehaviorToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'target_behavior_report' && window.DE_PDF.renderTargetBehaviorReportToPdf) bytes = await window.DE_PDF.renderTargetBehaviorReportToPdf(evRep, r.full_name, secName, r);
+                    else if ((subCat === 'mas_behavior' || subCat === 'mas') && window.DE_PDF.renderMasBehaviorToPdf) bytes = await window.DE_PDF.renderMasBehaviorToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'mas_behavior_report' && window.DE_PDF.renderMasBehaviorReportToPdf) bytes = await window.DE_PDF.renderMasBehaviorReportToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'behavior_observation' && window.DE_PDF.renderBehaviorObservationToPdf) bytes = await window.DE_PDF.renderBehaviorObservationToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'reinforcers' && window.DE_PDF.renderReinforcersToPdf) bytes = await window.DE_PDF.renderReinforcersToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'interview_diagnostic' && window.DE_PDF.renderInterviewDiagnosticToPdf) bytes = await window.DE_PDF.renderInterviewDiagnosticToPdf(evRep, r.full_name, secName, r);
+                    else if (subCat === 'annual_final' && window.DE_PDF.renderAnnualFinalToPdf) bytes = await window.DE_PDF.renderAnnualFinalToPdf(evRep, r.full_name, secName, r);
+                    else bytes = await window.DE_PDF.renderEvaluationToPdf(evRep, r.full_name, secName, r, 'full');
+                    window.DE_PDF.downloadPdf(bytes, (evRep.title || 'تقييم').replace(/\s+/g, '_') + '.pdf');
+                  } catch (e) { toast('تعذر التحميل: ' + e.message, 'bad'); }
+                }, 'light'),
+                rbtn('👁 معاينة', function () {
+                  openModal(h('div', { class: 'modal-body wk-modal-print eval-preview-full', style: 'max-width:980px; width:95%;' },
                     renderEvaluationSheetView(evRep, r.full_name, secName, r),
                     h('div', { class: 'modal-actions no-print', style: 'margin-top:16px;' },
                       h('button', { class: 'btn light', type: 'button', text: 'إغلاق', onclick: closeModal }),
@@ -3468,28 +3558,33 @@
                   class: 'btn light danger',
                   style: 'font-size:12.5px;',
                   title: 'حذف هذا البرنامج الأسبوعي',
-                  onclick: function () {
-                    confirmModal('هل أنت متأكد من حذف البرنامج الأسبوعي لفوج «' + sec.name + '»؟', async function () {
-                      try {
-                        if (prog.id && !String(prog.id).startsWith('prog-')) {
-                          await C.rest('DELETE', '/educational_programs?id=eq.' + uid(prog.id));
-                        }
-                        var shared = readSharedProgramsLocal().filter(function (x) { return x && x.section_id !== sec.id; });
-                        writeSharedProgramsLocal(shared);
-                        rows = rows.filter(function (r) { return r.section_id !== sec.id; });
-                        if (expandedSecId === sec.id) {
-                          expandedSecId = null;
-                          activeWeekState = null;
-                        }
-                        bust();
-                        renderProgramsDashboard();
-                        toast('تم حذف البرنامج الأسبوعي بنجاح.', 'ok');
-                      } catch (err) {
-                        toast('تعذر حذف البرنامج: ' + err.message, 'bad');
-                      }
+                  onclick: async function () {
+                    var ok = await ask({
+                      title: 'حذف البرنامج الأسبوعي؟',
+                      msg: 'هل أنت متأكد من حذف البرنامج الأسبوعي لفوج «' + sec.name + '» نهائياً؟',
+                      ok: 'حذف نهائي',
+                      danger: true
                     });
+                    if (!ok) return;
+                    try {
+                      if (prog.id && !String(prog.id).startsWith('prog-')) {
+                        await C.rest('DELETE', '/educational_programs?id=eq.' + uid(prog.id));
+                      }
+                      var shared = readSharedProgramsLocal().filter(function (x) { return x && x.section_id !== sec.id; });
+                      writeSharedProgramsLocal(shared);
+                      rows = rows.filter(function (r) { return r.section_id !== sec.id; });
+                      if (expandedSecId === sec.id) {
+                        expandedSecId = null;
+                        activeWeekState = null;
+                      }
+                      bust();
+                      renderProgramsDashboard();
+                      toast('تم حذف البرنامج الأسبوعي بنجاح.', 'ok');
+                    } catch (err) {
+                      toast('تعذر حذف البرنامج: ' + err.message, 'bad');
+                    }
                   }
-                }, makeSvgIcon('s-delete'))
+                }, makeSvgIcon('s-delete'), h('span', { text: 'حذف' }))
               )
             ) : (
               h('span', { style: 'font-size:12px; color:#94A3B8; font-weight:700;', text: '⚪ لا يوجد برنامج مضاف بعد (استخدم زر الإضافة أعلاه)' })
@@ -4431,7 +4526,7 @@
       }
 
       bust();
-      renderProgramsDashboard();
+      go('programs', { fromHistory: true });
     }
 
     // تشغيل العرض الأولي للوحة البرامج
@@ -4528,6 +4623,7 @@
         }
       } catch (e) {}
     }
+    if (t.indexOf('MÉDICO-FONCTIONNEL') >= 0 || t.indexOf('épileptiques') >= 0 || t.indexOf('Épilepsie') >= 0) return 'epilepsy_followup';
     if (t.indexOf('التقرير النهائي') >= 0) return 'annual_final';
     if (t.indexOf('النوعي') >= 0 || t.indexOf('تقرير نوعي') >= 0 || t.indexOf('qualitatif') >= 0 || t.indexOf('تقرير الملاحظات') >= 0) return 'qualitative';
     if (t.indexOf('الكمي') >= 0 || t.indexOf('quantitative') >= 0) return 'quantitative';
@@ -4708,26 +4804,28 @@
 
   async function saveProgressReportResilient(method, path, body) {
     var dbBody = Object.assign({}, body || {});
+    var isPatch = String(method || '').toUpperCase() === 'PATCH';
     var todayIso = new Date().toISOString().slice(0, 10);
-    var rawDate = String(dbBody.report_date || todayIso).slice(0, 10);
-    var safeDate = DE.isDate(rawDate) ? rawDate : todayIso;
-    dbBody.report_date = safeDate;
-    if (dbBody.period_start !== undefined) {
+    var safeDate = todayIso;
+    if (!isPatch || dbBody.report_date !== undefined) {
+      var rawDate = String(dbBody.report_date || todayIso).slice(0, 10);
+      safeDate = DE.isDate(rawDate) ? rawDate : todayIso;
+      dbBody.report_date = safeDate;
+    }
+    if (!isPatch || dbBody.period_start !== undefined) {
       var ps = String(dbBody.period_start || safeDate).slice(0, 10);
       dbBody.period_start = DE.isDate(ps) ? ps : safeDate;
-    } else {
-      dbBody.period_start = safeDate;
     }
-    if (dbBody.period_end !== undefined) {
+    if (!isPatch || dbBody.period_end !== undefined) {
       var pe = String(dbBody.period_end || safeDate).slice(0, 10);
       dbBody.period_end = DE.isDate(pe) ? pe : safeDate;
-    } else {
-      dbBody.period_end = safeDate;
     }
-    if (dbBody.period_end < dbBody.period_start) {
+    if (dbBody.period_start && dbBody.period_end && dbBody.period_end < dbBody.period_start) {
       dbBody.period_end = dbBody.period_start;
     }
-    dbBody.title = DE.clean(dbBody.title || 'تقييم الأداء الحالي', 140) || 'تقييم الأداء الحالي';
+    if (!isPatch || dbBody.title !== undefined) {
+      dbBody.title = DE.clean(dbBody.title || 'تقييم الأداء الحالي', 140) || 'تقييم الأداء الحالي';
+    }
     if (dbBody.achievements !== undefined) {
       dbBody.achievements = dbBody.achievements ? DE.clean(dbBody.achievements, 4800) : null;
     }
@@ -4735,15 +4833,16 @@
       dbBody.notes = dbBody.notes ? DE.clean(dbBody.notes, 4800) : null;
     }
 
-    // ضمان عدم تجاوز حقل activities لحد قيد التحقق (5000 حرف) في قاعدة البيانات
+    // ضمان بقاء حقل activities بصيغة JSON صالحة دائماً دون إتلاف البيانات (مع حفظ النسخة الكاملة في التخزين المشترك)
     if (typeof dbBody.activities === 'string') {
       if (dbBody.activities.indexOf(EVAL_MARKER) === 0) {
         try {
           var pObj = JSON.parse(dbBody.activities.slice(EVAL_MARKER.length));
-          if (pObj && Array.isArray(pObj.domains)) {
-            pObj.domains = compactDomainsArrayForStorage(pObj.domains, 28);
-          }
           var s1 = EVAL_MARKER + JSON.stringify(pObj);
+          if (s1.length > 4800 && pObj && Array.isArray(pObj.domains)) {
+            pObj.domains = compactDomainsArrayForStorage(pObj.domains, 28);
+            s1 = EVAL_MARKER + JSON.stringify(pObj);
+          }
           if (s1.length > 4800 && pObj && Array.isArray(pObj.domains)) {
             pObj.domains = compactDomainsArrayForStorage(pObj.domains, 0);
             s1 = EVAL_MARKER + JSON.stringify(pObj);
@@ -4759,7 +4858,7 @@
                 day_name: d.day_name,
                 date_display: d.date_display,
                 rows: (d.rows || []).filter(function (r) {
-                  return r && (r.sub_behavior || r.frequency || r.time_duration || r.location || r.antecedents);
+                  return r && (r.sub_behavior || r.frequency || r.behavior_time || r.behavior_duration || r.time_duration || r.location || r.antecedents);
                 })
               };
             });
@@ -4768,13 +4867,14 @@
           if (s1.length > 4800) {
             var slimObj = {
               v: 2,
+              _fullInShared: true,
               eval_type: pObj.eval_type || 'current_behavior',
               status: pObj.status || dbBody.status || 'draft',
               child_id: pObj.child_id || dbBody.child_id,
               child_name: pObj.child_name || '',
               section_name: pObj.section_name || '',
-              title: pObj.title || dbBody.title,
-              report_date: safeDate,
+              title: pObj.title || dbBody.title || '',
+              report_date: pObj.report_date || safeDate,
               term: pObj.term,
               school_year: pObj.school_year,
               general_report: String(pObj.general_report || '').slice(0, 600),
@@ -4784,11 +4884,25 @@
               recommendations: pObj.recommendations,
               target_behavior_report: pObj.target_behavior_report,
               mas_behavior_report: pObj.mas_behavior_report,
-              mas_eval: pObj.mas_eval
+              mas_eval: pObj.mas_eval,
+              epilepsy_followup: pObj.epilepsy_followup
             };
             s1 = EVAL_MARKER + JSON.stringify(slimObj);
+            if (s1.length > 4800) {
+              var microObj = {
+                v: 2,
+                _fullInShared: true,
+                eval_type: pObj.eval_type || 'current_behavior',
+                status: pObj.status || dbBody.status || 'draft',
+                child_id: pObj.child_id || dbBody.child_id,
+                child_name: pObj.child_name || '',
+                title: pObj.title || dbBody.title || '',
+                report_date: pObj.report_date || safeDate
+              };
+              s1 = EVAL_MARKER + JSON.stringify(microObj);
+            }
           }
-          dbBody.activities = s1.slice(0, 4900);
+          dbBody.activities = s1;
         } catch (eJson) {
           dbBody.activities = dbBody.activities.slice(0, 4900);
         }
@@ -6407,6 +6521,7 @@
         var rawJson = JSON.parse(r.activities.slice(EVAL_MARKER.length));
         if (rawJson && typeof rawJson === 'object') {
           if (rawJson.eval_type) res.eval_type = rawJson.eval_type;
+        if (rawJson.epilepsy_followup) res.epilepsy_followup = rawJson.epilepsy_followup;
           if (rawJson.child_id) res.child_id = rawJson.child_id;
           if (rawJson.child_name) res.child_name = rawJson.child_name;
           if (rawJson.dob) res.dob = rawJson.dob;
@@ -6619,6 +6734,7 @@
     if (ev.eval_type === 'behavior_observation') return renderBehaviorObservationSheetView(r, childFullName, secName, kd, adminOpts);
     if (ev.eval_type === 'reinforcers') return renderReinforcersSheetView(r, childFullName, secName, kd);
     if (ev.eval_type === 'interview_diagnostic') return renderInterviewDiagnosticSheetView(r, childFullName, secName, kd);
+    if (ev.eval_type === 'epilepsy_followup') return renderEpilepsyFollowupSheetView(r, childFullName, secName, kd, adminOpts);
     if (ev.eval_type === 'annual_final') return renderAnnualFinalSheetView(r, childFullName, secName, kd);
     if (ev.eval_type === 'target_behavior') return renderTargetBehaviorSheetView(r, childFullName, secName, kd, adminOpts);
     if (ev.eval_type === 'target_behavior_report') return renderTargetBehaviorReportSheetView(r, childFullName, secName, kd, adminOpts);
@@ -7993,14 +8109,23 @@
     }, ev.target_behavior_report || {});
 
     var selectedPairs = Array.isArray(tb.selected_pairs) ? tb.selected_pairs.slice() : [];
+    var selectedMains = Array.isArray(tb.selected_mains) ? tb.selected_mains.slice() : [];
+    selectedPairs.forEach(function (p) {
+      if (p && p.main && selectedMains.indexOf(p.main) < 0) selectedMains.push(p.main);
+    });
     var daysList = Array.isArray(tb.days) ? tb.days.map(function (d) {
       return {
         date: d.date,
         day_name: d.day_name,
         date_display: d.date_display,
-        rows: Array.isArray(d.rows) && d.rows.length ? d.rows.map(function (r) { return Object.assign({}, r); }) : [
-          { main_behavior: '', sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' },
-          { main_behavior: '', sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }
+        rows: Array.isArray(d.rows) && d.rows.length ? d.rows.map(function (r) {
+          var copy = Object.assign({}, r);
+          if (!copy.behavior_time && !copy.behavior_duration && copy.time_duration) {
+            copy.behavior_duration = copy.time_duration;
+          }
+          return copy;
+        }) : [
+          { main_behavior: '', sub_behavior: '', behavior_time: '', behavior_duration: '', time_duration: '', frequency: '', location: '', antecedents: '' }
         ]
       };
     }) : [];
@@ -8132,54 +8257,106 @@
       behaviorDisplayInp.value = parts.join(' — ');
     }
 
-    var preMainSelect = h('select', { style: 'flex:1; min-width:210px; padding:6px 8px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700; font-size:12.5px;' },
-      h('option', { value: '', text: '— 1. اختر السلوك الرئيسي —' }),
-      TARGET_BEHAVIORS_CATALOG.map(function (cat, idx) {
-        return h('option', { value: String(idx), text: (idx + 1) + '. ' + cat.main });
-      })
-    );
+    var preMainChipsWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;' });
+    var preSubWrap = h('div', { style: 'display:flex; flex-direction:column; gap:8px; margin-top:8px;' });
+    var selectedSummaryTableWrap = h('div', { style: 'margin-top:10px;' });
 
-    var preSubWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;' });
+    function renderSelectedBehaviorsSummaryTable() {
+      selectedSummaryTableWrap.textContent = '';
+      var map = {};
+      var order = [];
+      selectedMains.forEach(function (m) {
+        if (!map[m]) { map[m] = []; order.push(m); }
+      });
+      selectedPairs.forEach(function (p) {
+        if (!p || !p.main) return;
+        if (!map[p.main]) { map[p.main] = []; order.push(p.main); }
+        if (p.sub && map[p.main].indexOf(p.sub) < 0) map[p.main].push(p.sub);
+      });
+      if (!order.length) return;
+      var sTbl = h('table', { style: 'width:100%; border-collapse:collapse; background:#FFF; border:1.5px solid #163B65; font-size:12.5px;' },
+        h('thead', null,
+          h('tr', { style: 'background:#DBEAFE; color:#163B65; font-weight:900;' },
+            h('th', { style: 'border:1px solid #93C5FD; padding:6px 8px; width:38%; text-align:right;', text: 'السلوك الرئيسي' }),
+            h('th', { style: 'border:1px solid #93C5FD; padding:6px 8px; text-align:right;', text: 'السلوكيات المختارة' })
+          )
+        ),
+        h('tbody', null, order.map(function (m) {
+          return h('tr', null,
+            h('td', { style: 'border:1px solid #CBD5E1; padding:6px 8px; font-weight:800; color:#0F172A;', text: m }),
+            h('td', { style: 'border:1px solid #CBD5E1; padding:6px 8px; color:#334155;', text: map[m].length ? map[m].join(' — ') : '—' })
+          );
+        }))
+      );
+      selectedSummaryTableWrap.appendChild(sTbl);
+    }
 
-    preMainSelect.onchange = function () {
+    function renderMainAndSubSelectors() {
+      preMainChipsWrap.textContent = '';
       preSubWrap.textContent = '';
-      var mIdx = parseInt(preMainSelect.value, 10);
-      if (isNaN(mIdx) || !TARGET_BEHAVIORS_CATALOG[mIdx]) return;
-      var cat = TARGET_BEHAVIORS_CATALOG[mIdx];
-
-      cat.subs.forEach(function (subName) {
-        var isAlready = selectedPairs.some(function (p) { return p.main === cat.main && p.sub === subName; });
-        var chipBtn = h('button', {
+      TARGET_BEHAVIORS_CATALOG.forEach(function (cat, idx) {
+        var isMainSel = selectedMains.indexOf(cat.main) >= 0;
+        var mBtn = h('button', {
           type: 'button',
-          class: 'btn small ' + (isAlready ? 'gold' : 'light'),
-          style: 'font-size:11.5px; padding:4px 9px; border-radius:7px;',
-          text: (isAlready ? '✔ ' : '+ ') + subName,
+          class: 'btn small ' + (isMainSel ? 'primary' : 'light'),
+          style: 'font-size:12px; padding:5px 10px; border-radius:8px; font-weight:800;',
+          text: (isMainSel ? '✔ ' : '+ ') + (idx + 1) + '. ' + cat.main,
           onclick: function () {
-            var idxExist = selectedPairs.findIndex(function (p) { return p.main === cat.main && p.sub === subName; });
-            if (idxExist >= 0) {
-              selectedPairs.splice(idxExist, 1);
+            var pos = selectedMains.indexOf(cat.main);
+            if (pos >= 0) {
+              selectedMains.splice(pos, 1);
+              selectedPairs = selectedPairs.filter(function (p) { return p.main !== cat.main; });
             } else {
-              selectedPairs.push({ main: cat.main, sub: subName });
+              selectedMains.push(cat.main);
             }
             updateBehaviorInputFromGrouped();
             syncBehaviorTextFromPairs();
-            preMainSelect.onchange();
+            renderMainAndSubSelectors();
+            renderSelectedBehaviorsSummaryTable();
             triggerLiveRefresh();
           }
         });
-        preSubWrap.appendChild(chipBtn);
+        preMainChipsWrap.appendChild(mBtn);
+
+        if (isMainSel) {
+          var subBox = h('div', { style: 'background:#FFFFFF; border:1px solid #BFDBFE; border-radius:8px; padding:8px 10px;' },
+            h('div', { style: 'font-size:12px; font-weight:900; color:#1E40AF; margin-bottom:6px;', text: 'السلوكيات الفرعية لـ: ' + cat.main }),
+            h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px;' }, cat.subs.map(function (subName) {
+              var isAlready = selectedPairs.some(function (p) { return p.main === cat.main && p.sub === subName; });
+              return h('button', {
+                type: 'button',
+                class: 'btn small ' + (isAlready ? 'gold' : 'light'),
+                style: 'font-size:11.5px; padding:4px 9px; border-radius:7px;',
+                text: (isAlready ? '✔ ' : '+ ') + subName,
+                onclick: function () {
+                  var idxExist = selectedPairs.findIndex(function (p) { return p.main === cat.main && p.sub === subName; });
+                  if (idxExist >= 0) selectedPairs.splice(idxExist, 1);
+                  else selectedPairs.push({ main: cat.main, sub: subName });
+                  updateBehaviorInputFromGrouped();
+                  syncBehaviorTextFromPairs();
+                  renderMainAndSubSelectors();
+                  renderSelectedBehaviorsSummaryTable();
+                  triggerLiveRefresh();
+                }
+              });
+            }))
+          );
+          preSubWrap.appendChild(subBox);
+        }
       });
-    };
+    }
 
     syncBehaviorTextFromPairs();
+    renderMainAndSubSelectors();
+    renderSelectedBehaviorsSummaryTable();
 
     var behaviorSelectorBox = h('div', { style: 'background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:10px; padding:10px 12px; margin-bottom:14px;' },
-      h('label', { style: 'font-weight:900; color:#163B65; font-size:13px; display:block; margin-bottom:4px;', text: 'السلوك المستهدف (يمكنك اختيار أكثر من سلوك رئيسي وفرعي):' }),
+      h('label', { style: 'font-weight:900; color:#163B65; font-size:13px; display:block; margin-bottom:4px;', text: 'السلوك المستهدف (يمكنك اختيار أكثر من سلوك رئيسي ثم تحديد السلوكيات الفرعية لكل منها):' }),
       behaviorDisplayInp,
-      h('div', { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;' },
-        preMainSelect
-      ),
+      h('div', { style: 'font-size:11.5px; font-weight:800; color:#1E40AF; margin-top:8px;', text: '1. اختر السلوكيات الرئيسية (يمكن اختيار أكثر من سلوك):' }),
+      preMainChipsWrap,
       preSubWrap,
+      selectedSummaryTableWrap,
       selectedTagsWrap
     );
     card.appendChild(behaviorSelectorBox);
@@ -8252,66 +8429,57 @@
     ageInp.oninput = triggerLiveRefresh;
 
     function openSubBehaviorCellPicker(rowItem, onPicked) {
-      var modal = h('div', {
-        class: 'modal card',
-        style: 'max-width:380px; width:92%; background:#FFF; padding:14px 16px; border-radius:14px; border:1.5px solid #163B65; box-shadow:0 15px 35px rgba(0,0,0,0.22);'
-      });
+      var modal = h('div', { class: 'compact-behavior-picker' });
 
-      modal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:8px; margin-bottom:10px;' },
-        h('strong', { style: 'color:#163B65; font-size:0.95rem;', text: 'اختر السلوك الرئيسي ثم الفرعي' }),
-        h('button', { type: 'button', class: 'icon-btn', style: 'width:26px; height:26px;', onclick: closeModal }, h('span', { text: '✕' }))
+      modal.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:6px;' },
+        h('strong', { style: 'color:#163B65; font-size:0.9rem;', text: 'اختر السلوك الرئيسي ثم السلوك' }),
+        h('button', { type: 'button', class: 'icon-btn', style: 'width:24px; height:24px;', onclick: closeModal }, h('span', { text: '✕' }))
       ));
 
-      if (selectedPairs.length > 0) {
-        var quickBox = h('div', { style: 'margin-bottom:10px; padding-bottom:8px; border-bottom:1px dashed #CBD5E1;' },
-          h('span', { class: 'small muted', style: 'display:block; margin-bottom:4px; font-weight:700;', text: 'السلوكيات الفرعية المحددة للطفل:' })
-        );
-        var qBtns = h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px;' });
-        selectedPairs.forEach(function (pair) {
-          if (!pair.sub) return;
-          qBtns.appendChild(h('button', {
-            type: 'button',
-            class: 'btn small gold',
-            style: 'font-size:11.5px; padding:4px 8px;',
-            text: pair.sub,
-            onclick: function () {
-              rowItem.main_behavior = pair.main;
-              rowItem.sub_behavior = pair.sub;
-              closeModal();
-              onPicked(pair.sub);
-              triggerLiveRefresh();
-            }
-          }));
-        });
-        quickBox.appendChild(qBtns);
-        modal.appendChild(quickBox);
-      }
+      // بناء قائمة السلوكيات الرئيسية حسب ما تم اختياره في الأعلى (مع إمكانية عرض الكل إذا لم يُختر شيء)
+      var activeMainNames = selectedMains.slice();
+      selectedPairs.forEach(function (p) {
+        if (p && p.main && activeMainNames.indexOf(p.main) < 0) activeMainNames.push(p.main);
+      });
+      var availableCatalog = activeMainNames.length
+        ? TARGET_BEHAVIORS_CATALOG.filter(function (c) { return activeMainNames.indexOf(c.main) >= 0; })
+        : TARGET_BEHAVIORS_CATALOG;
 
-      var mSel = h('select', { style: 'width:100%; padding:7px 10px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700; margin-bottom:8px; font-size:12.5px;' },
+      var mSel = h('select', { style: 'width:100%; padding:6px 8px; border-radius:8px; border:1.5px solid #2563EB; font-weight:700; font-size:12.5px;' },
         h('option', { value: '', text: '— 1. اختر السلوك الرئيسي —' }),
-        TARGET_BEHAVIORS_CATALOG.map(function (c, i) {
-          var opt = h('option', { value: String(i), text: (i + 1) + '. ' + c.main });
+        availableCatalog.map(function (c, i) {
+          var opt = h('option', { value: c.main, text: (i + 1) + '. ' + c.main });
           if (rowItem.main_behavior === c.main) opt.selected = true;
           return opt;
         })
       );
+      if (!mSel.value && availableCatalog.length === 1) {
+        mSel.value = availableCatalog[0].main;
+      }
       modal.appendChild(mSel);
 
-      var subsContainer = h('div', { style: 'display:flex; flex-direction:column; gap:5px; max-height:240px; overflow-y:auto;' });
+      var subsContainer = h('div', { style: 'display:flex; flex-direction:column; gap:5px; max-height:210px; overflow-y:auto;' });
       modal.appendChild(subsContainer);
 
       function renderSubsForMain() {
         subsContainer.textContent = '';
-        var idx = parseInt(mSel.value, 10);
-        if (isNaN(idx) || !TARGET_BEHAVIORS_CATALOG[idx]) return;
-        var cat = TARGET_BEHAVIORS_CATALOG[idx];
-        cat.subs.forEach(function (sName) {
+        var chosenMain = mSel.value;
+        if (!chosenMain) {
+          subsContainer.appendChild(h('div', { class: 'small muted', style: 'text-align:center; padding:8px;', text: 'اختر السلوك الرئيسي أولاً لتظهر السلوكيات التابعة له' }));
+          return;
+        }
+        var cat = TARGET_BEHAVIORS_CATALOG.filter(function (c) { return c.main === chosenMain; })[0];
+        if (!cat) return;
+        // إذا كانت هناك سلوكيات فرعية مختارة لهذا السلوك الرئيسي في الأعلى نعرضها أولاً
+        var chosenSubsForMain = selectedPairs.filter(function (p) { return p.main === chosenMain && p.sub; }).map(function (p) { return p.sub; });
+        var listToShow = chosenSubsForMain.length ? chosenSubsForMain : cat.subs;
+        listToShow.forEach(function (sName) {
           var sBtn = h('button', {
             type: 'button',
-            style: 'text-align:right; padding:7px 10px; border-radius:7px; border:1px solid #CBD5E1; background:' + (rowItem.sub_behavior === sName ? '#EAF4FF' : '#F8FAFC') + '; font-weight:700; font-size:12.5px; cursor:pointer;',
+            style: 'text-align:right; padding:6px 10px; border-radius:7px; border:1px solid #CBD5E1; background:' + (rowItem.sub_behavior === sName ? '#DBEAFE' : '#F8FAFC') + '; font-weight:700; font-size:12px; cursor:pointer;',
             text: sName,
             onclick: function () {
-              rowItem.main_behavior = cat.main;
+              rowItem.main_behavior = chosenMain;
               rowItem.sub_behavior = sName;
               closeModal();
               onPicked(sName);
@@ -8335,12 +8503,13 @@
 
       tbl.appendChild(h('thead', null,
         h('tr', { style: 'background:#F8FAFC; font-weight:900; color:#000;' },
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'اليوم والتاريخ' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:20%;', text: 'نوع السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'وقت و مدة حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:14%;', text: 'عدد مرات تكرار السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'مكان حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:18%;', text: 'سوابق حدوث السلوك' })
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:14%;', text: 'اليوم والتاريخ' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:18%;', text: 'نوع السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'وقت السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'مدة السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:12%;', text: 'عدد مرات التكرار' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:15%;', text: 'مكان حدوث السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:19%;', text: 'سوابق حدوث السلوك' })
         )
       ));
 
@@ -8424,7 +8593,8 @@
             return h('td', { style: 'border:1.5px solid #000; padding:2px;' }, inp);
           }
 
-          tr.appendChild(makeManualCellInput('time_duration', 'الوقت والمدة...'));
+          tr.appendChild(makeManualCellInput('behavior_time', 'الوقت (مثال 09:30)...'));
+          tr.appendChild(makeManualCellInput('behavior_duration', 'المدة (مثال 5 د)...'));
           tr.appendChild(makeManualCellInput('frequency', 'عدد المرات...'));
           tr.appendChild(makeManualCellInput('location', 'المكان...'));
           tr.appendChild(makeManualCellInput('antecedents', 'السوابق...'));
@@ -8446,6 +8616,7 @@
         start_date: startDateInp.value,
         end_date: endDateInp.value,
         skip_weekend: skipWeekendChk.checked,
+        selected_mains: selectedMains,
         selected_pairs: selectedPairs,
         selected_behaviors_text: behaviorDisplayInp.value,
         days: daysList
@@ -8944,23 +9115,55 @@
     );
     wrap.appendChild(topCtrl);
 
-    evalSheetBox.appendChild(h('h2', { style: 'text-align:center; margin:0 0 18px; font-size:22px; font-weight:900; text-decoration:underline;', text: 'قياس السلوك المستهدف' }));
+    evalSheetBox.appendChild(h('div', { style: 'display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:2px solid #163B65; padding-bottom:10px;' },
+      h('img', { src: 'logo.png', style: 'width:64px; height:64px; object-fit:contain;' }),
+      h('h2', { style: 'text-align:center; margin:0; font-size:22px; font-weight:900; color:#163B65; flex:1;', text: 'قياس السلوك المستهدف' }),
+      h('div', { style: 'width:64px;' })
+    ));
     evalSheetBox.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:15px; font-weight:800; margin-bottom:10px;' },
       h('span', { text: 'اسم الطفل: ' + chName }),
       h('span', { text: 'العمر: ' + ageVal })
     ));
-    evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'السلوك: ' + behTxt }));
-    evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'جدول القياس: التكرار + المدة الزمنية' }));
 
-    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; text-align:center; font-size:13.5px; margin-bottom:20px;' });
+    // جدول السلوك الرئيسي والسلوكيات المختارة
+    var tbMainMap = {}, tbMainOrder = [];
+    (Array.isArray(tb.selected_mains) ? tb.selected_mains : []).forEach(function (m) {
+      if (m && !tbMainMap[m]) { tbMainMap[m] = []; tbMainOrder.push(m); }
+    });
+    (Array.isArray(tb.selected_pairs) ? tb.selected_pairs : []).forEach(function (p) {
+      if (!p || !p.main) return;
+      if (!tbMainMap[p.main]) { tbMainMap[p.main] = []; tbMainOrder.push(p.main); }
+      if (p.sub && tbMainMap[p.main].indexOf(p.sub) < 0) tbMainMap[p.main].push(p.sub);
+    });
+    if (tbMainOrder.length) {
+      evalSheetBox.appendChild(h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #163B65; margin-bottom:12px; font-size:13.5px;' },
+        h('thead', null, h('tr', { style: 'background:#EFF6FF; color:#163B65; font-weight:900;' },
+          h('th', { style: 'border:1px solid #163B65; padding:6px 8px; width:36%; text-align:right;', text: 'السلوك الرئيسي' }),
+          h('th', { style: 'border:1px solid #163B65; padding:6px 8px; text-align:right;', text: 'السلوكيات المختارة' })
+        )),
+        h('tbody', null, tbMainOrder.map(function (m) {
+          return h('tr', null,
+            h('td', { style: 'border:1px solid #334155; padding:6px 8px; font-weight:800;', text: m }),
+            h('td', { style: 'border:1px solid #334155; padding:6px 8px;', text: tbMainMap[m].length ? tbMainMap[m].join(' — ') : '—' })
+          );
+        }))
+      ));
+    } else {
+      evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:10px;', text: 'السلوك: ' + behTxt }));
+    }
+
+    evalSheetBox.appendChild(h('div', { style: 'font-size:15px; font-weight:800; margin-bottom:8px;', text: 'جدول القياس: التكرار + وقت ومدة السلوك' }));
+
+    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; border:1.5px solid #000; text-align:center; font-size:13px; margin-bottom:14px;' });
     tbl.appendChild(h('thead', null,
-      h('tr', { style: 'font-weight:900;' },
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'اليوم والتاريخ' }),
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:18%;', text: 'نوع السلوك' }),
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'وقت و مدة حدوث السلوك' }),
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'عدد مرات تكرار السلوك' }),
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'مكان حدوث السلوك' }),
-        h('th', { style: 'border:1.5px solid #000; padding:8px; width:18%;', text: 'سوابق حدوث السلوك' })
+      h('tr', { style: 'font-weight:900; background:#F8FAFC;' },
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:14%;', text: 'اليوم والتاريخ' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:17%;', text: 'نوع السلوك' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'وقت السلوك' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'مدة السلوك' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:12%;', text: 'عدد مرات التكرار' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:16%;', text: 'مكان حدوث السلوك' }),
+        h('th', { style: 'border:1.5px solid #000; padding:7px; width:19%;', text: 'سوابق حدوث السلوك' })
       )
     ));
 
@@ -8979,7 +9182,8 @@
           ));
         }
         tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px; font-weight:700; min-height:28px;', text: rItem.sub_behavior || '' }));
-        tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.time_duration || '' }));
+        tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.behavior_time || '' }));
+        tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.behavior_duration || (!rItem.behavior_time ? (rItem.time_duration || '') : '') }));
         tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.frequency || '' }));
         tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.location || '' }));
         tr.appendChild(h('td', { style: 'border:1.5px solid #000; padding:8px 6px;', text: rItem.antecedents || '' }));
@@ -10011,6 +10215,7 @@
     );
     wrap.appendChild(topCtrl);
 
+    evalSheetBox.appendChild(h('div', { style: 'text-align:center; margin-bottom:8px;' }, h('img', { src: 'logo.png', style: 'width:58px; height:58px; object-fit:contain;' })));
     evalSheetBox.appendChild(h('h2', { style: 'text-align:center; margin:0 0 12px; font-size:21px; font-weight:900;', text: 'استمارة تقييم دوافع السلوك MAS' }));
     evalSheetBox.appendChild(h('div', { style: 'display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:15px; font-weight:800; margin-bottom:12px;' },
       h('span', { text: 'اسم الحالة: ' + chName }),
@@ -10060,6 +10265,661 @@
      مع عرض تقرير الكمي (quantitative) فوقه، وتصغير مكان معلومات الطفل للنصف بدون بحث،
      وأرقام عناوين صحيحة
      ===================================================================== */
+
+  /* =========================================================================
+     تقرير طبي-وظيفي جديد بالفرنسية: FICHE DE SUIVI MÉDICO-FONCTIONNEL
+     Suivi des crises épileptiques
+     (الأحمر ثابت لجميع التلاميذ | الأخضر خيارات قابلة للتحديد + إضافة خيار + كتابة يدوية | الأسود كتابة يدوية)
+     ========================================================================= */
+  var EPI_MANIFESTATIONS_DEFAULTS = [
+    'Perte de conscience.',
+    'Regard fixe et absence de réponse aux sollicitations.',
+    'Convulsions ou mouvements involontaires.',
+    'Chute brutale.'
+  ];
+  var EPI_ETAT_APRES_DEFAULTS = [
+    'Récupération progressive de la conscience.',
+    'Endormissement.',
+    'Fatigue et épuisement.',
+    'Confusion ou absence de réponse.',
+    "Retour à l'activité habituelle."
+  ];
+  var EPI_FATIGUE_DEFAULTS = [
+    'Absence de fatigue apparente.',
+    'Fatigue légère.',
+    'Fatigue modérée.',
+    'Fatigue importante.'
+  ];
+  var EPI_PARTICIPATION_DEFAULTS = [
+    'Bonne participation.',
+    'Participation intermittente.',
+    'Faible participation.',
+    'Refus ou incapacité à participer.'
+  ];
+  var EPI_VIGILANCE_INDICATORS = [
+    'État de vigilance satisfaisant',
+    'Attention fluctuante',
+    'Somnolence / Léthargie',
+    'Fatigue apparente',
+    'Lenteur de réaction',
+    'Endormissement pendant les activités'
+  ];
+  var EPI_CONSIGNES_FIXES = [
+    "1. Noter précisément l'heure de début et de fin de chaque crise.",
+    "2. Éloigner les objets dangereux et protéger l'enfant contre les risques de blessures.",
+    "3. Placer l'enfant en position latérale de sécurité dès que possible, lorsque cela peut être fait sans danger, et surveiller sa respiration.",
+    "4. Ne jamais immobiliser ses mouvements et ne rien introduire dans sa bouche.",
+    "5. Ne donner ni eau, ni nourriture, ni médicament par voie orale avant la récupération complète de la conscience.",
+    "6. Ne jamais laisser l'enfant seul après une crise et surveiller son état de conscience et sa respiration.",
+    "7. Appeler immédiatement les secours si la crise atteint cinq (05) minutes, si une nouvelle crise survient sans récupération de conscience, en cas de difficulté respiratoire ou de blessure grave.",
+    "8. Informer la famille et consigner chaque épisode dans le dossier individuel de l'enfant.",
+    "9. Respecter le protocole médical d'urgence établi par le médecin traitant."
+  ];
+
+  function openEpilepsyFollowupBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
+    S.inSubBuilder = true;
+    try { window.history.pushState({ deApp: true, sec: 'reports', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
+    var ev = parseEvaluationReport(existingRep);
+    ev.eval_type = 'epilepsy_followup';
+    if (!existingRep) {
+      ev.title = 'FICHE DE SUIVI MÉDICO-FONCTIONNEL — Suivi des crises épileptiques';
+    }
+    var selKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || (kids.length === 1 ? kids[0] : null);
+    if (selKid0 && !ev.child_id) ev.child_id = selKid0.id;
+
+    var ef = Object.assign({
+      nom_prenom: selKid0 ? (selKid0.full_name || '') : '',
+      age: (selKid0 && selKid0.dob) ? calcKidAgeStr(selKid0.dob) : '',
+      section: selKid0 ? (nameOf(sections, selKid0.section_id, 'name') || selKid0.section || '') : '',
+      date_admission: '',
+      donnees_medicales: '',
+      traitement: '',
+      medecin_traitant: '',
+      date_debut_suivi: new Date().toISOString().slice(0, 10),
+      episodes: [
+        { date_heure: '', duree: '', lieu: '', activite_avant: '', perte_conscience: '', convulsions: '', difficultes_resp: '', endormissement: '', duree_recup: '' }
+      ],
+      manifestations_selected: [],
+      manifestations_custom: [],
+      manifestations_manual: '',
+      etat_pendant_verbale: '',
+      etat_pendant_respiration: '',
+      etat_pendant_coloration: '',
+      etat_pendant_chute: '',
+      etat_apres_selected: [],
+      etat_apres_custom: [],
+      etat_apres_manual: '',
+      duree_sommeil_recup: '',
+      observations_comp: '',
+      conduite_adoptee: '',
+      employe_observateur: '',
+      vigilance: {},
+      fatigue_selected: [],
+      fatigue_custom: [],
+      fatigue_manual: '',
+      participation_selected: [],
+      participation_custom: [],
+      participation_manual: '',
+      observations_educateur: '',
+      sommeil_duree: '',
+      sommeil_qualite: '',
+      arrivee_fatigue: '',
+      somnolence_inhabituelle: '',
+      changement_comportement: '',
+      remarques_famille: '',
+      bilan_nb_crises: '',
+      bilan_jours_fatigue: '',
+      bilan_nb_endormissement: '',
+      bilan_periodes_vigilance: '',
+      bilan_repercussions: '',
+      bilan_obs_equipe: '',
+      val_responsable_suivi: '',
+      val_educateur: '',
+      val_responsable_structure: '',
+      val_date_maj: new Date().toISOString().slice(0, 10)
+    }, ev.epilepsy_followup || {});
+
+    if (!Array.isArray(ef.episodes) || !ef.episodes.length) {
+      ef.episodes = [{ date_heure: '', duree: '', lieu: '', activite_avant: '', perte_conscience: '', convulsions: '', difficultes_resp: '', endormissement: '', duree_recup: '' }];
+    }
+
+    var v = $('#view');
+    v.textContent = '';
+
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;' },
+      h('div', { style: 'display:flex; align-items:center; gap:10px;' },
+        h('img', { src: 'logo.png', style: 'width:40px; height:40px; object-fit:contain; border-radius:6px;' }),
+        h('h2', { style: 'margin:0; color:#163B65; font-size:1.15rem; font-weight:900;', text: existingRep ? 'Modifier — Fiche de suivi médico-fonctionnel (Épilepsie)' : 'Nouveau — Fiche de suivi médico-fonctionnel (Suivi des crises épileptiques)' })
+      ),
+      h('button', { class: 'btn small light', type: 'button', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
+    );
+    v.appendChild(topBar);
+
+    var curSecId = S.isEducator ? S.eduSectionId : (selKid0 ? selKid0.section_id : '');
+    var secFilter = h('select', { disabled: !!S.isEducator },
+      h('option', { value: '', text: '— جميع الأقسام —' }),
+      secAllOpts.map(function (o) { return h('option', { value: o[0], text: o[1] }); })
+    );
+    secFilter.value = curSecId || '';
+    var kidSel = h('select', null);
+    function fillKids() {
+      var sId = secFilter.value;
+      var keep = ev.child_id || kidSel.value;
+      kidSel.textContent = '';
+      kidSel.appendChild(h('option', { value: '', text: '— اختر التلميذ —' }));
+      kids.forEach(function (k) {
+        if (sId && !childMatchesSection(k, sId, nameOf(sections, sId, 'name'), sections)) return;
+        kidSel.appendChild(h('option', { value: k.id, text: k.full_name + (k.section ? (' — ' + k.section) : '') }));
+      });
+      if (keep && kids.some(function (k) { return String(k.id) === String(keep); })) kidSel.value = keep;
+    }
+    fillKids();
+
+    var card = h('div', { class: 'card epi-sheet-paper', style: 'max-width:1060px; margin:0 auto;' });
+
+    // Select child bar (RTL Arabic helper bar at top)
+    card.appendChild(h('div', { style: 'direction:rtl; background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:10px; padding:10px 14px; margin-bottom:16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;' },
+      h('label', { class: 'fld' }, h('span', { text: 'القسم / الفوج:' }), secFilter),
+      h('label', { class: 'fld' }, h('span', { text: 'الطفل المعني بالتقرير:' }), kidSel)
+    ));
+
+    // Official French Header with Logo
+    card.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0F172A; padding-bottom:12px; margin-bottom:16px;' },
+      h('div', { style: 'flex:1; text-align:center;' },
+        h('div', { style: 'font-size:20px; font-weight:900;', text: 'A-P-E-H-M' }),
+        h('div', { style: 'font-size:16px; font-weight:800;', text: 'Centre psychopédagogique Dar el ihsan' }),
+        h('div', { style: 'font-size:14.5px; font-weight:700;', text: '-El ATTEUF – Ghardaïa-' }),
+        h('div', { style: 'font-size:16px; font-weight:900; text-decoration:underline; margin-top:8px;', text: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL' }),
+        h('div', { style: 'font-size:14.5px; font-weight:700;', text: 'Suivi des crises épileptiques' })
+      ),
+      h('img', { src: 'logo.png', style: 'width:84px; height:84px; object-fit:contain;' })
+    ));
+
+    function makeFieldInput(label, key, placeholder, isTextarea) {
+      var inp = isTextarea
+        ? h('textarea', { rows: 2, placeholder: placeholder || '', style: 'width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-family:inherit; font-size:13.5px;' })
+        : h('input', { type: 'text', placeholder: placeholder || '', style: 'width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-family:inherit; font-size:13.5px;' });
+      inp.value = ef[key] || '';
+      inp.oninput = function () { ef[key] = inp.value; };
+      return h('div', { style: 'margin-bottom:8px;' },
+        h('label', { class: 'epi-red', style: 'display:block; margin-bottom:3px; font-size:13.5px;', text: '❖ ' + label + ' :' }),
+        inp
+      );
+    }
+
+    function makeGreenOptionsBlock(titleTxt, titleColor, defaults, selKey, customKey, manualKey) {
+      if (!Array.isArray(ef[selKey])) ef[selKey] = [];
+      if (!Array.isArray(ef[customKey])) ef[customKey] = [];
+      var box = h('div', { style: 'background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:10px 12px; margin:10px 0;' });
+      box.appendChild(h('div', { style: 'font-weight:800; color:' + (titleColor || '#C00000') + '; margin-bottom:6px; font-size:14px;', text: titleTxt }));
+      var optsListWrap = h('div', { style: 'display:flex; flex-direction:column; gap:5px;' });
+
+      function redrawOpts() {
+        optsListWrap.textContent = '';
+        var allOpts = defaults.concat(ef[customKey]);
+        allOpts.forEach(function (optText) {
+          var isChecked = ef[selKey].indexOf(optText) >= 0;
+          var chk = h('input', { type: 'checkbox', checked: isChecked, style: 'width:16px; height:16px; cursor:pointer;' });
+          chk.onchange = function () {
+            var idx = ef[selKey].indexOf(optText);
+            if (chk.checked && idx < 0) ef[selKey].push(optText);
+            else if (!chk.checked && idx >= 0) ef[selKey].splice(idx, 1);
+          };
+          optsListWrap.appendChild(h('label', { class: 'epi-green', style: 'display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13.5px;' }, chk, h('span', { text: optText })));
+        });
+      }
+      redrawOpts();
+      box.appendChild(optsListWrap);
+
+      // إضافة خيار جديد (Add custom option)
+      var newOptInp = h('input', { type: 'text', placeholder: 'Ajouter une nouvelle option...', style: 'flex:1; padding:5px 8px; border:1px solid #86EFAC; border-radius:6px; font-size:13px;' });
+      var addOptBtn = h('button', {
+        type: 'button',
+        class: 'btn small light',
+        style: 'padding:5px 10px; font-size:12px;',
+        text: '+ Ajouter option',
+        onclick: function () {
+          var val = String(newOptInp.value || '').trim();
+          if (!val) return;
+          if (defaults.indexOf(val) < 0 && ef[customKey].indexOf(val) < 0) ef[customKey].push(val);
+          if (ef[selKey].indexOf(val) < 0) ef[selKey].push(val);
+          newOptInp.value = '';
+          redrawOpts();
+        }
+      });
+      box.appendChild(h('div', { style: 'display:flex; gap:6px; margin-top:8px;' }, newOptInp, addOptBtn));
+
+      // كتابة يدوية حرة (Manual text input)
+      var manInp = h('textarea', { rows: 2, placeholder: 'Écriture manuelle / Autres précisions...', style: 'width:100%; margin-top:8px; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px;' });
+      manInp.value = ef[manualKey] || '';
+      manInp.oninput = function () { ef[manualKey] = manInp.value; };
+      box.appendChild(manInp);
+      return box;
+    }
+
+    // I. INFORMATIONS PERSONNELLES
+    card.appendChild(h('h3', { style: 'margin:12px 0 8px; font-size:15.5px; color:#0F172A; border-bottom:1px solid #CBD5E1; padding-bottom:4px;', text: 'I. INFORMATIONS PERSONNELLES' }));
+    var fNom = makeFieldInput('Nom et prénom', 'nom_prenom', 'Nom et prénom de l\'enfant');
+    var fAge = makeFieldInput('Âge', 'age', 'Ex: 09 ans');
+    var fSec = makeFieldInput('Section (Retard mental (RM) / Trouble du spectre autistique / trisomie 21)', 'section', 'Retard mental (RM) / TSA / Trisomie 21');
+    var infoGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px;' },
+      fNom, fAge, fSec,
+      makeFieldInput("Date d'admission au centre", 'date_admission', 'Ex: Octobre 2024'),
+      makeFieldInput('Traitement antiépileptique', 'traitement', 'Nom et posologie'),
+      makeFieldInput('Médecin traitant', 'medecin_traitant', 'Dr ...'),
+      makeFieldInput('Date de début du suivi', 'date_debut_suivi', 'YYYY-MM-DD')
+    );
+    card.appendChild(infoGrid);
+    card.appendChild(makeFieldInput('Données médicales connues', 'donnees_medicales', 'Ex: Retard global du développement intellectuel associé à une épilepsie.', true));
+
+    secFilter.onchange = function () { fillKids(); ev.child_id = kidSel.value; };
+    kidSel.onchange = function () {
+      ev.child_id = kidSel.value;
+      var ck = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0];
+      if (ck) {
+        ef.nom_prenom = ck.full_name || '';
+        fNom.querySelector('input').value = ef.nom_prenom;
+        if (ck.dob) { ef.age = calcKidAgeStr(ck.dob); fAge.querySelector('input').value = ef.age; }
+        var sn = nameOf(sections, ck.section_id, 'name') || ck.section || '';
+        if (sn) { ef.section = sn; fSec.querySelector('input').value = ef.section; }
+      }
+    };
+
+    // II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES
+    card.appendChild(h('h3', { style: 'margin:16px 0 6px; font-size:15.5px; color:#0F172A; border-bottom:1px solid #CBD5E1; padding-bottom:4px;', text: 'II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES' }));
+    card.appendChild(h('div', { style: 'font-style:italic; font-size:13px; color:#475569; margin-bottom:8px;', text: 'Cette fiche doit être renseignée à chaque épisode de crise observé au sein du centre.' }));
+
+    var episodesHost = h('div');
+    function renderEpisodesEditor() {
+      episodesHost.textContent = '';
+      ef.episodes.forEach(function (ep, eIdx) {
+        function makeEpCell(key, ph) {
+          var inp = h('input', { type: 'text', value: ep[key] || '', placeholder: ph || '', style: 'width:100%; border:1px solid #CBD5E1; border-radius:4px; padding:4px 6px; font-size:13px;' });
+          inp.oninput = function () { ep[key] = inp.value; };
+          return inp;
+        }
+        function makeOuiNon(key) {
+          var sel = h('select', { style: 'width:100%; padding:4px 6px; border:1px solid #CBD5E1; border-radius:4px; font-size:13px;' },
+            h('option', { value: '', text: '— Choisir —' }),
+            h('option', { value: 'Oui', text: 'Oui' }),
+            h('option', { value: 'Non', text: 'Non' })
+          );
+          sel.value = ep[key] || '';
+          sel.onchange = function () { ep[key] = sel.value; };
+          return sel;
+        }
+        var epBox = h('div', { style: 'border:1px solid #CBD5E1; border-radius:8px; padding:10px; margin-bottom:10px; background:#FAFAFA;' },
+          h('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;' },
+            h('strong', { style: 'color:#163B65; font-size:13.5px;', text: 'Épisode N° ' + (eIdx + 1) }),
+            ef.episodes.length > 1 ? h('button', { type: 'button', class: 'btn small danger', text: 'Supprimer', onclick: function () { ef.episodes.splice(eIdx, 1); renderEpisodesEditor(); } }) : null
+          ),
+          h('table', { class: 'epi-tbl' },
+            h('thead', null, h('tr', null, h('th', { text: 'Informations' }), h('th', { text: 'Observations' }))),
+            h('tbody', null,
+              h('tr', null, h('td', { class: 'epi-red', text: 'Date et heure' }), h('td', null, makeEpCell('date_heure', 'JJ/MM/AAAA HH:MM'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Durée de la crise' }), h('td', null, makeEpCell('duree', 'Ex: 2 minutes'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Lieu de survenue' }), h('td', null, makeEpCell('lieu', 'Classe, cour...'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Activité avant la crise' }), h('td', null, makeEpCell('activite_avant', ''))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Perte de conscience' }), h('td', null, makeOuiNon('perte_conscience'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Convulsions' }), h('td', null, makeOuiNon('convulsions'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Difficultés respiratoires' }), h('td', null, makeOuiNon('difficultes_resp'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Endormissement après la crise' }), h('td', null, makeOuiNon('endormissement'))),
+              h('tr', null, h('td', { class: 'epi-red', text: 'Durée de récupération' }), h('td', null, makeEpCell('duree_recup', 'Ex: 15 minutes')))
+            )
+          )
+        );
+        episodesHost.appendChild(epBox);
+      });
+      episodesHost.appendChild(h('button', {
+        type: 'button',
+        class: 'btn small light',
+        style: 'margin-bottom:10px;',
+        text: '+ Ajouter un épisode de crise',
+        onclick: function () {
+          ef.episodes.push({ date_heure: '', duree: '', lieu: '', activite_avant: '', perte_conscience: '', convulsions: '', difficultes_resp: '', endormissement: '', duree_recup: '' });
+          renderEpisodesEditor();
+        }
+      }));
+    }
+    renderEpisodesEditor();
+    card.appendChild(episodesHost);
+
+    // 1. Manifestations (Green selectable + add + manual)
+    card.appendChild(makeGreenOptionsBlock('1. Manifestations observées pendant la crise :', '#0F172A', EPI_MANIFESTATIONS_DEFAULTS, 'manifestations_selected', 'manifestations_custom', 'manifestations_manual'));
+
+    // 2. État de l'enfant pendant la crise (Red fixed labels + choices)
+    function makeChoiceRow(label, key, choices) {
+      var sel = h('select', { style: 'padding:5px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px;' },
+        h('option', { value: '', text: '— Choisir —' }),
+        choices.map(function (c) { return h('option', { value: c, text: c }); })
+      );
+      sel.value = ef[key] || '';
+      sel.onchange = function () { ef[key] = sel.value; };
+      return h('div', { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;' },
+        h('span', { class: 'epi-red', style: 'font-size:13.5px;', text: '✓ ' + label + ' :' }),
+        sel
+      );
+    }
+    card.appendChild(h('div', { style: 'border:1px solid #FECACA; background:#FEF2F2; border-radius:8px; padding:10px 12px; margin:10px 0;' },
+      h('div', { class: 'epi-red', style: 'margin-bottom:8px; font-size:14px;', text: "2. État de l'enfant pendant la crise :" }),
+      makeChoiceRow('Réponse aux sollicitations verbales', 'etat_pendant_verbale', ['Oui', 'Non']),
+      makeChoiceRow('Respiration', 'etat_pendant_respiration', ['Normale', 'Anormale', 'Non évaluée']),
+      makeChoiceRow('Changement de coloration du visage ou des lèvres', 'etat_pendant_coloration', ['Oui', 'Non']),
+      makeChoiceRow('Chute ou blessure', 'etat_pendant_chute', ['Oui', 'Non'])
+    ));
+
+    // 3. État de l'enfant après la crise (Green selectable + add + manual)
+    card.appendChild(makeGreenOptionsBlock("3. État de l'enfant après la crise :", '#C00000', EPI_ETAT_APRES_DEFAULTS, 'etat_apres_selected', 'etat_apres_custom', 'etat_apres_manual'));
+
+    card.appendChild(makeFieldInput('Durée du sommeil ou de la récupération', 'duree_sommeil_recup', ''));
+    card.appendChild(makeFieldInput('Observations complémentaires', 'observations_comp', '', true));
+    card.appendChild(makeFieldInput('Conduite adoptée et interventions réalisées', 'conduite_adoptee', '', true));
+    card.appendChild(makeFieldInput("Nom et prénom de l'employé ayant observé la crise", 'employe_observateur', ''));
+
+    // III. VIGILANCE ET FATIGABILITÉ
+    card.appendChild(h('h3', { style: 'margin:16px 0 6px; font-size:15.5px; color:#0F172A; border-bottom:1px solid #CBD5E1; padding-bottom:4px;', text: 'III. FICHE DE SUIVI QUOTIDIEN DE LA VIGILANCE ET DE LA FATIGABILITÉ' }));
+    var vigTbl = h('table', { class: 'epi-tbl' },
+      h('thead', null, h('tr', null,
+        h('th', { text: 'Indicateurs observés' }),
+        h('th', { style: 'text-align:center;', text: 'Matin' }),
+        h('th', { style: 'text-align:center;', text: 'Pendant les activités' }),
+        h('th', { style: 'text-align:center;', text: 'Après-midi' })
+      )),
+      h('tbody', null, EPI_VIGILANCE_INDICATORS.map(function (ind, idx) {
+        if (!ef.vigilance[idx]) ef.vigilance[idx] = { matin: false, activites: false, apres_midi: false };
+        function makeVigChk(colKey) {
+          var c = h('input', { type: 'checkbox', checked: !!ef.vigilance[idx][colKey], style: 'width:16px; height:16px; cursor:pointer;' });
+          c.onchange = function () { ef.vigilance[idx][colKey] = c.checked; };
+          return h('td', { style: 'text-align:center;' }, c);
+        }
+        return h('tr', null,
+          h('td', { class: 'epi-red', text: ind }),
+          makeVigChk('matin'),
+          makeVigChk('activites'),
+          makeVigChk('apres_midi')
+        );
+      }))
+    );
+    card.appendChild(vigTbl);
+
+    card.appendChild(makeGreenOptionsBlock('Niveau général de fatigue :', '#C00000', EPI_FATIGUE_DEFAULTS, 'fatigue_selected', 'fatigue_custom', 'fatigue_manual'));
+    card.appendChild(makeGreenOptionsBlock('Niveau de participation aux activités pédagogiques :', '#C00000', EPI_PARTICIPATION_DEFAULTS, 'participation_selected', 'participation_custom', 'participation_manual'));
+    card.appendChild(makeFieldInput("Observations de l'éducateur concernant l'état quotidien de l'enfant", 'observations_educateur', '', true));
+
+    // IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL
+    card.appendChild(h('h3', { style: 'margin:16px 0 6px; font-size:15.5px; color:#0F172A; border-bottom:1px solid #CBD5E1; padding-bottom:4px;', text: "IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL" }));
+    function makeSimpleSelect(key, opts) {
+      var s = h('select', { style: 'width:100%; padding:5px 8px; border:1px solid #CBD5E1; border-radius:4px; font-size:13px;' },
+        h('option', { value: '', text: '— Choisir —' }),
+        opts.map(function (o) { return h('option', { value: o, text: o }); })
+      );
+      s.value = ef[key] || '';
+      s.onchange = function () { ef[key] = s.value; };
+      return s;
+    }
+    function makeSimpleInput(key, ph) {
+      var i = h('input', { type: 'text', value: ef[key] || '', placeholder: ph || '', style: 'width:100%; padding:5px 8px; border:1px solid #CBD5E1; border-radius:4px; font-size:13px;' });
+      i.oninput = function () { ef[key] = i.value; };
+      return i;
+    }
+    card.appendChild(h('table', { class: 'epi-tbl' },
+      h('thead', null, h('tr', null, h('th', { text: 'Indicateurs' }), h('th', { text: 'Observations' }))),
+      h('tbody', null,
+        h('tr', null, h('td', { class: 'epi-red', text: 'Durée du sommeil nocturne (selon la famille)' }), h('td', null, makeSimpleInput('sommeil_duree', 'Ex: 8 heures'))),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Qualité du sommeil' }), h('td', null, makeSimpleSelect('sommeil_qualite', ['Bonne', 'Moyenne', 'Mauvaise']))),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Arrivée au centre en état de fatigue' }), h('td', null, makeSimpleSelect('arrivee_fatigue', ['Oui', 'Non']))),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Somnolence inhabituelle' }), h('td', null, makeSimpleSelect('somnolence_inhabituelle', ['Oui', 'Non']))),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Changement notable du comportement' }), h('td', null, makeSimpleSelect('changement_comportement', ['Oui', 'Non']))),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Remarques de la famille' }), h('td', null, makeSimpleInput('remarques_famille', '')))
+      )
+    ));
+
+    // V. BILAN HEBDOMADAIRE DU SUIVI
+    card.appendChild(h('h3', { class: 'epi-red', style: 'margin:16px 0 8px; font-size:15.5px; border-bottom:1px solid #FECACA; padding-bottom:4px;', text: 'V. BILAN HEBDOMADAIRE DU SUIVI' }));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px;' },
+      makeFieldInput('Nombre de crises enregistrées', 'bilan_nb_crises', ''),
+      makeFieldInput('Nombre de jours avec fatigue importante', 'bilan_jours_fatigue', ''),
+      makeFieldInput("Nombre d'épisodes d'endormissement pendant les activités", 'bilan_nb_endormissement', ''),
+      makeFieldInput('Périodes de baisse de vigilance constatées', 'bilan_periodes_vigilance', '')
+    ));
+    card.appendChild(makeFieldInput('Répercussions sur la participation pédagogique', 'bilan_repercussions', '', true));
+    card.appendChild(makeFieldInput("Observations de l'équipe pluridisciplinaire", 'bilan_obs_equipe', '', true));
+
+    // VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE (fixes en rouge pour tous)
+    card.appendChild(h('h3', { class: 'epi-red', style: 'margin:16px 0 8px; font-size:15.5px; border-bottom:1px solid #FECACA; padding-bottom:4px;', text: 'VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE' }));
+    card.appendChild(h('div', { style: 'background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:10px 14px; margin-bottom:12px;' },
+      EPI_CONSIGNES_FIXES.map(function (cg) {
+        return h('div', { class: 'epi-red', style: 'font-size:13px; margin-bottom:4px; font-weight:600;', text: cg });
+      })
+    ));
+
+    // VII. VALIDATION ET RESPONSABILITÉS
+    card.appendChild(h('h3', { class: 'epi-red', style: 'margin:16px 0 8px; font-size:15.5px; border-bottom:1px solid #FECACA; padding-bottom:4px;', text: 'VII. VALIDATION ET RESPONSABILITÉS' }));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;' },
+      makeFieldInput('Responsable du suivi', 'val_responsable_suivi', ''),
+      makeFieldInput('Éducateur / Encadreur', 'val_educateur', ''),
+      makeFieldInput('Responsable de la structure', 'val_responsable_structure', ''),
+      makeFieldInput('Date de la dernière mise à jour', 'val_date_maj', 'YYYY-MM-DD')
+    ));
+
+    async function saveEpilepsyReport(statusKey) {
+      if (!kidSel.value) return toast('يرجى اختيار الطفل أولاً.', 'bad');
+      var ck = kids.filter(function (k) { return String(k.id) === String(kidSel.value); })[0];
+      var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : '';
+      var todayIso = new Date().toISOString().slice(0, 10);
+      var payloadObj = {
+        v: 2,
+        eval_type: 'epilepsy_followup',
+        status: statusKey,
+        child_id: kidSel.value,
+        child_name: ck ? ck.full_name : ef.nom_prenom,
+        section_name: sName || ef.section,
+        title: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL — Suivi des crises épileptiques',
+        report_date: todayIso,
+        epilepsy_followup: ef
+      };
+      var actsStr = EVAL_MARKER + JSON.stringify(payloadObj);
+      var dbBody = {
+        child_id: kidSel.value,
+        title: payloadObj.title,
+        report_date: todayIso,
+        period_start: todayIso,
+        period_end: todayIso,
+        achievements: 'Suivi médico-fonctionnel — Crises épileptiques (' + (ef.nom_prenom || '') + ')',
+        activities: actsStr,
+        notes: ef.observations_comp || null,
+        status: statusKey
+      };
+      var savedId = (existingRep && existingRep.id) ? existingRep.id : null;
+      if (savedId && DE.isUuid(String(savedId))) {
+        await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(savedId), dbBody);
+      } else {
+        var res = await saveProgressReportResilient('POST', '/progress_reports', dbBody);
+        if (Array.isArray(res) && res[0] && res[0].id) savedId = res[0].id;
+      }
+      if (!savedId) savedId = DE.uuid();
+      await syncSharedEvaluationRecord(Object.assign({}, dbBody, { id: savedId }), null);
+      bust();
+      toast(statusKey === 'published' ? 'تم نشر التقرير الطبي-الوظيفي بنجاح!' : 'تم حفظ المسودة بنجاح.', 'ok');
+      go('reports', { fromHistory: true });
+    }
+
+    card.appendChild(h('div', { style: 'direction:rtl; display:flex; gap:10px; justify-content:flex-end; margin-top:16px; padding-top:12px; border-top:1.5px solid #E2E8F0; flex-wrap:wrap;' },
+      h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveEpilepsyReport('draft'); } }),
+      h('button', { type: 'button', class: 'btn primary gold', text: 'اعتماد ونشر التقرير', onclick: function () { saveEpilepsyReport('published'); } }),
+      h('button', {
+        type: 'button',
+        class: 'btn light',
+        text: '📄 تحميل PDF',
+        onclick: async function () {
+          try {
+            var ck = kids.filter(function (k) { return String(k.id) === String(kidSel.value); })[0];
+            var sName = ck ? (nameOf(sections, ck.section_id, 'name') || ck.section || '') : ef.section;
+            toast('جارٍ تجهيز ملف PDF...', 'ok');
+            var bytes = await DE_PDF.renderEpilepsyFollowupToPdf({ epilepsy_followup: ef }, ef.nom_prenom || (ck && ck.full_name) || '', sName, ck);
+            DE_PDF.downloadPdf(bytes, 'Fiche_Suivi_Epilepsie_' + (ef.nom_prenom || 'enfant').replace(/\s+/g, '_') + '.pdf');
+          } catch (e) { toast('تعذر التحميل: ' + e.message, 'bad'); }
+        }
+      })
+    ));
+
+    v.appendChild(card);
+  }
+
+  function renderEpilepsyFollowupSheetView(r, childFullName, secName, kd, adminOpts) {
+    var ev = parseEvaluationReport(r);
+    var ef = ev.epilepsy_followup || r.epilepsy_followup || {};
+    var chName = ef.nom_prenom || childFullName || (kd && kd.full_name) || '—';
+
+    var wrap = h('div', { class: 'epi-sheet-paper eval-preview-full' });
+
+    wrap.appendChild(h('div', { class: 'no-print', style: 'direction:rtl; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #E2E8F0;' },
+      h('div', { style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف PDF...', 'ok');
+              var bytes = await DE_PDF.renderEpilepsyFollowupToPdf(ev, chName, secName, kd);
+              DE_PDF.downloadPdf(bytes, 'Fiche_Suivi_Epilepsie_' + String(chName).replace(/\s+/g, '_') + '.pdf');
+            } catch (e) { toast('تعذر التحميل: ' + e.message, 'bad'); }
+          }
+        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF' })),
+        h('button', { type: 'button', class: 'btn small light', onclick: function () { window.print(); } }, makeSvgIcon('s-print'), h('span', { text: 'طباعة' }))
+      ),
+      adminOpts ? h('div', { style: 'display:flex; gap:6px;' },
+        adminOpts.onEdit ? h('button', { type: 'button', class: 'btn small light', text: 'تعديل', onclick: adminOpts.onEdit }) : null,
+        adminOpts.onDelete ? h('button', { type: 'button', class: 'btn small danger', text: 'حذف', onclick: adminOpts.onDelete }) : null
+      ) : null
+    ));
+
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0F172A; padding-bottom:10px; margin-bottom:14px;' },
+      h('div', { style: 'flex:1; text-align:center;' },
+        h('div', { style: 'font-size:20px; font-weight:900;', text: 'A-P-E-H-M' }),
+        h('div', { style: 'font-size:16px; font-weight:800;', text: 'Centre psychopédagogique Dar el ihsan' }),
+        h('div', { style: 'font-size:14.5px; font-weight:700;', text: '-El ATTEUF – Ghardaïa-' }),
+        h('div', { style: 'font-size:16px; font-weight:900; text-decoration:underline; margin-top:6px;', text: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL' }),
+        h('div', { style: 'font-size:14.5px; font-weight:700;', text: 'Suivi des crises épileptiques' })
+      ),
+      h('img', { src: 'logo.png', style: 'width:82px; height:82px; object-fit:contain;' })
+    ));
+
+    function viewRow(label, val) {
+      return h('div', { style: 'margin-bottom:5px; font-size:13.5px;' },
+        h('span', { class: 'epi-red', text: '❖ ' + label + ' : ' }),
+        h('span', { style: 'color:#0F172A;', text: val || '—' })
+      );
+    }
+    function viewGreenBlock(title, selArr, manualTxt) {
+      var list = Array.isArray(selArr) ? selArr.filter(Boolean) : [];
+      return h('div', { style: 'margin:8px 0;' },
+        h('div', { class: 'epi-red', style: 'margin-bottom:4px; font-size:14px;', text: title }),
+        list.length ? h('div', null, list.map(function (it) { return h('div', { class: 'epi-green', style: 'margin-left:14px; font-size:13.5px;', text: '✓ ' + it }); })) : (!manualTxt ? h('div', { style: 'margin-left:14px; color:#64748B;', text: '—' }) : null),
+        manualTxt ? h('div', { style: 'margin-left:14px; color:#0F172A; font-size:13.5px;', text: '• ' + manualTxt }) : null
+      );
+    }
+
+    wrap.appendChild(h('h4', { style: 'margin:10px 0 6px;', text: 'I. INFORMATIONS PERSONNELLES' }));
+    wrap.appendChild(viewRow('Nom et prénom', chName));
+    wrap.appendChild(viewRow('Âge', ef.age));
+    wrap.appendChild(viewRow('Section', ef.section || secName));
+    wrap.appendChild(viewRow("Date d'admission au centre", ef.date_admission));
+    wrap.appendChild(viewRow('Données médicales connues', ef.donnees_medicales));
+    wrap.appendChild(viewRow('Traitement antiépileptique', ef.traitement));
+    wrap.appendChild(viewRow('Médecin traitant', ef.medecin_traitant));
+    wrap.appendChild(viewRow('Date de début du suivi', ef.date_debut_suivi));
+
+    wrap.appendChild(h('h4', { style: 'margin:12px 0 6px;', text: 'II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES' }));
+    var eps = Array.isArray(ef.episodes) && ef.episodes.length ? ef.episodes : [{}];
+    eps.forEach(function (ep, idx) {
+      wrap.appendChild(h('table', { class: 'epi-tbl' },
+        h('thead', null, h('tr', null, h('th', { text: 'Informations' + (eps.length > 1 ? (' (Épisode ' + (idx + 1) + ')') : '') }), h('th', { text: 'Observations' }))),
+        h('tbody', null,
+          h('tr', null, h('td', { class: 'epi-red', text: 'Date et heure' }), h('td', { text: ep.date_heure || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Durée de la crise' }), h('td', { text: ep.duree || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Lieu de survenue' }), h('td', { text: ep.lieu || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Activité avant la crise' }), h('td', { text: ep.activite_avant || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Perte de conscience' }), h('td', { text: ep.perte_conscience || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Convulsions' }), h('td', { text: ep.convulsions || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Difficultés respiratoires' }), h('td', { text: ep.difficultes_resp || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Endormissement après la crise' }), h('td', { text: ep.endormissement || '—' })),
+          h('tr', null, h('td', { class: 'epi-red', text: 'Durée de récupération' }), h('td', { text: ep.duree_recup || '—' }))
+        )
+      ));
+    });
+
+    wrap.appendChild(viewGreenBlock('1. Manifestations observées pendant la crise :', ef.manifestations_selected, ef.manifestations_manual));
+    wrap.appendChild(h('div', { class: 'epi-red', style: 'margin:8px 0 4px; font-size:14px;', text: "2. État de l'enfant pendant la crise :" }));
+    wrap.appendChild(viewRow('Réponse aux sollicitations verbales', ef.etat_pendant_verbale));
+    wrap.appendChild(viewRow('Respiration', ef.etat_pendant_respiration));
+    wrap.appendChild(viewRow('Changement de coloration du visage ou des lèvres', ef.etat_pendant_coloration));
+    wrap.appendChild(viewRow('Chute ou blessure', ef.etat_pendant_chute));
+
+    wrap.appendChild(viewGreenBlock("3. État de l'enfant après la crise :", ef.etat_apres_selected, ef.etat_apres_manual));
+    wrap.appendChild(viewRow('Durée du sommeil ou de la récupération', ef.duree_sommeil_recup));
+    wrap.appendChild(viewRow('Observations complémentaires', ef.observations_comp));
+    wrap.appendChild(viewRow('Conduite adoptée et interventions réalisées', ef.conduite_adoptee));
+    wrap.appendChild(viewRow("Nom et prénom de l'employé ayant observé la crise", ef.employe_observateur));
+
+    wrap.appendChild(h('h4', { style: 'margin:12px 0 6px;', text: 'III. FICHE DE SUIVI QUOTIDIEN DE LA VIGILANCE ET DE LA FATIGABILITÉ' }));
+    var vig = ef.vigilance || {};
+    wrap.appendChild(h('table', { class: 'epi-tbl' },
+      h('thead', null, h('tr', null,
+        h('th', { text: 'Indicateurs observés' }),
+        h('th', { style: 'text-align:center;', text: 'Matin' }),
+        h('th', { style: 'text-align:center;', text: 'Pendant les activités' }),
+        h('th', { style: 'text-align:center;', text: 'Après-midi' })
+      )),
+      h('tbody', null, EPI_VIGILANCE_INDICATORS.map(function (ind, idx) {
+        var rv = vig[idx] || {};
+        return h('tr', null,
+          h('td', { class: 'epi-red', text: ind }),
+          h('td', { style: 'text-align:center;', text: rv.matin ? '☑' : '☐' }),
+          h('td', { style: 'text-align:center;', text: rv.activites ? '☑' : '☐' }),
+          h('td', { style: 'text-align:center;', text: rv.apres_midi ? '☑' : '☐' })
+        );
+      }))
+    ));
+    wrap.appendChild(viewGreenBlock('Niveau général de fatigue :', ef.fatigue_selected, ef.fatigue_manual));
+    wrap.appendChild(viewGreenBlock('Niveau de participation aux activités pédagogiques :', ef.participation_selected, ef.participation_manual));
+    wrap.appendChild(viewRow("Observations de l'éducateur concernant l'état quotidien de l'enfant", ef.observations_educateur));
+
+    wrap.appendChild(h('h4', { style: 'margin:12px 0 6px;', text: "IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL" }));
+    wrap.appendChild(h('table', { class: 'epi-tbl' },
+      h('thead', null, h('tr', null, h('th', { text: 'Indicateurs' }), h('th', { text: 'Observations' }))),
+      h('tbody', null,
+        h('tr', null, h('td', { class: 'epi-red', text: 'Durée du sommeil nocturne (selon la famille)' }), h('td', { text: ef.sommeil_duree || '—' })),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Qualité du sommeil' }), h('td', { text: ef.sommeil_qualite || '—' })),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Arrivée au centre en état de fatigue' }), h('td', { text: ef.arrivee_fatigue || '—' })),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Somnolence inhabituelle' }), h('td', { text: ef.somnolence_inhabituelle || '—' })),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Changement notable du comportement' }), h('td', { text: ef.changement_comportement || '—' })),
+        h('tr', null, h('td', { class: 'epi-red', text: 'Remarques de la famille' }), h('td', { text: ef.remarques_famille || '—' }))
+      )
+    ));
+
+    wrap.appendChild(h('h4', { class: 'epi-red', style: 'margin:12px 0 6px;', text: 'V. BILAN HEBDOMADAIRE DU SUIVI' }));
+    wrap.appendChild(viewRow('Nombre de crises enregistrées', ef.bilan_nb_crises));
+    wrap.appendChild(viewRow('Nombre de jours avec fatigue importante', ef.bilan_jours_fatigue));
+    wrap.appendChild(viewRow("Nombre d'épisodes d'endormissement pendant les activités", ef.bilan_nb_endormissement));
+    wrap.appendChild(viewRow('Périodes de baisse de vigilance constatées', ef.bilan_periodes_vigilance));
+    wrap.appendChild(viewRow('Répercussions sur la participation pédagogique', ef.bilan_repercussions));
+    wrap.appendChild(viewRow("Observations de l'équipe pluridisciplinaire", ef.bilan_obs_equipe));
+
+    wrap.appendChild(h('h4', { class: 'epi-red', style: 'margin:12px 0 6px;', text: 'VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE' }));
+    EPI_CONSIGNES_FIXES.forEach(function (cg) {
+      wrap.appendChild(h('div', { class: 'epi-red', style: 'font-size:13px; margin-bottom:3px; font-weight:600;', text: cg }));
+    });
+
+    wrap.appendChild(h('h4', { class: 'epi-red', style: 'margin:12px 0 6px;', text: 'VII. VALIDATION ET RESPONSABILITÉS' }));
+    wrap.appendChild(viewRow('Responsable du suivi', ef.val_responsable_suivi));
+    wrap.appendChild(viewRow('Éducateur / Encadreur', ef.val_educateur));
+    wrap.appendChild(viewRow('Responsable de la structure', ef.val_responsable_structure));
+    wrap.appendChild(viewRow('Date de la dernière mise à jour', ef.val_date_maj));
+
+    return wrap;
+  }
+
   function openQualitativeReportBuilder(existingRep, kids, sections, secAllOpts, branchOpts, allReportsPool) {
     S.inSubBuilder = true;
     try { window.history.pushState({ deApp: true, sec: 'reports', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
@@ -10234,41 +11094,25 @@
 
     v.appendChild(quantHost);
 
-    // 3. خانات تقرير نوعي تحليلي (Rapport d'analyse qualitatif)
-    var MAX_GR_CHARS = 700;
-    var MAX_GR_LINES = 10;
-    var grCounterBadge = h('span', { class: 'muted small', style: 'display:block; margin-top:4px; font-weight:700;' });
-    var generalReportArea = h('textarea', { rows: 8, maxlength: MAX_GR_CHARS, placeholder: 'اكتب التقرير العام الشامل لأداء وسلوك الحالة (مضبوط بحد أقصى لا يتجاوز صفحة A4)...' });
-    generalReportArea.value = String(ev.general_report || '').slice(0, MAX_GR_CHARS);
+    // 3. خانات تقرير نوعي تحليلي (بدون تقييد لحد الكتابة)
+    var grCounterBadge = h('span', { class: 'muted small', style: 'display:block; margin-top:4px; font-weight:700; color:#475569;' });
+    var generalReportArea = h('textarea', { rows: 8, placeholder: 'اكتب التقرير العام الشامل لأداء وسلوك الحالة بحرية تامة...' });
+    generalReportArea.value = String(ev.general_report || '');
 
     function updateGrLimitUI() {
-      var val = generalReportArea.value || '';
-      var lines = val.split('\n');
-      if (lines.length > MAX_GR_LINES) {
-        val = lines.slice(0, MAX_GR_LINES).join('\n');
-        generalReportArea.value = val;
-      }
-      if (val.length > MAX_GR_CHARS) {
-        val = val.slice(0, MAX_GR_CHARS);
-        generalReportArea.value = val;
-      }
-      ev.general_report = val;
-      var rem = MAX_GR_CHARS - val.length;
-      grCounterBadge.textContent = 'حد صفحة A4: ' + val.length + ' / ' + MAX_GR_CHARS + ' حرف (' + lines.length + '/' + MAX_GR_LINES + ' أسطر)' + (rem <= 0 ? ' — امتلأت مساحة الصندوق في صفحة A4' : '');
-      grCounterBadge.style.color = rem <= 30 ? '#DC2626' : '#475569';
+      ev.general_report = generalReportArea.value || '';
+      grCounterBadge.textContent = 'عدد الأحرف: ' + ev.general_report.length + ' (كتابة مفتوحة بدون حد أقصى)';
     }
     generalReportArea.addEventListener('input', updateGrLimitUI);
     updateGrLimitUI();
 
     var ab = ev.abilities || {};
     function makeAbArea(key, placeholder) {
-      var ta = h('textarea', { rows: 2, maxlength: 130, placeholder: placeholder + ' (حد أقصى سطران لصفحة A4)' });
-      ta.value = String(ab[key] || '').slice(0, 130);
+      var ta = h('textarea', { rows: 3, placeholder: placeholder });
+      ta.value = String(ab[key] || '');
       ta.addEventListener('input', function () {
         if (!ev.abilities) ev.abilities = {};
-        var lns = ta.value.split('\n');
-        if (lns.length > 2) ta.value = lns.slice(0, 2).join(' ');
-        ev.abilities[key] = ta.value.slice(0, 130);
+        ev.abilities[key] = ta.value;
       });
       return ta;
     }
@@ -10293,18 +11137,14 @@
     );
     v.appendChild(stepReportFieldsCard);
 
-    // 4. الخلاصة والتوصيات
+    // 4. الخلاصة والتوصيات (بدون تقييد لعدد النقاط أو طول النص)
     function buildDynamicListBlock(title, arrKey, placeholder, addLabel) {
-      var MAX_ITEMS_A4 = 4;
       var container = h('div', { class: 'dynamic-items-container' });
       var addBtn = h('button', {
         type: 'button',
         class: 'btn small light',
         text: addLabel,
         onclick: function () {
-          if ((ev[arrKey] || []).length >= MAX_ITEMS_A4) {
-            return toast('الحد الأقصى 4 نقاط في كل خانة لصفحة A4.', 'bad');
-          }
           ev[arrKey].push('');
           redraw();
         }
@@ -10312,11 +11152,9 @@
       function redraw() {
         container.textContent = '';
         if (!ev[arrKey] || !ev[arrKey].length) ev[arrKey] = [''];
-        if (ev[arrKey].length > MAX_ITEMS_A4) ev[arrKey] = ev[arrKey].slice(0, MAX_ITEMS_A4);
-        addBtn.disabled = ev[arrKey].length >= MAX_ITEMS_A4;
         ev[arrKey].forEach(function (val, idx) {
-          var inp = h('input', { type: 'text', maxlength: 120, placeholder: placeholder, value: String(val || '').slice(0, 120) });
-          inp.addEventListener('input', function () { ev[arrKey][idx] = inp.value.slice(0, 120); });
+          var inp = h('input', { type: 'text', placeholder: placeholder, value: String(val || '') });
+          inp.addEventListener('input', function () { ev[arrKey][idx] = inp.value; });
           var del = h('button', {
             type: 'button',
             class: 'btn small danger',
@@ -11125,16 +11963,24 @@
 
     function editReport(r) {
       var uploaded = null;
-      return openForm({
-        title: r ? 'تعديل التقرير الدوري' : 'إضافة تقرير تربوي دوري جديد',
-        values: r ? Object.assign({}, r) : {
+      var matchedKid = r ? kids.filter(function (k) { return String(k.id) === String(r.child_id); })[0] : null;
+      var initVals = r ? Object.assign({}, r, {
+        branch_id: r.branch_id || (matchedKid ? matchedKid.branch_id : ''),
+        section_id: r.section_id || (matchedKid ? matchedKid.section_id : ''),
+        achievements: r.achievements || '',
+        activities: (r.activities && String(r.activities).indexOf(EVAL_MARKER) !== 0) ? r.activities : '',
+        notes: r.notes || ''
+      }) : {
           child_id: S.preselectChildId || (kids.length === 1 ? kids[0].id : ''),
           report_date: new Date().toISOString().slice(0, 10),
           title: 'التقرير الدوري لمتابعة الطفل',
           achievements: '',
           activities: '',
           notes: ''
-        },
+        };
+      return openForm({
+        title: r ? 'تعديل التقرير الدوري' : 'إضافة تقرير تربوي دوري جديد',
+        values: initVals,
         fields: [
           { k: 'branch_id', label: 'الفرع', type: 'select', opts: branchOpts, req: !S.isEducator, showIf: function () { return !S.isEducator; } },
           { k: 'section_id', label: 'القسم / الفوج', type: 'select', opts: secAllOpts, req: true, showIf: function () { return !S.isEducator; } },
@@ -11175,7 +12021,11 @@
       });
     }
 
-    if (S.openReportDirect) {
+    if (S._editReportTarget) {
+      var targetRepToEdit = S._editReportTarget;
+      S._editReportTarget = null;
+      setTimeout(function () { editReport(targetRepToEdit); }, 40);
+    } else if (S.openReportDirect) {
       S.openReportDirect = false;
       setTimeout(function () { editReport(null); }, 40);
     }
@@ -11230,6 +12080,13 @@
 
         h('button', {
           type: 'button',
+          class: 'btn primary',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px; background:#991B1B; border-color:#991B1B;',
+          onclick: function () { openEpilepsyFollowupBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '🩺' }), h('span', { text: 'Fiche de suivi médico-fonctionnel (Épilepsie)' })),
+
+        h('button', {
+          type: 'button',
           class: 'btn light',
           style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
           onclick: function () { editReport(null); }
@@ -11248,6 +12105,12 @@
         var sName = kd ? (nameOf(sections, kd.section_id, 'name') || kd.section || '') : (r.section_name || '');
         var subCat = getReportSubCategory(r);
 
+        if (subCat === 'epilepsy_followup') {
+          return renderEpilepsyFollowupSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
+            onEdit: function () { openEpilepsyFollowupBuilder(r, kids, sections, secAllOpts, branchOpts); },
+            onDelete: function () { return deleteReportRecord(r); }
+          });
+        }
         if (subCat === 'annual_final') {
           return renderAnnualFinalSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
             onEdit: function () { openAnnualFinalBuilder(r, kids, sections, secAllOpts, branchOpts); },
@@ -11274,11 +12137,21 @@
               if (subCat === 'qualitative') openQualitativeReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
               else openEvaluationBuilder(r, kids, sections, secAllOpts, branchOpts);
             },
-            onSend: function () {
-              return saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published' }).then(function () { bust(); go('reports'); });
+            onSend: async function () {
+              var upd = setEvalStatusInActivities(r.activities, 'published', {});
+              if (r.id && DE.isUuid(String(r.id))) {
+                try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'published', activities: upd }); } catch (e) {}
+              }
+              await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'published', activities: upd }), null);
+              bust(); toast('تم نشر التقرير للولي بنجاح.', 'ok'); go('reports');
             },
-            onUnpublish: function () {
-              return saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft' }).then(function () { bust(); go('reports'); });
+            onUnpublish: async function () {
+              var upd = setEvalStatusInActivities(r.activities, 'draft', {});
+              if (r.id && DE.isUuid(String(r.id))) {
+                try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { status: 'draft', activities: upd }); } catch (e) {}
+              }
+              await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'draft', activities: upd }), null);
+              bust(); toast('تحوّل التقرير إلى مسودة.', 'ok'); go('reports');
             },
             onDelete: function () { return deleteReportRecord(r); }
           });
@@ -11314,7 +12187,8 @@
             var subCat = getReportSubCategory(r);
             var bLabel = 'تقرير دوري';
             var bCls = 'ok';
-            if (subCat === 'annual_final') { bLabel = 'التقرير النهائي'; bCls = 'gold'; }
+            if (subCat === 'epilepsy_followup') { bLabel = 'Suivi médico-fonctionnel (Épilepsie)'; bCls = 'warn'; }
+            else if (subCat === 'annual_final') { bLabel = 'التقرير النهائي'; bCls = 'gold'; }
             else if (subCat === 'qualitative') { bLabel = "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)"; bCls = 'ok'; }
             else if (subCat === 'quantitative') { bLabel = 'تقرير الكمي (quantitative)'; bCls = 'gold'; }
             else if (subCat === 'target_behavior_report') { bLabel = 'تقرير قياس السلوك المستهدف'; bCls = 'gold'; }
@@ -11335,6 +12209,7 @@
       actions: function (r) {
         var subCat = getReportSubCategory(r);
         var editHandler = function () {
+          if (subCat === 'epilepsy_followup') return openEpilepsyFollowupBuilder(r, kids, sections, secAllOpts, branchOpts);
           if (subCat === 'annual_final') return openAnnualFinalBuilder(r, kids, sections, secAllOpts, branchOpts);
           if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
           if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
@@ -14299,6 +15174,10 @@
     S._lastCenter = S.activeCenter;
     S._lastFilterSec = S.filterSectionId || '';
     S.sec = sec;
+    try {
+      sessionStorage.setItem('de_last_sec', sec);
+      sessionStorage.setItem('de_last_center', S.activeCenter || 'main');
+    } catch (eSec) {}
     var n = ++S.nav, v = $('#view');
     var appEl = $('#app');
     if (appEl) {
@@ -14526,7 +15405,9 @@
         })();
       }
 
-      var startSec = (S.isEducator || S.isSpecialist) ? 'children' : 'dash';
+      var savedSec = '';
+      try { savedSec = sessionStorage.getItem('de_last_sec') || ''; } catch (eRestore) {}
+      var startSec = (savedSec && SECS[savedSec]) ? savedSec : ((S.isEducator || S.isSpecialist) ? 'children' : 'dash');
       S.navStack = [];
       S._lastCenter = S.activeCenter;
       S._lastFilterSec = '';
