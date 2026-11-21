@@ -2250,16 +2250,59 @@
                 h('strong', { text: rep.title }),
                 h('div', { class: 'muted small', text: 'التاريخ: ' + fmt(rep.report_date) + ' • الحالة: ' + (rep.status === 'published' ? 'منشور للولي' : 'مسودة') })
               ),
-              h('div', { class: 'row-actions' },
+              h('div', { class: 'row-actions', style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+                rbtn('👁 معاينة', function () {
+                  var subCat = getReportSubCategory(rep);
+                  var contentNode = subCat === 'medico_functional_fr'
+                    ? renderMedicoFunctionalFrenchSheetView(rep, r.full_name, secName, r)
+                    : subCat === 'target_behavior_report'
+                      ? renderTargetBehaviorReportSheetView(rep, r.full_name, secName, r)
+                      : subCat === 'mas_behavior_report'
+                        ? renderMasBehaviorReportSheetView(rep, r.full_name, secName, r)
+                        : subCat === 'annual_final'
+                          ? renderAnnualFinalSheetView(rep, r.full_name, secName, r)
+                          : renderEvaluationSheetView(rep, r.full_name, secName, r);
+                  openFullDocumentPreviewModal((rep.title || 'تقرير') + ' — ' + r.full_name, contentNode);
+                }, 'primary'),
+                rbtn('✏️ تعديل', function () {
+                  var subCat = getReportSubCategory(rep);
+                  if (subCat === 'medico_functional_fr') return openMedicoFunctionalFrenchBuilder(rep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(rep, kids, sections, secAllOpts, branchOpts, allReports);
+                  if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(rep, kids, sections, secAllOpts, branchOpts, allReports);
+                  if (subCat === 'annual_final') return openAnnualFinalBuilder(rep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'qualitative') return openQualitativeReportBuilder(rep, kids, sections, secAllOpts, branchOpts, allReports);
+                  if (isEvaluationReport(rep)) return openEvaluationBuilder(rep, kids, sections, secAllOpts, branchOpts);
+                  S.preselectChildId = r.id;
+                  go('reports');
+                }, 'light'),
+                rbtn('📄 تحميل PDF', async function () {
+                  try {
+                    var subCat = getReportSubCategory(rep);
+                    toast('جارٍ تجهيز ملف PDF...', 'ok');
+                    var bytes;
+                    if (subCat === 'medico_functional_fr') {
+                      var frN = resolveChildFrenchName(r);
+                      bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(parseEvaluationReport(rep), frN, secName, r);
+                    } else if (subCat === 'target_behavior_report') {
+                      bytes = await window.DE_PDF.renderTargetBehaviorReportToPdf(parseEvaluationReport(rep), r.full_name, secName, r);
+                    } else if (subCat === 'mas_behavior_report') {
+                      bytes = await window.DE_PDF.renderMasBehaviorReportToPdf(parseEvaluationReport(rep), r.full_name, secName, r);
+                    } else if (subCat === 'annual_final') {
+                      bytes = await window.DE_PDF.renderAnnualFinalToPdf(parseEvaluationReport(rep), r.full_name, secName, r);
+                    } else {
+                      bytes = await window.DE_PDF.renderEvaluationToPdf(rep, r.full_name, secName, r, 'full');
+                    }
+                    window.DE_PDF.downloadPdf(bytes, (rep.title || 'تقرير').replace(/\s+/g, '_') + '.pdf');
+                    toast('تم تحميل ملف PDF بنجاح.', 'ok');
+                  } catch (err) {
+                    toast('تعذر التحميل: ' + (err.message || err), 'bad');
+                  }
+                }, 'gold'),
                 rep.attachment_path ? rbtn('المرفق', function () {
                   C.signedUrl('private-docs', rep.attachment_path, 60).then(function (url) {
                     window.open(url, '_blank');
                   }).catch(function (e) { toast(e.message, 'bad'); });
-                }, 'light') : null,
-                rbtn('تعديل التقرير', function () {
-                  S.preselectChildId = r.id;
-                  go('reports');
-                }, 'light')
+                }, 'light') : null
               )
             );
             repsHost.appendChild(repCard);
@@ -2301,29 +2344,54 @@
                 ),
                 h('div', { class: 'muted small', style: 'margin-top:3px;', text: 'التاريخ: ' + fmt(evRep.report_date) + ' • الحالة: ' + (evRep.status === 'published' ? 'معتمدة ومنشورة للولي' : 'مسودة') })
               ),
-              h('div', { class: 'row-actions' },
-                rbtn('👁 معاينة التقرير', function () {
-                  openModal(h('div', { class: 'modal-body wk-modal-print', style: 'max-width:980px; width:95%;' },
-                    renderEvaluationSheetView(evRep, r.full_name, secName, r),
-                    h('div', { class: 'modal-actions no-print', style: 'margin-top:16px;' },
-                      h('button', { class: 'btn light', type: 'button', text: 'إغلاق', onclick: closeModal }),
-                      h('button', {
-                        class: 'btn gold', type: 'button', text: '📄 تحميل PDF (A4)',
-                        onclick: async function () {
-                          try {
-                            if (!window.DE_PDF || !window.DE_PDF.renderEvaluationToPdf) throw new Error('مولد PDF غير متاح');
-                            toast('جارٍ إنشاء ملف PDF...', 'ok');
-                            var bytes = await window.DE_PDF.renderEvaluationToPdf(evRep, r.full_name, secName, r, 'full');
-                            window.DE_PDF.downloadPdf(bytes, (evRep.title || 'تقرير_تقييم').replace(/\s+/g, '_') + '.pdf');
-                          } catch (e) {
-                            toast('تعذر التحميل، سيتم فتح نافذة الطباعة: ' + e.message, 'bad');
-                            window.print();
-                          }
-                        }
-                      }),
-                      h('button', { class: 'btn light', type: 'button', text: '🖨 طباعة فورية', onclick: function () { window.print(); } })
-                    )
-                  ));
+              h('div', { class: 'row-actions', style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+                rbtn('👁 معاينة', function () {
+                  var subCat = getReportSubCategory(evRep);
+                  var viewEl = subCat === 'medico_functional_fr'
+                    ? renderMedicoFunctionalFrenchSheetView(evRep, r.full_name, secName, r)
+                    : subCat === 'target_behavior_report'
+                      ? renderTargetBehaviorReportSheetView(evRep, r.full_name, secName, r)
+                      : subCat === 'mas_behavior_report'
+                        ? renderMasBehaviorReportSheetView(evRep, r.full_name, secName, r)
+                        : subCat === 'behavior_observation'
+                          ? renderBehaviorObservationSheetView(evRep, r.full_name, secName, r)
+                          : renderEvaluationSheetView(evRep, r.full_name, secName, r);
+                  openFullDocumentPreviewModal((evRep.title || 'تقرير تقييم') + ' — ' + r.full_name, viewEl);
+                }, 'primary'),
+                rbtn('✏️ تعديل', function () {
+                  var subCat = getReportSubCategory(evRep);
+                  if (subCat === 'medico_functional_fr') return openMedicoFunctionalFrenchBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'target_behavior') return openTargetBehaviorBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(evRep, kids, sections, secAllOpts, branchOpts, allReports);
+                  if (subCat === 'mas_behavior' || subCat === 'mas') return openMasBehaviorBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(evRep, kids, sections, secAllOpts, branchOpts, allReports);
+                  if (subCat === 'behavior_observation') return openBehaviorObservationBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'reinforcers') return openReinforcersBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'interview_diagnostic') return openInterviewDiagnosticBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'annual_final') return openAnnualFinalBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                  if (subCat === 'qualitative') return openQualitativeReportBuilder(evRep, kids, sections, secAllOpts, branchOpts, allReports);
+                  return openEvaluationBuilder(evRep, kids, sections, secAllOpts, branchOpts);
+                }, 'light'),
+                rbtn('📄 تحميل PDF', async function () {
+                  try {
+                    var subCat = getReportSubCategory(evRep);
+                    toast('جارٍ إنشاء ملف PDF...', 'ok');
+                    var bytes;
+                    if (subCat === 'medico_functional_fr') bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(ev, resolveChildFrenchName(r), secName, r);
+                    else if (subCat === 'target_behavior') bytes = await window.DE_PDF.renderTargetBehaviorToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'target_behavior_report') bytes = await window.DE_PDF.renderTargetBehaviorReportToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'mas_behavior' || subCat === 'mas') bytes = await window.DE_PDF.renderMasBehaviorToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'mas_behavior_report') bytes = await window.DE_PDF.renderMasBehaviorReportToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'behavior_observation') bytes = await window.DE_PDF.renderBehaviorObservationToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'reinforcers') bytes = await window.DE_PDF.renderReinforcersToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'interview_diagnostic') bytes = await window.DE_PDF.renderInterviewDiagnosticToPdf(ev, r.full_name, secName, r);
+                    else if (subCat === 'annual_final') bytes = await window.DE_PDF.renderAnnualFinalToPdf(ev, r.full_name, secName, r);
+                    else bytes = await window.DE_PDF.renderEvaluationToPdf(evRep, r.full_name, secName, r, 'full');
+                    window.DE_PDF.downloadPdf(bytes, (evRep.title || 'تقرير_تقييم').replace(/\s+/g, '_') + '.pdf');
+                    toast('تم تحميل ملف PDF بنجاح.', 'ok');
+                  } catch (e) {
+                    toast('تعذر التحميل: ' + (e.message || e), 'bad');
+                  }
                 }, 'gold')
               )
             );
@@ -3463,13 +3531,13 @@
                   }
                 }, makeSvgIcon('s-file'), h('span', { text: 'PDF' })),
 
-                h('button', {
+                (!S.isEducator ? h('button', {
                   type: 'button',
                   class: 'btn light danger',
-                  style: 'font-size:12.5px;',
-                  title: 'حذف هذا البرنامج الأسبوعي',
+                  style: 'font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; gap:5px;',
+                  title: 'حذف هذا البرنامج الأسبوعي نهائياً دون المساس ببيانات الأطفال أو التقارير',
                   onclick: function () {
-                    confirmModal('هل أنت متأكد من حذف البرنامج الأسبوعي لفوج «' + sec.name + '»؟', async function () {
+                    confirmModal('هل أنت متأكد من حذف البرنامج الأسبوعي لفوج «' + sec.name + '»؟ (لن يتأثر ملف أي طفل أو تقرير مرتبط بالفوج)', async function () {
                       try {
                         if (prog.id && !String(prog.id).startsWith('prog-')) {
                           await C.rest('DELETE', '/educational_programs?id=eq.' + uid(prog.id));
@@ -3489,7 +3557,7 @@
                       }
                     });
                   }
-                }, makeSvgIcon('s-delete'))
+                }, makeSvgIcon('s-delete'), h('span', { text: 'حذف البرنامج' })) : null)
               )
             ) : (
               h('span', { style: 'font-size:12px; color:#94A3B8; font-weight:700;', text: '⚪ لا يوجد برنامج مضاف بعد (استخدم زر الإضافة أعلاه)' })
@@ -4483,6 +4551,84 @@
   /* =====================================================================
      6. التقارير التربوية الدورية واستمارات التقييم البيداغوجي (مفصولة ومطابقة للصورة الرسمية)
      ===================================================================== */
+
+  /* ══ مساعدات التمدد التلقائي للحقول ومعاينة الوثائق الكاملة مع التكبير/التصغير ══ */
+  function attachAutoResizeTextarea(ta) {
+    if (!ta || ta.tagName !== 'TEXTAREA') return ta;
+    ta.style.overflowY = 'hidden';
+    ta.style.resize = 'vertical';
+    var resizeNow = function () {
+      ta.style.height = 'auto';
+      var sh = ta.scrollHeight;
+      ta.style.height = Math.max(36, sh + 2) + 'px';
+    };
+    ta.addEventListener('input', resizeNow);
+    ta.addEventListener('change', resizeNow);
+    setTimeout(resizeNow, 30);
+    return ta;
+  }
+
+  if (typeof document !== 'undefined' && !window._deAutoResizeBound) {
+    window._deAutoResizeBound = true;
+    document.addEventListener('input', function (ev) {
+      var el = ev.target;
+      if (el && el.tagName === 'TEXTAREA') {
+        el.style.overflowY = 'hidden';
+        el.style.height = 'auto';
+        el.style.height = Math.max(36, el.scrollHeight + 2) + 'px';
+      }
+    }, true);
+  }
+
+  function openFullDocumentPreviewModal(titleText, contentEl, onDownloadPdf) {
+    var zoomPct = 100;
+    var zoomLabel = h('span', { style: 'font-weight:900; font-size:12.5px; color:#163B65; min-width:46px; text-align:center;', text: '100%' });
+    var stageInner = h('div', {
+      style: 'transform-origin:top center; transition:transform 0.15s ease; width:100%;'
+    }, contentEl);
+    var stageScroll = h('div', {
+      style: 'flex:1; overflow:auto; background:#E2E8F0; padding:16px; border-radius:10px; max-height:76vh;'
+    }, stageInner);
+
+    function applyZoom(pct) {
+      zoomPct = Math.max(50, Math.min(200, pct));
+      zoomLabel.textContent = zoomPct + '%';
+      stageInner.style.transform = 'scale(' + (zoomPct / 100) + ')';
+      stageInner.style.width = zoomPct > 100 ? (10000 / zoomPct) + '%' : '100%';
+    }
+
+    var toolbar = h('div', {
+      class: 'no-print',
+      style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-bottom:10px; margin-bottom:10px; border-bottom:1.5px solid #CBD5E1;'
+    },
+      h('div', { style: 'display:flex; align-items:center; gap:8px;' },
+        h('img', { src: 'logo.png', style: 'width:32px; height:32px; border-radius:6px; object-fit:contain;' }),
+        h('strong', { style: 'color:#163B65; font-size:14.5px;', text: titleText || 'معاينة الوثيقة الكاملة' })
+      ),
+      h('div', { style: 'display:flex; align-items:center; gap:6px; flex-wrap:wrap;' },
+        h('button', { type: 'button', class: 'btn small light', text: '− تصغير', onclick: function () { applyZoom(zoomPct - 15); } }),
+        zoomLabel,
+        h('button', { type: 'button', class: 'btn small light', text: '+ تكبير', onclick: function () { applyZoom(zoomPct + 15); } }),
+        h('button', { type: 'button', class: 'btn small light', text: '100%', onclick: function () { applyZoom(100); } }),
+        typeof onDownloadPdf === 'function' ? h('button', { type: 'button', class: 'btn small gold', text: '📄 تحميل PDF', onclick: onDownloadPdf }) : null,
+        h('button', { type: 'button', class: 'btn small light', text: '🖨 طباعة', onclick: function () { window.print(); } }),
+        h('button', { type: 'button', class: 'btn small danger', text: 'إغلاق', onclick: closeModal })
+      )
+    );
+
+    var modalWrap = h('div', {
+      class: 'modal card wk-modal-print',
+      style: 'max-width:1080px; width:96%; max-height:94vh; display:flex; flex-direction:column; padding:14px 16px; background:#FFFFFF; border-radius:14px;'
+    }, toolbar, stageScroll);
+
+    openModal(modalWrap);
+    setTimeout(function () {
+      stageScroll.scrollTop = 0;
+      var modalBackdrop = modalWrap.parentElement;
+      if (modalBackdrop) modalBackdrop.scrollTop = 0;
+    }, 30);
+  }
+
   var EVAL_MARKER = '/*DE_EVAL_V1*/';
   var SHARED_EVALS_STORAGE_KEY = 'de_shared_evaluations_v1';
 
@@ -4508,7 +4654,10 @@
         r.title.indexOf('تقرير نوعي تحليلي') >= 0 ||
         r.title.indexOf('التقرير النوعي') >= 0 ||
         r.title.indexOf('تقرير الكمي') >= 0 ||
-        r.title.indexOf('التقرير الكمي') >= 0
+        r.title.indexOf('التقرير الكمي') >= 0 ||
+        r.title.indexOf('FICHE DE SUIVI') >= 0 ||
+        r.title.indexOf('MÉDICO-FONCTIONNEL') >= 0 ||
+        r.title.indexOf('crises épileptiques') >= 0
       ));
   }
 
@@ -4528,6 +4677,7 @@
         }
       } catch (e) {}
     }
+    if (t.indexOf('FICHE DE SUIVI') >= 0 || t.indexOf('MÉDICO-FONCTIONNEL') >= 0 || t.indexOf('crises épileptiques') >= 0) return 'medico_functional_fr';
     if (t.indexOf('التقرير النهائي') >= 0) return 'annual_final';
     if (t.indexOf('النوعي') >= 0 || t.indexOf('تقرير نوعي') >= 0 || t.indexOf('qualitatif') >= 0 || t.indexOf('تقرير الملاحظات') >= 0) return 'qualitative';
     if (t.indexOf('الكمي') >= 0 || t.indexOf('quantitative') >= 0) return 'quantitative';
@@ -4544,7 +4694,7 @@
 
   function isSectionReport(r) {
     var cat = getReportSubCategory(r);
-    return cat === 'periodic' || cat === 'annual_final' || cat === 'qualitative' || cat === 'quantitative' || cat === 'target_behavior_report' || cat === 'mas_behavior_report';
+    return cat === 'periodic' || cat === 'annual_final' || cat === 'qualitative' || cat === 'quantitative' || cat === 'target_behavior_report' || cat === 'mas_behavior_report' || cat === 'medico_functional_fr';
   }
 
   function isSectionEvaluation(r) {
@@ -6421,6 +6571,7 @@
           if (rawJson.target_behavior_report) res.target_behavior_report = Object.assign({}, res.target_behavior_report, rawJson.target_behavior_report);
           if (rawJson.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval, rawJson.mas_eval);
           if (rawJson.mas_behavior_report) res.mas_behavior_report = Object.assign({}, res.mas_behavior_report, rawJson.mas_behavior_report);
+          if (rawJson.medico_functional_fr) res.medico_functional_fr = Object.assign({}, res.medico_functional_fr, rawJson.medico_functional_fr);
           if (rawJson.term) res.term = rawJson.term;
           if (rawJson.school_year) res.school_year = rawJson.school_year;
           if (rawJson.degree_of_disability) res.degree_of_disability = rawJson.degree_of_disability;
@@ -6469,6 +6620,7 @@
       if (r.target_behavior_report) res.target_behavior_report = Object.assign({}, res.target_behavior_report || {}, r.target_behavior_report);
       if (r.mas_eval) res.mas_eval = Object.assign({}, res.mas_eval || {}, r.mas_eval);
       if (r.mas_behavior_report) res.mas_behavior_report = Object.assign({}, res.mas_behavior_report || {}, r.mas_behavior_report);
+      if (r.medico_functional_fr) res.medico_functional_fr = Object.assign({}, res.medico_functional_fr || {}, r.medico_functional_fr);
       if (Array.isArray(r.domains) && r.domains.length) {
         var mappedDirect = mapRawDomains(r.domains);
         var hasDirectRated = mappedDirect.some(function (d) {
@@ -7274,7 +7426,7 @@
     }
     kidSelect.addEventListener('change', onKidChange);
 
-    var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:20px; background:#F8FAFC; padding:16px; border-radius:12px; border:1.5px solid #E2E8F0;' },
+    var metaGrid = h('div', { class: 'compact-qual-grid', style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:12px; background:#F8FAFC; padding:10px 12px; border-radius:10px; border:1px solid #CBD5E1; font-size:12px;' },
       h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '1. القسم التربوي:' }), secFilterSelect),
       h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '2. اسم ولقب الحالة:' }), kidSelect),
       h('div', null, h('label', { class: 'lbl', style: 'font-weight:800; margin-bottom:4px; display:block; color:#163B65;', text: '3. الإعاقة / الاضطراب:' }), disabilityInp),
@@ -7287,11 +7439,11 @@
     var tableEl = h('table', { style: 'width:100%; border-collapse:collapse; border:2px solid #163B65; margin-bottom:20px; background:#FFFFFF; text-align:right;' });
     var thead = h('thead', null,
       h('tr', { style: 'background:#163B65; color:#FFFFFF;' },
-        h('th', { style: 'padding:10px 12px; border:1px solid #CBD5E1; width:45%; font-size:14px; font-weight:900;', text: 'العبارات (مؤشرات السلوك)' }),
-        h('th', { style: 'padding:10px 4px; border:1px solid #CBD5E1; text-align:center; width:11%; font-size:13px; font-weight:800;', text: 'يوجد' }),
-        h('th', { style: 'padding:10px 4px; border:1px solid #CBD5E1; text-align:center; width:11%; font-size:13px; font-weight:800;', text: 'متوسط' }),
-        h('th', { style: 'padding:10px 4px; border:1px solid #CBD5E1; text-align:center; width:11%; font-size:13px; font-weight:800;', text: 'لا يوجد' }),
-        h('th', { style: 'padding:10px 8px; border:1px solid #CBD5E1; text-align:center; width:22%; font-size:13px; font-weight:800;', text: 'ملاحظات' })
+        h('th', { style: 'padding:8px 10px; border:1px solid #CBD5E1; width:38%; font-size:13.5px; font-weight:900;', text: 'العبارات (مؤشرات السلوك)' }),
+        h('th', { style: 'padding:8px 4px; border:1px solid #CBD5E1; text-align:center; width:9%; font-size:12.5px; font-weight:800;', text: 'يوجد' }),
+        h('th', { style: 'padding:8px 4px; border:1px solid #CBD5E1; text-align:center; width:9%; font-size:12.5px; font-weight:800;', text: 'متوسط' }),
+        h('th', { style: 'padding:8px 4px; border:1px solid #CBD5E1; text-align:center; width:9%; font-size:12.5px; font-weight:800;', text: 'لا يوجد' }),
+        h('th', { style: 'padding:8px 8px; border:1px solid #CBD5E1; text-align:center; width:35%; font-size:13px; font-weight:800;', text: 'ملاحظات تفصيلية' })
       )
     );
     tableEl.appendChild(thead);
@@ -7304,12 +7456,12 @@
       var curVal = saved.val || '';
       var curNote = saved.note || '';
 
-      var noteInp = h('input', {
-        type: 'text',
+      var noteInp = attachAutoResizeTextarea(h('textarea', {
+        rows: 1,
         placeholder: 'ملاحظات الحالة...',
-        value: curNote,
-        style: 'width:100%; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:12.5px; box-sizing:border-box;'
-      });
+        style: 'width:100%; min-height:34px; padding:6px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:12.5px; box-sizing:border-box; font-family:inherit; line-height:1.5;'
+      }));
+      noteInp.value = curNote;
 
       function makeRadioBtn(optVal, activeColor) {
         var isChecked = curVal === optVal;
@@ -7367,11 +7519,11 @@
     card.appendChild(tableEl);
 
     // ملاحظات إضافية
-    var extraNotesArea = h('textarea', {
-      rows: 4,
-      style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13.5px; box-sizing:border-box; margin-bottom:20px;',
-      placeholder: 'سجل أي ملاحظات إضافية بخصوص سلوك الحالة هنا...'
-    });
+    var extraNotesArea = attachAutoResizeTextarea(h('textarea', {
+      rows: 2,
+      style: 'width:100%; min-height:48px; padding:10px 12px; border-radius:8px; border:1.5px solid #CBD5E1; font-family:inherit; font-size:13.5px; line-height:1.7; box-sizing:border-box; margin-bottom:14px;',
+      placeholder: 'سجل التقرير العام والملاحظات الإضافية بخصوص سلوك الحالة هنا (يتمدد الحقل تلقائياً مع النص)...'
+    }));
     extraNotesArea.value = obs.additional_notes || '';
 
     card.appendChild(h('div', null,
@@ -8038,9 +8190,15 @@
         date: d.date,
         day_name: d.day_name,
         date_display: d.date_display,
-        rows: Array.isArray(d.rows) && d.rows.length ? d.rows.map(function (r) { return Object.assign({}, r); }) : [
-          { main_behavior: '', sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' },
-          { main_behavior: '', sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }
+        rows: Array.isArray(d.rows) && d.rows.length ? d.rows.map(function (r) {
+          var copy = Object.assign({}, r);
+          if (!copy.behavior_time && !copy.behavior_duration && copy.time_duration) {
+            copy.behavior_time = copy.time_duration;
+          }
+          return copy;
+        }) : [
+          { main_behavior: '', sub_behavior: '', behavior_time: '', behavior_duration: '', frequency: '', location: '', antecedents: '' },
+          { main_behavior: '', sub_behavior: '', behavior_time: '', behavior_duration: '', frequency: '', location: '', antecedents: '' }
         ]
       };
     }) : [];
@@ -8172,53 +8330,79 @@
       behaviorDisplayInp.value = parts.join(' — ');
     }
 
-    var preMainSelect = h('select', { style: 'flex:1; min-width:210px; padding:6px 8px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700; font-size:12.5px;' },
-      h('option', { value: '', text: '— 1. اختر السلوك الرئيسي —' }),
-      TARGET_BEHAVIORS_CATALOG.map(function (cat, idx) {
-        return h('option', { value: String(idx), text: (idx + 1) + '. ' + cat.main });
-      })
-    );
+    var selectedMains = Array.isArray(tb.selected_mains) ? tb.selected_mains.slice() : [];
+    selectedPairs.forEach(function (p) {
+      if (p && p.main && selectedMains.indexOf(p.main) < 0) selectedMains.push(p.main);
+    });
 
-    var preSubWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;' });
+    var mainChipsWrap = h('div', { style: 'display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;' });
+    var preSubWrap = h('div', { style: 'display:flex; flex-direction:column; gap:8px; margin-top:8px;' });
 
-    preMainSelect.onchange = function () {
+    function renderMultiMainSelector() {
+      mainChipsWrap.textContent = '';
       preSubWrap.textContent = '';
-      var mIdx = parseInt(preMainSelect.value, 10);
-      if (isNaN(mIdx) || !TARGET_BEHAVIORS_CATALOG[mIdx]) return;
-      var cat = TARGET_BEHAVIORS_CATALOG[mIdx];
 
-      cat.subs.forEach(function (subName) {
-        var isAlready = selectedPairs.some(function (p) { return p.main === cat.main && p.sub === subName; });
-        var chipBtn = h('button', {
+      TARGET_BEHAVIORS_CATALOG.forEach(function (cat, idx) {
+        var isMainSel = selectedMains.indexOf(cat.main) >= 0;
+        var mBtn = h('button', {
           type: 'button',
-          class: 'btn small ' + (isAlready ? 'gold' : 'light'),
-          style: 'font-size:11.5px; padding:4px 9px; border-radius:7px;',
-          text: (isAlready ? '✔ ' : '+ ') + subName,
+          class: 'btn small ' + (isMainSel ? 'primary' : 'light'),
+          style: 'font-size:11.5px; padding:5px 10px; border-radius:8px; font-weight:800;',
+          text: (isMainSel ? '✔ ' : '+ ') + (idx + 1) + '. ' + cat.main.replace(/\s*\([^)]*\)\s*/g, ''),
           onclick: function () {
-            var idxExist = selectedPairs.findIndex(function (p) { return p.main === cat.main && p.sub === subName; });
-            if (idxExist >= 0) {
-              selectedPairs.splice(idxExist, 1);
+            var pos = selectedMains.indexOf(cat.main);
+            if (pos >= 0) {
+              selectedMains.splice(pos, 1);
+              selectedPairs = selectedPairs.filter(function (p) { return p.main !== cat.main; });
             } else {
-              selectedPairs.push({ main: cat.main, sub: subName });
+              selectedMains.push(cat.main);
             }
             updateBehaviorInputFromGrouped();
             syncBehaviorTextFromPairs();
-            preMainSelect.onchange();
+            renderMultiMainSelector();
             triggerLiveRefresh();
           }
         });
-        preSubWrap.appendChild(chipBtn);
+        mainChipsWrap.appendChild(mBtn);
       });
-    };
+
+      selectedMains.forEach(function (mName) {
+        var cat = TARGET_BEHAVIORS_CATALOG.filter(function (c) { return c.main === mName; })[0];
+        if (!cat) return;
+        var groupBox = h('div', { style: 'background:#FFFFFF; border:1px solid #BFDBFE; border-radius:8px; padding:8px 10px;' },
+          h('div', { style: 'font-size:12px; font-weight:900; color:#163B65; margin-bottom:5px;', text: 'السلوكيات التابعة لـ: ' + cat.main })
+        );
+        var chipsRow = h('div', { style: 'display:flex; flex-wrap:wrap; gap:5px;' });
+        cat.subs.forEach(function (subName) {
+          var isAlready = selectedPairs.some(function (p) { return p.main === cat.main && p.sub === subName; });
+          chipsRow.appendChild(h('button', {
+            type: 'button',
+            class: 'btn small ' + (isAlready ? 'gold' : 'light'),
+            style: 'font-size:11.5px; padding:4px 9px; border-radius:7px;',
+            text: (isAlready ? '✔ ' : '+ ') + subName,
+            onclick: function () {
+              var idxExist = selectedPairs.findIndex(function (p) { return p.main === cat.main && p.sub === subName; });
+              if (idxExist >= 0) selectedPairs.splice(idxExist, 1);
+              else selectedPairs.push({ main: cat.main, sub: subName });
+              updateBehaviorInputFromGrouped();
+              syncBehaviorTextFromPairs();
+              renderMultiMainSelector();
+              triggerLiveRefresh();
+            }
+          }));
+        });
+        groupBox.appendChild(chipsRow);
+        preSubWrap.appendChild(groupBox);
+      });
+    }
 
     syncBehaviorTextFromPairs();
+    renderMultiMainSelector();
 
     var behaviorSelectorBox = h('div', { style: 'background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:10px; padding:10px 12px; margin-bottom:14px;' },
-      h('label', { style: 'font-weight:900; color:#163B65; font-size:13px; display:block; margin-bottom:4px;', text: 'السلوك المستهدف (يمكنك اختيار أكثر من سلوك رئيسي وفرعي):' }),
+      h('label', { style: 'font-weight:900; color:#163B65; font-size:13px; display:block; margin-bottom:4px;', text: '1. السلوكيات الرئيسية المختارة (يمكنك تحديد أكثر من سلوك رئيسي ثم السلوكيات التابعة له):' }),
       behaviorDisplayInp,
-      h('div', { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;' },
-        preMainSelect
-      ),
+      mainChipsWrap,
       preSubWrap,
       selectedTagsWrap
     );
@@ -8327,24 +8511,32 @@
         modal.appendChild(quickBox);
       }
 
-      var mSel = h('select', { style: 'width:100%; padding:7px 10px; border-radius:8px; border:1px solid #CBD5E1; font-weight:700; margin-bottom:8px; font-size:12.5px;' },
-        h('option', { value: '', text: '— 1. اختر السلوك الرئيسي —' }),
-        TARGET_BEHAVIORS_CATALOG.map(function (c, i) {
+      var allowedCatalog = selectedMains.length
+        ? TARGET_BEHAVIORS_CATALOG.filter(function (c) { return selectedMains.indexOf(c.main) >= 0; })
+        : TARGET_BEHAVIORS_CATALOG;
+
+      var mSel = h('select', { style: 'width:100%; padding:7px 10px; border-radius:8px; border:1.5px solid #163B65; font-weight:800; margin-bottom:8px; font-size:12.5px;' },
+        h('option', { value: '', text: selectedMains.length ? '— 1. اختر السلوك الرئيسي من القائمة المحددة —' : '— 1. اختر السلوك الرئيسي —' }),
+        allowedCatalog.map(function (c, i) {
           var opt = h('option', { value: String(i), text: (i + 1) + '. ' + c.main });
           if (rowItem.main_behavior === c.main) opt.selected = true;
           return opt;
         })
       );
+      if (allowedCatalog.length === 1) mSel.value = '0';
       modal.appendChild(mSel);
 
-      var subsContainer = h('div', { style: 'display:flex; flex-direction:column; gap:5px; max-height:240px; overflow-y:auto;' });
+      var subsContainer = h('div', { style: 'display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;' });
       modal.appendChild(subsContainer);
 
       function renderSubsForMain() {
         subsContainer.textContent = '';
         var idx = parseInt(mSel.value, 10);
-        if (isNaN(idx) || !TARGET_BEHAVIORS_CATALOG[idx]) return;
-        var cat = TARGET_BEHAVIORS_CATALOG[idx];
+        if (isNaN(idx) || !allowedCatalog[idx]) {
+          subsContainer.appendChild(h('p', { class: 'muted small', style: 'margin:4px 0; text-align:center;', text: 'اختر السلوك الرئيسي أولاً لعرض السلوكيات التابعة له فقط.' }));
+          return;
+        }
+        var cat = allowedCatalog[idx];
         cat.subs.forEach(function (sName) {
           var sBtn = h('button', {
             type: 'button',
@@ -8375,12 +8567,13 @@
 
       tbl.appendChild(h('thead', null,
         h('tr', { style: 'background:#F8FAFC; font-weight:900; color:#000;' },
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'اليوم والتاريخ' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:20%;', text: 'نوع السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'وقت و مدة حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:14%;', text: 'عدد مرات تكرار السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:16%;', text: 'مكان حدوث السلوك' }),
-          h('th', { style: 'border:1.5px solid #000; padding:8px; width:18%;', text: 'سوابق حدوث السلوك' })
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:13%;', text: 'اليوم والتاريخ' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:19%;', text: 'السلوك (الرئيسي والفرعي)' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'وقت السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'مدة السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:11%;', text: 'عدد التكرار' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:15%;', text: 'مكان حدوث السلوك' }),
+          h('th', { style: 'border:1.5px solid #000; padding:7px; width:20%;', text: 'سوابق حدوث السلوك' })
         )
       ));
 
@@ -8464,7 +8657,8 @@
             return h('td', { style: 'border:1.5px solid #000; padding:2px;' }, inp);
           }
 
-          tr.appendChild(makeManualCellInput('time_duration', 'الوقت والمدة...'));
+          tr.appendChild(makeManualCellInput('behavior_time', 'مثال: 09:30'));
+          tr.appendChild(makeManualCellInput('behavior_duration', 'مثال: 30 ثانية'));
           tr.appendChild(makeManualCellInput('frequency', 'عدد المرات...'));
           tr.appendChild(makeManualCellInput('location', 'المكان...'));
           tr.appendChild(makeManualCellInput('antecedents', 'السوابق...'));
@@ -8486,6 +8680,7 @@
         start_date: startDateInp.value,
         end_date: endDateInp.value,
         skip_weekend: skipWeekendChk.checked,
+        selected_mains: selectedMains,
         selected_pairs: selectedPairs,
         selected_behaviors_text: behaviorDisplayInp.value,
         days: daysList
@@ -8826,15 +9021,26 @@
       style: 'width:100%; background:#FFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:280px; display:flex; align-items:center; justify-content:center;'
     }, h('span', { class: 'muted small', text: 'جارٍ رسم الصفحة 1 من تقرير قياس السلوك المستهدف...' }));
 
-    if (window.DE_PDF && typeof window.DE_PDF.renderTargetBehaviorReportPage1Canvas === 'function') {
+    (function renderTbPage1(attempt) {
+      if (!window.DE_PDF || typeof window.DE_PDF.renderTargetBehaviorReportPage1Canvas !== 'function') {
+        if (attempt < 20) return setTimeout(function () { renderTbPage1(attempt + 1); }, 150);
+        p1Host.textContent = 'تعذر تحميل محرك الرسوم البيانية. يرجى تحديث الصفحة.';
+        p1Host.style.color = '#991B1B';
+        return;
+      }
       window.DE_PDF.renderTargetBehaviorReportPage1Canvas(ev, chName, secName, kd).then(function (c1) {
+        if (!c1 || !c1.getContext) throw new Error('تعذر إنشاء لوحة الرسم');
         p1Host.textContent = '';
         c1.style.width = '100%';
         c1.style.height = 'auto';
         c1.style.display = 'block';
         p1Host.appendChild(c1);
-      }).catch(function () {});
-    }
+      }).catch(function (err) {
+        console.error('[DarElIhsan] TB Page1 render error:', err);
+        p1Host.textContent = 'تعذر رسم المنحنى ومقياس الساعة: ' + ((err && err.message) || 'خطأ تقني');
+        p1Host.style.color = '#991B1B';
+      });
+    })(0);
     holder.appendChild(p1Host);
 
     function makePage2SectionBox(num, title, contentTxt) {
@@ -8846,7 +9052,7 @@
           )
         ),
         h('div', {
-          style: 'min-height:76px; padding:10px 14px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.8; color:#0F172A; white-space:pre-wrap;',
+          style: 'padding:10px 14px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.75; color:#0F172A; white-space:pre-wrap; height:auto;',
           text: (contentTxt && String(contentTxt).trim()) ? contentTxt : '........................................................................................................................'
         })
       );
@@ -8868,6 +9074,54 @@
         h('div', null, h('div', { text: '........................................' }), h('div', { style: 'margin-top:4px;', text: 'مدير المركز' }))
       )
     );
+    // جدول منظم يعرض السلوك الرئيسي + السلوكيات التابعة المختارة + بيانات التقييم لكل سلوك
+    var groupedSummary = [];
+    var seenKeys = {};
+    ((tb && tb.days) || []).forEach(function (dObj) {
+      (dObj.rows || []).forEach(function (ri) {
+        if (!ri.sub_behavior && !ri.main_behavior) return;
+        var mKey = ri.main_behavior || 'سلوك مستهدف';
+        var sKey = ri.sub_behavior || '—';
+        var k = mKey + '||' + sKey;
+        if (!seenKeys[k]) {
+          seenKeys[k] = { main: mKey, sub: sKey, count: 0, times: [], durations: [], locations: [], antecedents: [] };
+          groupedSummary.push(seenKeys[k]);
+        }
+        var g = seenKeys[k];
+        var fNum = parseInt(String(ri.frequency || '').replace(/[^0-9]/g, ''), 10);
+        g.count += isNaN(fNum) ? 1 : fNum;
+        if (ri.behavior_time) g.times.push(ri.behavior_time);
+        if (ri.behavior_duration) g.durations.push(ri.behavior_duration);
+        if (ri.location && g.locations.indexOf(ri.location) < 0) g.locations.push(ri.location);
+        if (ri.antecedents && g.antecedents.indexOf(ri.antecedents) < 0) g.antecedents.push(ri.antecedents);
+      });
+    });
+    if (groupedSummary.length > 0) {
+      var sumTbl = h('table', { style: 'width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12.5px; border:1.5px solid #163B65;' },
+        h('thead', null,
+          h('tr', { style: 'background:#163B65; color:#FFFFFF;' },
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'السلوك الرئيسي' }),
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'السلوك التابع المختار' }),
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'التكرار' }),
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'وقت السلوك' }),
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'مدة السلوك' }),
+            h('th', { style: 'padding:7px; border:1px solid #CBD5E1;', text: 'المكان والسوابق' })
+          )
+        ),
+        h('tbody', null, groupedSummary.map(function (g, gi) {
+          return h('tr', { style: 'background:' + (gi % 2 === 0 ? '#FFFFFF' : '#F8FAFC') + ';' },
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1; font-weight:800; color:#163B65;', text: g.main.replace(/\s*\([^)]*\)\s*/g, '') }),
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1; font-weight:700;', text: g.sub }),
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1; text-align:center; font-weight:800;', text: String(g.count) }),
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1; text-align:center;', text: g.times.join('، ') || '—' }),
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1; text-align:center;', text: g.durations.join('، ') || '—' }),
+            h('td', { style: 'padding:6px; border:1px solid #CBD5E1;', text: [g.locations.join('، '), g.antecedents.join('، ')].filter(Boolean).join(' — ') || '—' })
+          );
+        }))
+      );
+      page2Dom.insertBefore(sumTbl, page2Dom.children[1] || null);
+    }
+
     holder.appendChild(page2Dom);
 
     return holder;
@@ -9217,7 +9471,11 @@
           cEl.style.display = 'block';
           cEl.style.maxWidth = '100%';
           canvasPreviewWrap.appendChild(cEl);
-        }).catch(function () {});
+        }).catch(function (err) {
+          console.error('[DarElIhsan] Live MAS chart error:', err);
+          canvasPreviewWrap.textContent = 'تعذر رسم المخطط البياني: ' + ((err && err.message) || '');
+          canvasPreviewWrap.style.color = '#991B1B';
+        });
       }
     }
 
@@ -9895,15 +10153,26 @@
       style: 'width:100%; background:#FFF; border:1px solid #CBD5E1; border-radius:10px; overflow:hidden; min-height:280px; display:flex; align-items:center; justify-content:center;'
     }, h('span', { class: 'muted small', text: 'جارٍ رسم الصفحة 1 من تقرير دوافع السلوك...' }));
 
-    if (window.DE_PDF && typeof window.DE_PDF.renderMasBehaviorReportPage1Canvas === 'function') {
+    (function renderMasPage1(attempt) {
+      if (!window.DE_PDF || typeof window.DE_PDF.renderMasBehaviorReportPage1Canvas !== 'function') {
+        if (attempt < 20) return setTimeout(function () { renderMasPage1(attempt + 1); }, 150);
+        p1Host.textContent = 'تعذر تحميل محرك الرسوم البيانية. يرجى تحديث الصفحة.';
+        p1Host.style.color = '#991B1B';
+        return;
+      }
       window.DE_PDF.renderMasBehaviorReportPage1Canvas(ev, chName, secName, kd).then(function (c1) {
+        if (!c1 || !c1.getContext) throw new Error('تعذر إنشاء لوحة الرسم');
         p1Host.textContent = '';
         c1.style.width = '100%';
         c1.style.height = 'auto';
         c1.style.display = 'block';
         p1Host.appendChild(c1);
-      }).catch(function () {});
-    }
+      }).catch(function (err) {
+        console.error('[DarElIhsan] MAS Page1 render error:', err);
+        p1Host.textContent = 'تعذر رسم مخطط دوافع السلوك ومقياس الساعة: ' + ((err && err.message) || 'خطأ تقني');
+        p1Host.style.color = '#991B1B';
+      });
+    })(0);
     holder.appendChild(p1Host);
 
     function makePage2SectionBox(num, title, contentTxt) {
@@ -9915,7 +10184,7 @@
           )
         ),
         h('div', {
-          style: 'min-height:76px; padding:10px 14px; background:#F8FAFC; border:1px dashed #94A3B8; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.8; color:#0F172A; white-space:pre-wrap;',
+          style: 'padding:10px 14px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; font-size:13.5px; font-weight:700; line-height:1.75; color:#0F172A; white-space:pre-wrap; height:auto;',
           text: (contentTxt && String(contentTxt).trim()) ? contentTxt : '........................................................................................................................'
         })
       );
@@ -10100,6 +10369,646 @@
      مع عرض تقرير الكمي (quantitative) فوقه، وتصغير مكان معلومات الطفل للنصف بدون بحث،
      وأرقام عناوين صحيحة
      ===================================================================== */
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     باني وعارض التقرير الفرنسي الأصلي:
+     FICHE DE SUIVI MÉDICO-FONCTIONNEL — Suivi des crises épileptiques
+     - الكتابة الحمراء (#B91C1C): نصوص وتعليمات ثابتة وموحدة لجميع الأطفال
+     - الكتابة الخضراء (#15803D): اختيارات محددة مسبقاً مع إمكانية إضافة خيارات جديدة
+     - الكتابة السوداء (#0F172A): نصوص عادية وحقول كتابة يدوية حرة
+     - شعار دار الإحسان في أعلى يمين الوثيقة + معاينة كاملة + PDF بدون أخطاء
+     ══════════════════════════════════════════════════════════════════════════ */
+  var MEDICO_CUSTOM_OPTS_KEY = 'de_medico_fr_custom_green_opts_v1';
+  function loadMedicoCustomGreenOpts() {
+    try { return JSON.parse(localStorage.getItem(MEDICO_CUSTOM_OPTS_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveMedicoCustomGreenOpts(obj) {
+    try { localStorage.setItem(MEDICO_CUSTOM_OPTS_KEY, JSON.stringify(obj || {})); } catch (e) {}
+  }
+
+  function resolveChildFrenchName(kid, fallbackName) {
+    var arName = (kid && kid.full_name) || fallbackName || '';
+    var memNo = (kid && kid.membership_no) || '';
+    if (window.DEUser && typeof window.DEUser.frName === 'function') {
+      var fr = window.DEUser.frName(arName, memNo);
+      if (fr && fr.trim()) return fr.trim().toUpperCase();
+    }
+    return arName;
+  }
+
+  function calcFrenchAge(dob) {
+    if (!dob) return '';
+    var b = new Date(dob), n = new Date();
+    if (isNaN(b.getTime())) return '';
+    var a = n.getFullYear() - b.getFullYear();
+    if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+    return (a < 10 ? '0' + a : String(a)) + ' ans';
+  }
+
+  function renderMedicoFunctionalFrenchSheetView(r, childFullName, secName, kd, adminOpts) {
+    var ev = parseEvaluationReport(r);
+    var mf = ev.medico_functional_fr || {};
+    var frName = mf.child_name_fr || resolveChildFrenchName(kd, childFullName || ev.child_name);
+
+    var wrap = h('div', { style: 'direction:rtl;' });
+
+    var bar = h('div', { class: 'no-print', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; padding:10px 12px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px;' },
+      h('div', { style: 'display:flex; align-items:center; gap:8px;' },
+        h('span', { class: 'badge gold', text: '🇫🇷 FICHE DE SUIVI MÉDICO-FONCTIONNEL' }),
+        h('strong', { style: 'color:#1B365D; font-size:13.5px;', text: frName })
+      ),
+      h('div', { style: 'display:flex; gap:6px; flex-wrap:wrap;' },
+        h('button', {
+          type: 'button',
+          class: 'btn small primary',
+          text: '👁 معاينة كاملة',
+          onclick: async function () {
+            var pagesHolder = h('div', { style: 'display:flex; flex-direction:column; gap:14px; align-items:center;' },
+              h('span', { class: 'muted small', text: 'جارٍ تجهيز صفحات الوثيقة...' })
+            );
+            var dlFn = async function () {
+              try {
+                toast('جارٍ تجهيز ملف PDF الفرنسي...', 'ok');
+                var bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(ev, frName, secName, kd);
+                window.DE_PDF.downloadPdf(bytes, 'FICHE_SUIVI_MEDICO_FONCTIONNEL_' + (frName || 'enfant').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf');
+                toast('تم تحميل التقرير الفرنسي بنجاح.', 'ok');
+              } catch (err) {
+                toast('تعذر تحميل PDF: ' + (err.message || err), 'bad');
+              }
+            };
+            openFullDocumentPreviewModal('FICHE DE SUIVI MÉDICO-FONCTIONNEL — ' + frName, pagesHolder, dlFn);
+            try {
+              var canvases = await window.DE_PDF.renderMedicoFunctionalFrenchPages(ev, frName, secName, kd);
+              pagesHolder.textContent = '';
+              canvases.forEach(function (cv) {
+                cv.style.width = '100%';
+                cv.style.maxWidth = '920px';
+                cv.style.height = 'auto';
+                cv.style.background = '#FFF';
+                cv.style.boxShadow = '0 4px 16px rgba(15,23,42,0.14)';
+                cv.style.borderRadius = '6px';
+                pagesHolder.appendChild(cv);
+              });
+            } catch (err) {
+              pagesHolder.textContent = 'تعذر عرض المعاينة: ' + (err.message || err);
+            }
+          }
+        }),
+        h('button', {
+          type: 'button',
+          class: 'btn small gold',
+          text: '📄 تحميل PDF',
+          onclick: async function () {
+            try {
+              toast('جارٍ تجهيز ملف PDF الفرنسي...', 'ok');
+              var bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(ev, frName, secName, kd);
+              window.DE_PDF.downloadPdf(bytes, 'FICHE_SUIVI_MEDICO_FONCTIONNEL_' + (frName || 'enfant').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf');
+              toast('تم تحميل التقرير الفرنسي بنجاح.', 'ok');
+            } catch (err) {
+              toast('تعذر تحميل PDF: ' + (err.message || err), 'bad');
+            }
+          }
+        }),
+        adminOpts && adminOpts.onEdit ? h('button', { type: 'button', class: 'btn small light', text: '✏️ تعديل التقرير', onclick: adminOpts.onEdit }) : null,
+        adminOpts && adminOpts.onDelete ? h('button', { type: 'button', class: 'btn small danger', text: 'حذف', onclick: adminOpts.onDelete }) : null
+      )
+    );
+    wrap.appendChild(bar);
+
+    var inlinePages = h('div', { style: 'display:flex; flex-direction:column; gap:12px; align-items:center; background:#F1F5F9; padding:12px; border-radius:10px; border:1px solid #CBD5E1;' },
+      h('span', { class: 'muted small', text: 'جارٍ تحميل معاينة التقرير الفرنسي...' })
+    );
+    wrap.appendChild(inlinePages);
+
+    if (window.DE_PDF && typeof window.DE_PDF.renderMedicoFunctionalFrenchPages === 'function') {
+      window.DE_PDF.renderMedicoFunctionalFrenchPages(ev, frName, secName, kd).then(function (canvases) {
+        inlinePages.textContent = '';
+        canvases.forEach(function (cv) {
+          cv.style.width = '100%';
+          cv.style.maxWidth = '880px';
+          cv.style.height = 'auto';
+          cv.style.background = '#FFF';
+          cv.style.borderRadius = '6px';
+          cv.style.boxShadow = '0 2px 10px rgba(15,23,42,0.1)';
+          inlinePages.appendChild(cv);
+        });
+      }).catch(function (err) {
+        inlinePages.textContent = 'تعذر عرض التقرير الفرنسي: ' + (err.message || err);
+        inlinePages.style.color = '#991B1B';
+      });
+    }
+
+    return wrap;
+  }
+
+  function openMedicoFunctionalFrenchBuilder(existingRep, kids, sections, secAllOpts, branchOpts) {
+    S.inSubBuilder = true;
+    var ev = existingRep ? parseEvaluationReport(existingRep) : { eval_type: 'medico_functional_fr', report_date: new Date().toISOString().slice(0, 10) };
+    ev.eval_type = 'medico_functional_fr';
+    if (existingRep && existingRep.id) ev.id = existingRep.id;
+    var savedMf = ev.medico_functional_fr || {};
+    var customStore = loadMedicoCustomGreenOpts();
+
+    var mfState = {
+      child_name_fr: savedMf.child_name_fr || '',
+      age_fr: savedMf.age_fr || '',
+      section_choices: Array.isArray(savedMf.section_choices) ? savedMf.section_choices.slice() : [],
+      section_custom: Array.isArray(savedMf.section_custom) ? savedMf.section_custom.slice() : (customStore.section || []),
+      admission_date: savedMf.admission_date || '',
+      medical_data: savedMf.medical_data || '',
+      antiepileptic_treatment: savedMf.antiepileptic_treatment || '',
+      treating_doctor: savedMf.treating_doctor || '',
+      followup_start_date: savedMf.followup_start_date || '',
+      episodes: Array.isArray(savedMf.episodes) && savedMf.episodes.length >= 2
+        ? [Object.assign({}, savedMf.episodes[0]), Object.assign({}, savedMf.episodes[1])]
+        : [{}, {}],
+      manifestations_selected: Array.isArray(savedMf.manifestations_selected) ? savedMf.manifestations_selected.slice() : [],
+      manifestations_custom: Array.isArray(savedMf.manifestations_custom) ? savedMf.manifestations_custom.slice() : (customStore.manifestations || []),
+      other_manifestations: savedMf.other_manifestations || '',
+      state_during: Object.assign({ verbal_response: '', respiration: '', color_change: '', fall_or_injury: '' }, savedMf.state_during || {}),
+      state_after_selected: Array.isArray(savedMf.state_after_selected) ? savedMf.state_after_selected.slice() : [],
+      state_after_custom: Array.isArray(savedMf.state_after_custom) ? savedMf.state_after_custom.slice() : (customStore.state_after || []),
+      sleep_recovery_duration: savedMf.sleep_recovery_duration || '',
+      complementary_observations: savedMf.complementary_observations || '',
+      interventions_done: savedMf.interventions_done || '',
+      observer_name: savedMf.observer_name || '',
+      vigilance_grid: Object.assign({}, savedMf.vigilance_grid || {}),
+      fatigue_level_selected: Array.isArray(savedMf.fatigue_level_selected) ? savedMf.fatigue_level_selected.slice() : [],
+      fatigue_level_custom: Array.isArray(savedMf.fatigue_level_custom) ? savedMf.fatigue_level_custom.slice() : (customStore.fatigue_level || []),
+      participation_level_selected: Array.isArray(savedMf.participation_level_selected) ? savedMf.participation_level_selected.slice() : [],
+      participation_level_custom: Array.isArray(savedMf.participation_level_custom) ? savedMf.participation_level_custom.slice() : (customStore.participation_level || []),
+      educator_daily_obs: savedMf.educator_daily_obs || '',
+      sleep_general: Object.assign({ night_duration: '', sleep_quality: '', arrived_tired: '', unusual_drowsiness: '', behavior_change: '', family_remarks: '' }, savedMf.sleep_general || {}),
+      weekly_bilan: Object.assign({ crises_count: '', heavy_fatigue_days: '', sleep_episodes_count: '', low_vigilance_periods: '', pedagogical_impact: '', team_observations: '' }, savedMf.weekly_bilan || {}),
+      validation: Object.assign({ followup_responsible: '', educator_name: '', structure_responsible: '', last_update_date: new Date().toISOString().slice(0, 10) }, savedMf.validation || {})
+    };
+
+    var v = $('#view');
+    v.textContent = '';
+
+    var topBar = h('div', { class: 'bar-sub', style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;' },
+      h('div', { style: 'display:flex; align-items:center; gap:10px;' },
+        h('img', { src: 'logo.png', style: 'width:38px; height:38px; border-radius:8px; object-fit:contain;' }),
+        h('div', null,
+          h('h2', { style: 'margin:0; color:#1B365D; font-size:1.15rem; font-weight:900;', text: existingRep ? 'Modifier — FICHE DE SUIVI MÉDICO-FONCTIONNEL' : 'FICHE DE SUIVI MÉDICO-FONCTIONNEL' }),
+          h('div', { class: 'muted small', text: 'Suivi des crises épileptiques • أحمر: ثابت | أخضر: اختيارات قابلة للإضافة | أسود: كتابة يدوية' })
+        )
+      ),
+      h('button', { type: 'button', class: 'btn small light', text: 'رجوع لقائمة التقارير', onclick: function () { go('reports'); } })
+    );
+    v.appendChild(topBar);
+
+    var card = h('div', { class: 'card', style: 'max-width:1060px; margin:0 auto; padding:20px; border-radius:14px; border:1.5px solid #CBD5E1; direction:ltr; text-align:left; font-family:"Times New Roman", Georgia, Arial, sans-serif; color:#0F172A;' });
+
+    // En-tête officiel avec logo en haut à droite
+    card.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1B365D; padding-bottom:12px; margin-bottom:16px; gap:12px;' },
+      h('div', { style: 'flex:1; text-align:center;' },
+        h('div', { style: 'font-weight:900; font-size:20px; color:#0F172A;', text: 'A-P-E-H-M' }),
+        h('div', { style: 'font-weight:800; font-size:17px; color:#0F172A;', text: 'Centre psychopédagogique Dar el ihsan' }),
+        h('div', { style: 'font-weight:700; font-size:15px; color:#0F172A;', text: '-El ATTEUF – Ghardaïa-' }),
+        h('div', { style: 'font-weight:900; font-size:18px; color:#1B365D; text-decoration:underline; margin-top:8px;', text: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL' }),
+        h('div', { style: 'font-weight:700; font-size:14.5px; color:#0F172A;', text: 'Suivi des crises épileptiques' })
+      ),
+      h('img', { src: 'logo.png', alt: 'Dar El Ihsan', style: 'width:92px; height:92px; object-fit:contain; flex-shrink:0;' })
+    ));
+
+    // Légende des 3 couleurs
+    card.appendChild(h('div', { style: 'display:flex; flex-wrap:wrap; gap:14px; padding:8px 12px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; margin-bottom:14px; font-family:Arial,sans-serif; font-size:12px;' },
+      h('span', { style: 'color:#B91C1C; font-weight:800;', text: '● Rouge : Texte fixe unifié pour tous les enfants' }),
+      h('span', { style: 'color:#15803D; font-weight:800;', text: '● Vert : Choix sélectionnables (+ ajout de nouvelles options)' }),
+      h('span', { style: 'color:#0F172A; font-weight:800;', text: '● Noir : Saisie manuelle libre' })
+    ));
+
+    // Sélecteur de l'enfant (remplit automatiquement le nom en français et l'âge)
+    var selKid0 = kids.filter(function (k) { return String(k.id) === String(ev.child_id); })[0] || null;
+    var kidSel = h('select', { style: 'width:100%; padding:8px 10px; border:1.5px solid #1B365D; border-radius:8px; font-weight:700; color:#0F172A; background:#FFF;' },
+      h('option', { value: '', text: '— Sélectionner un enfant —' }),
+      kids.map(function (k) {
+        var opt = h('option', { value: k.id, text: resolveChildFrenchName(k) + ' (' + k.full_name + ')' });
+        if (String(k.id) === String(ev.child_id)) opt.selected = true;
+        return opt;
+      })
+    );
+
+    var frNameInp = h('input', { type: 'text', value: mfState.child_name_fr || (selKid0 ? resolveChildFrenchName(selKid0) : ''), placeholder: 'Nom et prénom en français', style: 'width:100%; padding:7px 10px; border:1px solid #94A3B8; border-radius:6px; color:#0F172A; font-weight:700;' });
+    var ageFrInp = h('input', { type: 'text', value: mfState.age_fr || (selKid0 ? calcFrenchAge(selKid0.dob) : ''), placeholder: 'ex: 09 ans', style: 'width:100%; padding:7px 10px; border:1px solid #94A3B8; border-radius:6px; color:#0F172A;' });
+    var reportDateInp = h('input', { type: 'date', value: ev.report_date || new Date().toISOString().slice(0, 10), style: 'width:100%; padding:7px 10px; border:1px solid #94A3B8; border-radius:6px; color:#0F172A;' });
+
+    kidSel.onchange = function () {
+      var chosen = kids.filter(function (k) { return String(k.id) === String(kidSel.value); })[0];
+      if (chosen) {
+        ev.child_id = chosen.id;
+        frNameInp.value = resolveChildFrenchName(chosen);
+        mfState.child_name_fr = frNameInp.value;
+        var aStr = calcFrenchAge(chosen.dob);
+        if (aStr) { ageFrInp.value = aStr; mfState.age_fr = aStr; }
+      }
+    };
+    frNameInp.oninput = function () { mfState.child_name_fr = frNameInp.value; };
+    ageFrInp.oninput = function () { mfState.age_fr = ageFrInp.value; };
+
+    function makeSectionHead(title, col) {
+      return h('h3', { style: 'margin:18px 0 10px; padding-bottom:5px; border-bottom:1.5px solid #CBD5E1; font-size:16.5px; font-weight:900; color:' + (col || '#1B365D') + ';', text: title });
+    }
+
+    function makeTextField(labelRed, obj, key, ph) {
+      var inp = h('input', { type: 'text', value: obj[key] || '', placeholder: ph || '', style: 'width:100%; padding:7px 10px; border:1px solid #CBD5E1; border-radius:6px; color:#0F172A; background:#FFF;' });
+      inp.oninput = function () { obj[key] = inp.value; };
+      return h('div', { style: 'margin-bottom:8px;' },
+        h('label', { style: 'display:block; font-weight:800; color:#B91C1C; font-size:13.5px; margin-bottom:3px;', text: labelRed + ' :' }),
+        inp
+      );
+    }
+
+    function makeAutoTextareaField(labelRed, obj, key, ph) {
+      var ta = attachAutoResizeTextarea(h('textarea', { rows: 2, placeholder: ph || '', style: 'width:100%; min-height:44px; padding:8px 10px; border:1px solid #CBD5E1; border-radius:6px; color:#0F172A; background:#FFF; font-family:inherit; font-size:14px;' }));
+      ta.value = obj[key] || '';
+      ta.oninput = function () { obj[key] = ta.value; };
+      return h('div', { style: 'margin-bottom:10px;' },
+        h('label', { style: 'display:block; font-weight:800; color:#B91C1C; font-size:13.5px; margin-bottom:4px;', text: labelRed + ' :' }),
+        ta
+      );
+    }
+
+    // Helper pour les listes d'options VERTES sélectionnables + ajout de nouvelles options
+    function makeGreenChecklistGroup(titleRed, defaultOpts, selectedArr, customArr, storeKey) {
+      var box = h('div', { style: 'background:#F0FDF4; border:1px solid #86EFAC; border-radius:10px; padding:10px 12px; margin-bottom:12px;' });
+      box.appendChild(h('div', { style: 'font-weight:900; color:#B91C1C; font-size:14px; margin-bottom:6px;', text: titleRed }));
+      var listWrap = h('div', { style: 'display:flex; flex-direction:column; gap:5px;' });
+      box.appendChild(listWrap);
+
+      function renderItems() {
+        listWrap.textContent = '';
+        var all = [];
+        defaultOpts.forEach(function (o) { if (all.indexOf(o) < 0) all.push(o); });
+        customArr.forEach(function (o) { if (o && all.indexOf(o) < 0) all.push(o); });
+        selectedArr.forEach(function (o) { if (o && all.indexOf(o) < 0) all.push(o); });
+
+        all.forEach(function (optText) {
+          var isOn = selectedArr.indexOf(optText) >= 0;
+          var chk = h('input', { type: 'checkbox', checked: isOn, style: 'width:16px; height:16px; accent-color:#15803D; cursor:pointer;' });
+          chk.onchange = function () {
+            var idx = selectedArr.indexOf(optText);
+            if (chk.checked && idx < 0) selectedArr.push(optText);
+            else if (!chk.checked && idx >= 0) selectedArr.splice(idx, 1);
+          };
+          listWrap.appendChild(h('label', { style: 'display:flex; align-items:center; gap:8px; color:#15803D; font-weight:700; font-size:14px; cursor:pointer;' }, chk, h('span', { text: optText })));
+        });
+      }
+      renderItems();
+
+      var addInp = h('input', { type: 'text', placeholder: 'Nouvelle option verte...', style: 'flex:1; padding:6px 8px; border:1px solid #86EFAC; border-radius:6px; font-size:13px; color:#15803D; background:#FFF;' });
+      var addBtn = h('button', {
+        type: 'button',
+        class: 'btn small light',
+        style: 'color:#15803D; border-color:#15803D; font-weight:800; font-size:12px;',
+        text: '+ Ajouter',
+        onclick: function () {
+          var val = (addInp.value || '').trim();
+          if (!val) return;
+          if (customArr.indexOf(val) < 0) customArr.push(val);
+          if (selectedArr.indexOf(val) < 0) selectedArr.push(val);
+          var st = loadMedicoCustomGreenOpts();
+          st[storeKey] = customArr.slice();
+          saveMedicoCustomGreenOpts(st);
+          addInp.value = '';
+          renderItems();
+        }
+      });
+      box.appendChild(h('div', { style: 'display:flex; gap:6px; margin-top:8px;' }, addInp, addBtn));
+      return box;
+    }
+
+    // ── SECTION I ──
+    card.appendChild(makeSectionHead('I. INFORMATIONS PERSONNELLES', '#1B365D'));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:10px; background:#F8FAFC; padding:12px; border-radius:10px; border:1px solid #CBD5E1;' },
+      h('div', null, h('label', { style: 'display:block; font-weight:800; color:#1B365D; font-size:12.5px; margin-bottom:3px;', text: 'Enfant (Base de données) :' }), kidSel),
+      h('div', null, h('label', { style: 'display:block; font-weight:800; color:#B91C1C; font-size:12.5px; margin-bottom:3px;', text: 'Nom et prénom (Français) :' }), frNameInp),
+      h('div', null, h('label', { style: 'display:block; font-weight:800; color:#B91C1C; font-size:12.5px; margin-bottom:3px;', text: 'Âge :' }), ageFrInp),
+      h('div', null, h('label', { style: 'display:block; font-weight:800; color:#B91C1C; font-size:12.5px; margin-bottom:3px;', text: 'Date du rapport :' }), reportDateInp)
+    ));
+    card.appendChild(makeGreenChecklistGroup('Section (choix vert sélectionnable) :', ['Retard mental (RM)', 'Trouble du spectre autistique', 'Trisomie 21'], mfState.section_choices, mfState.section_custom, 'section'));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px;' },
+      makeTextField("Date d'admission au centre", mfState, 'admission_date', 'ex: Octobre 2024'),
+      makeTextField('Traitement antiépileptique', mfState, 'antiepileptic_treatment', ''),
+      makeTextField('Médecin traitant', mfState, 'treating_doctor', ''),
+      makeTextField('Date de début du suivi', mfState, 'followup_start_date', '')
+    ));
+    card.appendChild(makeAutoTextareaField('Données médicales connues', mfState, 'medical_data', 'ex: Retard global du développement intellectuel associé à une épilepsie.'));
+
+    // ── SECTION II ──
+    card.appendChild(makeSectionHead('II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES', '#1B365D'));
+    card.appendChild(h('p', { style: 'font-style:italic; margin:0 0 10px; font-size:14px; color:#0F172A;', text: "Cette fiche doit être renseignée à chaque épisode de crise observé au sein du centre." }));
+
+    var epFields = [
+      { key: 'date_time', label: 'Date et heure', type: 'text' },
+      { key: 'duration', label: 'Durée de la crise', type: 'text' },
+      { key: 'location', label: 'Lieu de survenue', type: 'text' },
+      { key: 'activity_before', label: 'Activité avant la crise', type: 'text' },
+      { key: 'loss_consciousness', label: 'Perte de conscience', type: 'yn' },
+      { key: 'convulsions', label: 'Convulsions', type: 'yn' },
+      { key: 'breathing_diff', label: 'Difficultés respiratoires', type: 'yn' },
+      { key: 'post_sleep', label: 'Endormissement après la crise', type: 'yn' },
+      { key: 'recovery_duration', label: 'Durée de récupération', type: 'text' }
+    ];
+
+    function makeEpInput(epObj, field) {
+      if (field.type === 'yn') {
+        var sel = h('select', { style: 'width:100%; padding:5px; border:1px solid #CBD5E1; border-radius:5px; color:#0F172A; font-weight:700;' },
+          h('option', { value: '', text: '—' }),
+          h('option', { value: 'Oui', text: 'Oui' }),
+          h('option', { value: 'Non', text: 'Non' })
+        );
+        sel.value = epObj[field.key] || '';
+        sel.onchange = function () { epObj[field.key] = sel.value; };
+        return sel;
+      }
+      var inp = h('input', { type: 'text', value: epObj[field.key] || '', style: 'width:100%; padding:5px 7px; border:1px solid #CBD5E1; border-radius:5px; color:#0F172A;' });
+      inp.oninput = function () { epObj[field.key] = inp.value; };
+      return inp;
+    }
+
+    var crisisTbl = h('table', { style: 'width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13.5px;' },
+      h('thead', null,
+        h('tr', { style: 'background:#FEF2F2; color:#B91C1C;' },
+          h('th', { style: 'border:1px solid #334155; padding:7px;', text: 'Informations (Épisode 1)' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px;', text: 'Observations' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px;', text: 'Informations (Épisode 2)' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px;', text: 'Observations' })
+        )
+      ),
+      h('tbody', null, epFields.map(function (f) {
+        return h('tr', null,
+          h('td', { style: 'border:1px solid #334155; padding:6px; font-weight:800; color:#B91C1C;', text: f.label }),
+          h('td', { style: 'border:1px solid #334155; padding:4px;' }, makeEpInput(mfState.episodes[0], f)),
+          h('td', { style: 'border:1px solid #334155; padding:6px; font-weight:800; color:#B91C1C;', text: f.label }),
+          h('td', { style: 'border:1px solid #334155; padding:4px;' }, makeEpInput(mfState.episodes[1], f))
+        );
+      }))
+    );
+    card.appendChild(h('div', { style: 'overflow-x:auto;' }, crisisTbl));
+
+    card.appendChild(makeGreenChecklistGroup(
+      '1. Manifestations observées pendant la crise :',
+      ['Perte de conscience.', 'Regard fixe et absence de réponse aux sollicitations.', 'Convulsions ou mouvements involontaires.', 'Chute brutale.'],
+      mfState.manifestations_selected, mfState.manifestations_custom, 'manifestations'
+    ));
+    card.appendChild(makeTextField('Autres manifestations', mfState, 'other_manifestations', ''));
+
+    // 2. État de l'enfant pendant la crise
+    var makeSelRow = function (lbl, key, opts) {
+      var s = h('select', { style: 'padding:6px 10px; border:1px solid #CBD5E1; border-radius:6px; color:#0F172A; font-weight:700;' },
+        h('option', { value: '', text: '— Non précisé —' }),
+        opts.map(function (o) { return h('option', { value: o, text: o }); })
+      );
+      s.value = mfState.state_during[key] || '';
+      s.onchange = function () { mfState.state_during[key] = s.value; };
+      return h('div', { style: 'display:flex; justify-content:space-between; align-items:center; gap:10px; padding:5px 0; border-bottom:1px dashed #E2E8F0;' },
+        h('span', { style: 'color:#B91C1C; font-weight:800; font-size:13.5px;', text: '✓ ' + lbl }),
+        s
+      );
+    };
+    card.appendChild(h('div', { style: 'background:#FFF; border:1px solid #CBD5E1; border-radius:10px; padding:10px 12px; margin-bottom:12px;' },
+      h('div', { style: 'font-weight:900; color:#B91C1C; font-size:14px; margin-bottom:6px;', text: "2. État de l'enfant pendant la crise :" }),
+      makeSelRow('Réponse aux sollicitations verbales', 'verbal_response', ['Oui', 'Non']),
+      makeSelRow('Respiration', 'respiration', ['Normale', 'Anormale', 'Non évaluée']),
+      makeSelRow('Changement de coloration du visage ou des lèvres', 'color_change', ['Oui', 'Non']),
+      makeSelRow('Chute ou blessure', 'fall_or_injury', ['Oui', 'Non'])
+    ));
+
+    card.appendChild(makeGreenChecklistGroup(
+      "3. État de l'enfant après la crise :",
+      ['Récupération progressive de la conscience.', 'Endormissement.', 'Fatigue et épuisement.', 'Confusion ou absence de réponse.', "Retour à l'activité habituelle."],
+      mfState.state_after_selected, mfState.state_after_custom, 'state_after'
+    ));
+    card.appendChild(makeTextField('Durée du sommeil ou de la récupération', mfState, 'sleep_recovery_duration', ''));
+    card.appendChild(makeAutoTextareaField('Observations complémentaires', mfState, 'complementary_observations', ''));
+    card.appendChild(makeAutoTextareaField('Conduite adoptée et interventions réalisées', mfState, 'interventions_done', ''));
+    card.appendChild(makeTextField("Nom et prénom de l'employé ayant observé la crise", mfState, 'observer_name', ''));
+
+    // ── SECTION III ──
+    card.appendChild(makeSectionHead('III. FICHE DE SUIVI QUOTIDIEN DE LA VIGILANCE ET DE LA FATIGABILITÉ', '#1B365D'));
+    card.appendChild(h('p', { style: 'font-style:italic; margin:0 0 10px; font-size:14px; color:#0F172A;', text: "À renseigner quotidiennement par l'éducateur ou l'encadreur pédagogique." }));
+
+    var vigInds = [
+      { key: 'vigilance_ok', label: 'État de vigilance satisfaisant' },
+      { key: 'attention_fluct', label: 'Attention fluctuante' },
+      { key: 'somnolence', label: 'Somnolence / Léthargie' },
+      { key: 'fatigue_app', label: 'Fatigue apparente' },
+      { key: 'slow_reaction', label: 'Lenteur de réaction' },
+      { key: 'sleep_during_act', label: 'Endormissement pendant les activités' }
+    ];
+    var vigTbl = h('table', { style: 'width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13.5px;' },
+      h('thead', null,
+        h('tr', { style: 'background:#FEF2F2; color:#B91C1C;' },
+          h('th', { style: 'border:1px solid #334155; padding:7px; text-align:left;', text: 'Indicateurs observés' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px; text-align:center;', text: 'Matin' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px; text-align:center;', text: 'Pendant les activités' }),
+          h('th', { style: 'border:1px solid #334155; padding:7px; text-align:center;', text: 'Après-midi' })
+        )
+      ),
+      h('tbody', null, vigInds.map(function (ind) {
+        if (!mfState.vigilance_grid[ind.key]) mfState.vigilance_grid[ind.key] = { matin: false, activites: false, apres_midi: false };
+        var rowObj = mfState.vigilance_grid[ind.key];
+        var mkChk = function (pKey) {
+          var c = h('input', { type: 'checkbox', checked: !!rowObj[pKey], style: 'width:17px; height:17px; cursor:pointer;' });
+          c.onchange = function () { rowObj[pKey] = c.checked; };
+          return h('td', { style: 'border:1px solid #334155; text-align:center; padding:6px;' }, c);
+        };
+        return h('tr', null,
+          h('td', { style: 'border:1px solid #334155; padding:6px; font-weight:800; color:#B91C1C;', text: ind.label }),
+          mkChk('matin'), mkChk('activites'), mkChk('apres_midi')
+        );
+      }))
+    );
+    card.appendChild(h('div', { style: 'overflow-x:auto;' }, vigTbl));
+
+    card.appendChild(makeGreenChecklistGroup('Niveau général de fatigue :', ['Absence de fatigue apparente.', 'Fatigue légère.', 'Fatigue modérée.', 'Fatigue importante.'], mfState.fatigue_level_selected, mfState.fatigue_level_custom, 'fatigue_level'));
+    card.appendChild(makeGreenChecklistGroup('Niveau de participation aux activités pédagogiques :', ['Bonne participation.', 'Participation intermittente.', 'Faible participation.', 'Refus ou incapacité à participer.'], mfState.participation_level_selected, mfState.participation_level_custom, 'participation_level'));
+    card.appendChild(makeAutoTextareaField("Observations de l'éducateur concernant l'état quotidien de l'enfant", mfState, 'educator_daily_obs', ''));
+
+    // ── SECTION IV ──
+    card.appendChild(makeSectionHead("IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL", '#1B365D'));
+    var mkSleepSel = function (key, opts) {
+      var s = h('select', { style: 'width:100%; padding:6px; border:1px solid #CBD5E1; border-radius:6px; color:#0F172A; font-weight:700;' },
+        h('option', { value: '', text: '—' }),
+        opts.map(function (o) { return h('option', { value: o, text: o }); })
+      );
+      s.value = mfState.sleep_general[key] || '';
+      s.onchange = function () { mfState.sleep_general[key] = s.value; };
+      return s;
+    };
+    var mkSleepTxt = function (key) {
+      var i = h('input', { type: 'text', value: mfState.sleep_general[key] || '', style: 'width:100%; padding:6px; border:1px solid #CBD5E1; border-radius:6px; color:#0F172A;' });
+      i.oninput = function () { mfState.sleep_general[key] = i.value; };
+      return i;
+    };
+    card.appendChild(h('table', { style: 'width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13.5px;' },
+      h('thead', null, h('tr', { style: 'background:#FEF2F2; color:#B91C1C;' },
+        h('th', { style: 'border:1px solid #334155; padding:7px; width:50%;', text: 'Indicateurs' }),
+        h('th', { style: 'border:1px solid #334155; padding:7px; width:50%;', text: 'Observations' })
+      )),
+      h('tbody', null, [
+        ['Durée du sommeil nocturne (selon la famille)', mkSleepTxt('night_duration')],
+        ['Qualité du sommeil', mkSleepSel('sleep_quality', ['Bonne', 'Moyenne', 'Mauvaise'])],
+        ['Arrivée au centre en état de fatigue', mkSleepSel('arrived_tired', ['Oui', 'Non'])],
+        ['Somnolence inhabituelle', mkSleepSel('unusual_drowsiness', ['Oui', 'Non'])],
+        ['Changement notable du comportement', mkSleepSel('behavior_change', ['Oui', 'Non'])],
+        ['Remarques de la famille', mkSleepTxt('family_remarks')]
+      ].map(function (pair) {
+        return h('tr', null,
+          h('td', { style: 'border:1px solid #334155; padding:6px; font-weight:800; color:#B91C1C;', text: pair[0] }),
+          h('td', { style: 'border:1px solid #334155; padding:4px;' }, pair[1])
+        );
+      }))
+    ));
+
+    // ── SECTION V ──
+    card.appendChild(makeSectionHead('V. BILAN HEBDOMADAIRE DU SUIVI', '#B91C1C'));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px;' },
+      makeTextField('Nombre de crises enregistrées', mfState.weekly_bilan, 'crises_count', ''),
+      makeTextField('Nombre de jours avec fatigue importante', mfState.weekly_bilan, 'heavy_fatigue_days', ''),
+      makeTextField("Nombre d'épisodes d'endormissement pendant les activités", mfState.weekly_bilan, 'sleep_episodes_count', ''),
+      makeTextField('Périodes de baisse de vigilance constatées', mfState.weekly_bilan, 'low_vigilance_periods', '')
+    ));
+    card.appendChild(makeAutoTextareaField('Répercussions sur la participation pédagogique', mfState.weekly_bilan, 'pedagogical_impact', ''));
+    card.appendChild(makeAutoTextareaField("Observations de l'équipe pluridisciplinaire", mfState.weekly_bilan, 'team_observations', ''));
+
+    // ── SECTION VI (ROUGE FIXE) ──
+    card.appendChild(makeSectionHead('VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE', '#B91C1C'));
+    var fixedRules = [
+      "1. Noter précisément l'heure de début et de fin de chaque crise.",
+      "2. Éloigner les objets dangereux et protéger l'enfant contre les risques de blessures.",
+      "3. Placer l'enfant en position latérale de sécurité dès que possible, lorsque cela peut être fait sans danger, et surveiller sa respiration.",
+      "4. Ne jamais immobiliser ses mouvements et ne rien introduire dans sa bouche.",
+      "5. Ne donner ni eau, ni nourriture, ni médicament par voie orale avant la récupération complète de la conscience.",
+      "6. Ne jamais laisser l'enfant seul après une crise et surveiller son état de conscience et sa respiration.",
+      "7. Appeler immédiatement les secours si la crise atteint cinq (05) minutes, si une nouvelle crise survient sans récupération de conscience, en cas de difficulté respiratoire ou de blessure grave.",
+      "8. Informer la famille et consigner chaque épisode dans le dossier individuel de l'enfant.",
+      "9. Respecter le protocole médical d'urgence établi par le médecin traitant."
+    ];
+    card.appendChild(h('div', { style: 'background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; margin-bottom:14px; color:#B91C1C; font-size:14px; line-height:1.7;' },
+      fixedRules.map(function (rt) { return h('div', { style: 'margin-bottom:4px;', text: rt }); })
+    ));
+
+    // ── SECTION VII ──
+    card.appendChild(makeSectionHead('VII. VALIDATION ET RESPONSABILITÉS', '#B91C1C'));
+    card.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;' },
+      makeTextField('Responsable du suivi', mfState.validation, 'followup_responsible', ''),
+      makeTextField('Éducateur / Encadreur', mfState.validation, 'educator_name', ''),
+      makeTextField('Responsable de la structure', mfState.validation, 'structure_responsible', ''),
+      makeTextField('Date de la dernière mise à jour', mfState.validation, 'last_update_date', '')
+    ));
+
+    function buildCurrentPayloadObj() {
+      var chosen = kids.filter(function (k) { return String(k.id) === String(kidSel.value); })[0];
+      mfState.child_name_fr = (frNameInp.value || '').trim() || (chosen ? resolveChildFrenchName(chosen) : '');
+      mfState.age_fr = (ageFrInp.value || '').trim();
+      return {
+        evObj: {
+          id: ev.id,
+          eval_type: 'medico_functional_fr',
+          child_id: kidSel.value,
+          child_name: chosen ? chosen.full_name : '',
+          report_date: reportDateInp.value,
+          medico_functional_fr: mfState
+        },
+        chosen: chosen,
+        secName: chosen ? (nameOf(sections, chosen.section_id, 'name') || chosen.section || '') : ''
+      };
+    }
+
+    async function saveMedicoAction(statusKey) {
+      if (!kidSel.value) return toast('Veuillez sélectionner un enfant avant de sauvegarder.', 'bad');
+      var built = buildCurrentPayloadObj();
+      var payload = {
+        eval_type: 'medico_functional_fr',
+        title: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL',
+        status: statusKey,
+        updated_at: new Date().toISOString(),
+        medico_functional_fr: mfState
+      };
+      var recordBody = {
+        child_id: kidSel.value,
+        title: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL — ' + (mfState.child_name_fr || (built.chosen ? built.chosen.full_name : '')),
+        report_date: reportDateInp.value,
+        status: statusKey,
+        activities: EVAL_MARKER + JSON.stringify(payload),
+        notes: mfState.complementary_observations || null
+      };
+      try {
+        if (ev.id && DE.isUuid(String(ev.id))) {
+          await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(ev.id), recordBody);
+        } else {
+          var created = await saveProgressReportResilient('POST', '/progress_reports', recordBody);
+          if (Array.isArray(created) && created[0]) ev.id = created[0].id;
+        }
+        await syncSharedEvaluationRecord(Object.assign({}, recordBody, { id: ev.id }), null);
+        bust();
+        toast(statusKey === 'published' ? 'تم اعتماد ونشر التقرير الفرنسي بنجاح!' : 'تم حفظ التقرير الفرنسي كمسودة.', 'ok');
+        go('reports', { preserveScroll: true });
+      } catch (err) {
+        toast('تعذر حفظ التقرير الفرنسي: ' + (err.message || err), 'bad');
+      }
+    }
+
+    card.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px; padding-top:14px; border-top:1.5px solid #CBD5E1; direction:rtl;' },
+      h('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' },
+        h('button', {
+          type: 'button',
+          class: 'btn primary',
+          text: '👁 معاينة كاملة قبل التحميل',
+          onclick: async function () {
+            if (!kidSel.value) return toast('يرجى اختيار الطفل أولاً للمعاينة.', 'bad');
+            var built = buildCurrentPayloadObj();
+            var host = h('div', { style: 'display:flex; flex-direction:column; gap:14px; align-items:center;' },
+              h('span', { class: 'muted small', text: 'جارٍ تجهيز صفحات المعاينة...' })
+            );
+            var dlNow = async function () {
+              try {
+                toast('جارٍ تجهيز ملف PDF الفرنسي...', 'ok');
+                var bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(built.evObj, mfState.child_name_fr, built.secName, built.chosen);
+                window.DE_PDF.downloadPdf(bytes, 'FICHE_SUIVI_MEDICO_FONCTIONNEL_' + (mfState.child_name_fr || 'enfant').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf');
+                toast('تم تحميل ملف PDF بنجاح!', 'ok');
+              } catch (err) { toast('تعذر التحميل: ' + (err.message || err), 'bad'); }
+            };
+            openFullDocumentPreviewModal('FICHE DE SUIVI MÉDICO-FONCTIONNEL — ' + mfState.child_name_fr, host, dlNow);
+            try {
+              var canvases = await window.DE_PDF.renderMedicoFunctionalFrenchPages(built.evObj, mfState.child_name_fr, built.secName, built.chosen);
+              host.textContent = '';
+              canvases.forEach(function (cv) {
+                cv.style.width = '100%'; cv.style.maxWidth = '920px'; cv.style.height = 'auto';
+                cv.style.background = '#FFF'; cv.style.borderRadius = '6px'; cv.style.boxShadow = '0 4px 16px rgba(15,23,42,0.14)';
+                host.appendChild(cv);
+              });
+            } catch (err) { host.textContent = 'تعذر عرض المعاينة: ' + (err.message || err); }
+          }
+        }),
+        h('button', {
+          type: 'button',
+          class: 'btn light',
+          text: '📄 تحميل PDF',
+          onclick: async function () {
+            if (!kidSel.value) return toast('يرجى اختيار الطفل أولاً للتحميل.', 'bad');
+            var built = buildCurrentPayloadObj();
+            try {
+              toast('جارٍ تجهيز ملف PDF الفرنسي...', 'ok');
+              var bytes = await window.DE_PDF.renderMedicoFunctionalFrenchToPdf(built.evObj, mfState.child_name_fr, built.secName, built.chosen);
+              window.DE_PDF.downloadPdf(bytes, 'FICHE_SUIVI_MEDICO_FONCTIONNEL_' + (mfState.child_name_fr || 'enfant').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf');
+              toast('تم تحميل التقرير الفرنسي بنجاح!', 'ok');
+            } catch (err) { toast('تعذر التحميل: ' + (err.message || err), 'bad'); }
+          }
+        })
+      ),
+      h('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' },
+        h('button', { type: 'button', class: 'btn light', text: 'حفظ كمسودة', onclick: function () { saveMedicoAction('draft'); } }),
+        h('button', { type: 'button', class: 'btn gold', text: 'اعتماد ونشر التقرير', onclick: function () { saveMedicoAction('published'); } })
+      )
+    ));
+
+    v.appendChild(card);
+  }
+
   function openQualitativeReportBuilder(existingRep, kids, sections, secAllOpts, branchOpts, allReportsPool) {
     S.inSubBuilder = true;
     try { window.history.pushState({ deApp: true, sec: 'reports', center: S.activeCenter, subBuilder: true }, ''); } catch (e) {}
@@ -11242,6 +12151,13 @@
       h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:8px;' },
         h('button', {
           type: 'button',
+          class: 'btn gold',
+          style: 'padding:9px 12px; border-radius:8px; font-weight:900; font-size:12.5px; justify-content:flex-start; gap:8px;',
+          onclick: function () { openMedicoFunctionalFrenchBuilder(null, kids, sections, secAllOpts, branchOpts); }
+        }, h('span', { style: 'font-size:16px;', text: '🇫🇷' }), h('span', { text: 'FICHE DE SUIVI MÉDICO-FONCTIONNEL (الفرنسي)' })),
+
+        h('button', {
+          type: 'button',
           class: 'btn primary',
           style: 'padding:9px 12px; border-radius:8px; font-weight:800; font-size:12.5px; justify-content:flex-start; gap:8px;',
           onclick: function () { openQualitativeReportBuilder(null, kids, sections, secAllOpts, branchOpts, allReports); }
@@ -11288,6 +12204,12 @@
         var sName = kd ? (nameOf(sections, kd.section_id, 'name') || kd.section || '') : (r.section_name || '');
         var subCat = getReportSubCategory(r);
 
+        if (subCat === 'medico_functional_fr') {
+          return renderMedicoFunctionalFrenchSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
+            onEdit: function () { openMedicoFunctionalFrenchBuilder(r, kids, sections, secAllOpts, branchOpts); },
+            onDelete: function () { return deleteReportRecord(r); }
+          });
+        }
         if (subCat === 'annual_final') {
           return renderAnnualFinalSheetView(r, kd ? kd.full_name : (r.child_name || '—'), sName, kd, {
             onEdit: function () { openAnnualFinalBuilder(r, kids, sections, secAllOpts, branchOpts); },
@@ -11354,7 +12276,8 @@
             var subCat = getReportSubCategory(r);
             var bLabel = 'تقرير دوري';
             var bCls = 'ok';
-            if (subCat === 'annual_final') { bLabel = 'التقرير النهائي'; bCls = 'gold'; }
+            if (subCat === 'medico_functional_fr') { bLabel = '🇫🇷 FICHE MÉDICO-FONCTIONNEL'; bCls = 'gold'; }
+            else if (subCat === 'annual_final') { bLabel = 'التقرير النهائي'; bCls = 'gold'; }
             else if (subCat === 'qualitative') { bLabel = "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)"; bCls = 'ok'; }
             else if (subCat === 'quantitative') { bLabel = 'تقرير الكمي (quantitative)'; bCls = 'gold'; }
             else if (subCat === 'target_behavior_report') { bLabel = 'تقرير قياس السلوك المستهدف'; bCls = 'gold'; }
@@ -11375,6 +12298,7 @@
       actions: function (r) {
         var subCat = getReportSubCategory(r);
         var editHandler = function () {
+          if (subCat === 'medico_functional_fr') return openMedicoFunctionalFrenchBuilder(r, kids, sections, secAllOpts, branchOpts);
           if (subCat === 'annual_final') return openAnnualFinalBuilder(r, kids, sections, secAllOpts, branchOpts);
           if (subCat === 'target_behavior_report') return openTargetBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
           if (subCat === 'mas_behavior_report') return openMasBehaviorReportBuilder(r, kids, sections, secAllOpts, branchOpts, allReports);
@@ -12306,6 +13230,122 @@
     [['all','كل الفترات'],['today','اليوم'],['7','آخر 7 أيام'],['30','آخر 30 يوماً']].forEach(function (x) { dateSelect.appendChild(h('option', { value: x[0], text: x[1] })); });
     dateSelect.addEventListener('change', function () { dateFilter = dateSelect.value; page = 1; renderRows(); });
     tools.append(search, actionSelect, dateSelect); panel.appendChild(tools);
+
+    // شريط إدارة حذف السجل اليومي والتنظيف التلقائي بعد شهر (30 يوماً)
+    var AUTO_PURGE_KEY = "de_audit_auto_purge_enabled_v1";
+    var AUTO_PURGE_LAST_KEY = "de_audit_auto_purge_last_ts_v1";
+    var isAutoPurgeOn = localStorage.getItem(AUTO_PURGE_KEY) !== "0";
+
+    var delDayInp = h("input", {
+      type: "date",
+      class: "audit-v2-select",
+      value: new Date().toISOString().slice(0, 10),
+      "aria-label": "اختر اليوم المراد حذف سجله",
+      style: "min-width:145px;"
+    });
+
+    async function deleteAuditForDay(dayStr) {
+      if (!dayStr) return toast("يرجى تحديد التاريخ أولاً.", "bad");
+      var startIso = dayStr + "T00:00:00.000Z";
+      var nextDay = new Date(dayStr + "T00:00:00.000Z");
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      var endIso = nextDay.toISOString();
+      var doneRemote = false;
+      try {
+        await C.rpc("admin_audit_delete_day", { p_day: dayStr });
+        doneRemote = true;
+      } catch (e1) {
+        try {
+          await C.rest("DELETE", "/audit_logs?created_at=gte." + encodeURIComponent(startIso) + "&created_at=lt." + encodeURIComponent(endIso));
+          doneRemote = true;
+        } catch (e2) {
+          throw new Error("تعذر حذف السجل من قاعدة البيانات. تأكد من تشغيل ملف SQL (20-audit-log-retention-and-daily-delete.sql) في Supabase.");
+        }
+      }
+      if (doneRemote) {
+        rows = rows.filter(function (r) {
+          var d = String(r.at || r.created_at || "").slice(0, 10);
+          return d !== dayStr;
+        });
+        bust();
+        renderRows();
+        toast("تم حذف سجل نشاطات يوم " + dayStr + " بنجاح.", "ok");
+      }
+    }
+
+    async function purgeAuditOlderThanMonth(silent) {
+      var cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+      try {
+        await C.rpc("admin_audit_purge_older_than", { p_days: 30 });
+      } catch (e1) {
+        try {
+          await C.rest("DELETE", "/audit_logs?created_at=lt." + encodeURIComponent(cutoff));
+        } catch (e2) {
+          if (!silent) toast("تعذر التنظيف التلقائي: تأكد من تفعيل دالة SQL في Supabase.", "bad");
+          return false;
+        }
+      }
+      localStorage.setItem(AUTO_PURGE_LAST_KEY, String(Date.now()));
+      var cutoffMs = Date.now() - 30 * 86400000;
+      rows = rows.filter(function (r) {
+        var ts = new Date(r.at || r.created_at || 0).getTime();
+        return !ts || ts >= cutoffMs;
+      });
+      bust();
+      renderRows();
+      if (!silent) toast("تم حذف جميع سجلات النشاطات الأقدم من شهر (30 يوماً) بنجاح.", "ok");
+      return true;
+    }
+
+    var autoPurgeChk = h("input", {
+      type: "checkbox",
+      checked: isAutoPurgeOn,
+      style: "width:16px; height:16px; cursor:pointer; accent-color:#163B65;"
+    });
+    autoPurgeChk.onchange = function () {
+      isAutoPurgeOn = autoPurgeChk.checked;
+      localStorage.setItem(AUTO_PURGE_KEY, isAutoPurgeOn ? "1" : "0");
+      toast(isAutoPurgeOn ? "تم تفعيل الحذف التلقائي للسجلات الأقدم من شهر (30 يوماً)." : "تم إيقاف الحذف التلقائي المؤقت.", "ok");
+    };
+
+    var auditManageBar = h("div", {
+      style: "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:10px 14px; margin-top:10px; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px;"
+    },
+      h("div", { style: "display:flex; align-items:center; gap:8px; flex-wrap:wrap;" },
+        h("span", { style: "font-weight:800; color:#991B1B; font-size:12.5px;", text: "حذف سجل يوم:" }),
+        delDayInp,
+        h("button", {
+          type: "button",
+          class: "btn small danger",
+          style: "font-weight:800; display:inline-flex; align-items:center; gap:5px;",
+          onclick: function () {
+            var dVal = delDayInp.value;
+            if (!dVal) return toast("يرجى اختيار التاريخ أولاً.", "bad");
+            confirmModal("هل أنت متأكد من حذف جميع سجلات النشاطات الخاصة بيوم «" + dVal + "» نهائياً؟", async function () {
+              try { await deleteAuditForDay(dVal); } catch (err) { toast(err.message || "تعذر حذف سجل اليوم.", "bad"); }
+            });
+          }
+        }, makeSvgIcon("s-delete"), h("span", { text: "حذف سجل هذا اليوم" }))
+      ),
+      h("div", { style: "display:flex; align-items:center; gap:10px; flex-wrap:wrap;" },
+        h("label", { style: "display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:800; color:#163B65; cursor:pointer;" },
+          autoPurgeChk,
+          h("span", { text: "حذف تلقائي بعد شهر (30 يوماً)" })
+        ),
+        h("button", {
+          type: "button",
+          class: "btn small light",
+          style: "font-weight:800; font-size:12px;",
+          text: "تنظيف الأقدم من شهر الآن",
+          onclick: function () {
+            confirmModal("هل تريد حذف جميع سجلات النشاطات الأقدم من 30 يوماً الآن؟", async function () {
+              await purgeAuditOlderThanMonth(false);
+            });
+          }
+        })
+      )
+    );
+    panel.appendChild(auditManageBar);
     var summary = h('div', { class: 'audit-v2-summary' }); panel.appendChild(summary);
     var list = h('div', { class: 'audit-v2-list' }); panel.appendChild(list);
     var footer = h('div', { class: 'audit-v2-footer' }); panel.appendChild(footer);
@@ -12392,6 +13432,12 @@
       } finally { if (refresh) refresh.disabled = false; }
     }
     await loadRows();
+    if (isAutoPurgeOn) {
+      var lastPurge = Number(localStorage.getItem(AUTO_PURGE_LAST_KEY) || "0");
+      if (!lastPurge || (Date.now() - lastPurge) > 12 * 3600 * 1000) {
+        purgeAuditOlderThanMonth(true);
+      }
+    }
   }
 
   /* =====================================================================
@@ -14448,7 +15494,7 @@
     $('#lBtn').textContent = u.btn;
     $('#lHint').textContent = hint || u.hint;
     if ($('#firstTimeBtn')) $('#firstTimeBtn').hidden = m !== 'creds';
-    $('#forgotBtn').hidden = m !== 'creds';
+    if ($('#forgotBtn')) $('#forgotBtn').hidden = true;
     $('#backBtn').hidden = m === 'creds';
     if (m === 'set') { setTimeout(function () { var p = $('#np1'); if (p) p.focus(); }, 0); }
   }
@@ -15271,7 +16317,7 @@
           $('#invEmail').focus();
         });
       }
-      if ($('#forgotBtn')) $('#forgotBtn').addEventListener('click', function () { msg($('#lErr'), ''); msg($('#lOk'), ''); $('#fEmail').value = ($('#email').value || '').trim(); setMode('forgot'); $('#fEmail').focus(); });
+      // تمت إزالة «نسيت كلمة المرور» بناءً على طلب الإدارة
       if ($('#backBtn')) $('#backBtn').addEventListener('click', function () { C.cancelMfa(); msg($('#lErr'), ''); msg($('#lOk'), ''); setMode('creds'); });
       var topLBtn = $('#logoutBtn'); if (topLBtn) topLBtn.addEventListener('click', function () { logout(); });
       var topArchBtn = $('#topArchiveBtn');

@@ -4045,3 +4045,19 @@ html, body {
     padding: 4px 6px !important;
   }
 }
+
+/* de-auto-fit-fields-v16: التخلص من المساحات الفارغة ودعم النصوص الطويلة تلقائياً */
+textarea {
+  min-height: 38px;
+  height: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.oep-general-report-box,
+.oep-notes-box,
+.oep-eval-text-box {
+  min-height: auto !important;
+  height: auto !important;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}

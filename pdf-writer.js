@@ -191,18 +191,212 @@
     }, 300);
   }
 
-  function loadLogoImage() {
+  var _cachedLogoImg = null;
+  var _logoLoadPromise = null;
+
+  function safeWaitFonts(timeoutMs) {
+    if (typeof document === 'undefined' || !document.fonts || !document.fonts.ready) {
+      return Promise.resolve();
+    }
+    var ms = timeoutMs || 900;
     return new Promise(function (resolve) {
-      if (typeof Image === 'undefined') return resolve(null);
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve(); } }, ms);
+      try {
+        Promise.resolve(document.fonts.ready).then(function () {
+          if (!done) { done = true; clearTimeout(t); resolve(); }
+        }).catch(function () {
+          if (!done) { done = true; clearTimeout(t); resolve(); }
+        });
+      } catch (e) {
+        if (!done) { done = true; clearTimeout(t); resolve(); }
+      }
+    });
+  }
+
+  function loadLogoImage() {
+    if (_cachedLogoImg && _cachedLogoImg.complete && _cachedLogoImg.naturalWidth > 0) {
+      return Promise.resolve(_cachedLogoImg);
+    }
+    if (_logoLoadPromise) return _logoLoadPromise;
+    _logoLoadPromise = new Promise(function (resolve) {
+      if (typeof Image === 'undefined') { _logoLoadPromise = null; return resolve(null); }
+      var settled = false;
+      var finish = function (val) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (val && val.naturalWidth > 0) _cachedLogoImg = val;
+        _logoLoadPromise = null;
+        resolve(val || null);
+      };
+      var timer = setTimeout(function () { finish(null); }, 2500);
       var img = new Image();
-      img.onload = function () { resolve(img); };
+      img.onload = function () { finish(img); };
       img.onerror = function () {
         var img2 = new Image();
-        img2.onload = function () { resolve(img2); };
-        img2.onerror = function () { resolve(null); };
-        img2.src = 'logo.png';
+        img2.onload = function () { finish(img2); };
+        img2.onerror = function () { finish(null); };
+        img2.src = 'logo-sq.png';
       };
-      img.src = 'logo-sq.png';
+      img.src = 'logo.png';
+    });
+    return _logoLoadPromise;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     مقياس الساعة الموحد ذو المجالات الثلاثة:
+     - الأخضر (1 – 5): منخفض
+     - البرتقالي (6 – 10): متوسط
+     - الأحمر (11+): مرتفع
+     ══════════════════════════════════════════════════════════════════════════ */
+  function drawThreeZoneClockGauge(ctx, cx, cy, radius, thickness, rawValue, unitLabel, titleText) {
+    var val = Number(rawValue);
+    if (!isFinite(val) || val < 0) val = 0;
+
+    if (titleText) {
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(titleText, cx, cy - radius - 66);
+    }
+
+    // 3 equal visual arcs from Right (0 rad) to Left (-PI rad) across the top
+    // Zone 1 (Green: 1–5 / منخفض): 0 -> -PI/3
+    // Zone 2 (Orange: 6–10 / متوسط): -PI/3 -> -2*PI/3
+    // Zone 3 (Red: 11+ / مرتفع): -2*PI/3 -> -PI
+    var zones = [
+      { start: -Math.PI / 3, end: 0, color: '#16A34A', label: 'منخفض (1-5)' },
+      { start: -(2 * Math.PI) / 3, end: -Math.PI / 3, color: '#F97316', label: 'متوسط (6-10)' },
+      { start: -Math.PI, end: -(2 * Math.PI) / 3, color: '#DC2626', label: 'مرتفع (11+)' }
+    ];
+
+    zones.forEach(function (z) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, z.start, z.end, false);
+      ctx.strokeStyle = z.color;
+      ctx.lineWidth = thickness;
+      ctx.lineCap = 'butt';
+      ctx.stroke();
+    });
+
+    // White separator ticks between zones
+    [-Math.PI / 3, -(2 * Math.PI) / 3].forEach(function (ang) {
+      ctx.save();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(ang) * (radius - thickness / 2 - 2), cy + Math.sin(ang) * (radius - thickness / 2 - 2));
+      ctx.lineTo(cx + Math.cos(ang) * (radius + thickness / 2 + 2), cy + Math.sin(ang) * (radius + thickness / 2 + 2));
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Scale tick labels around the arc: 0, 5, 10, 15+
+    var tickDefs = [
+      { ratio: 0, txt: '0' },
+      { ratio: 1 / 3, txt: '5' },
+      { ratio: 2 / 3, txt: '10' },
+      { ratio: 1, txt: '+11' }
+    ];
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 15px "Cairo", sans-serif';
+    ctx.textAlign = 'center';
+    tickDefs.forEach(function (tk) {
+      var tAngle = -tk.ratio * Math.PI;
+      var tx = cx + Math.cos(tAngle) * (radius + thickness / 2 + 18);
+      var ty = cy + Math.sin(tAngle) * (radius + thickness / 2 + 18);
+      ctx.fillText(tk.txt, tx, ty + 5);
+    });
+
+    // Zone text labels
+    ctx.font = 'bold 13.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx.fillStyle = '#15803D';
+    ctx.fillText('منخفض', cx + radius - 6, cy + 26);
+    ctx.fillStyle = '#C2410C';
+    ctx.fillText('متوسط', cx, cy - radius - 34);
+    ctx.fillStyle = '#DC2626';
+    ctx.fillText('مرتفع', cx - radius + 6, cy + 26);
+
+    // Map value accurately to 3 zones:
+    // 0..5 -> 0 .. 1/3
+    // 5..10 -> 1/3 .. 2/3
+    // 10..15+ -> 2/3 .. 1 (clamped cleanly at 15)
+    var normRatio = 0;
+    if (val <= 5) {
+      normRatio = (val / 5) * (1 / 3);
+    } else if (val <= 10) {
+      normRatio = (1 / 3) + ((val - 5) / 5) * (1 / 3);
+    } else {
+      normRatio = (2 / 3) + (Math.min(val - 10, 5) / 5) * (1 / 3);
+    }
+    var needleAngle = -normRatio * Math.PI;
+    var nLen = radius - 16;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(needleAngle);
+    ctx.fillStyle = '#1B365D';
+    ctx.beginPath();
+    ctx.moveTo(-6, -6);
+    ctx.lineTo(nLen, 0);
+    ctx.lineTo(-6, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#1B365D';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Determine level badge
+    var lvlText = 'منخفض', lvlBg = '#DCFCE7', lvlFg = '#15803D';
+    if (val >= 11) {
+      lvlText = 'مرتفع'; lvlBg = '#FEE2E2'; lvlFg = '#DC2626';
+    } else if (val >= 6) {
+      lvlText = 'متوسط'; lvlBg = '#FFEDD5'; lvlFg = '#C2410C';
+    }
+
+    var displayVal = (Math.round(val * 10) / 10).toString();
+    ctx.fillStyle = '#1B365D';
+    ctx.font = 'bold 34px "Cairo", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(displayVal, cx, cy + 56);
+
+    ctx.fillStyle = '#64748B';
+    ctx.font = '14.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx.fillText(unitLabel || 'مرة / يوم', cx, cy + 79);
+
+    // Level pill
+    var pillW = 112, pillH = 28;
+    ctx.fillStyle = lvlBg;
+    roundRect(ctx, cx - pillW / 2, cy + 88, pillW, pillH, 14);
+    ctx.fill();
+    ctx.fillStyle = lvlFg;
+    ctx.font = 'bold 14px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx.fillText('المستوى: ' + lvlText, cx, cy + 107);
+
+    // 3-zone color legend at bottom
+    var legY = cy + 132;
+    ctx.font = 'bold 12px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    var legItems = [
+      { c: '#16A34A', t: '1-5 منخفض', ox: 120 },
+      { c: '#F97316', t: '6-10 متوسط', ox: 0 },
+      { c: '#DC2626', t: '+11 مرتفع', ox: -120 }
+    ];
+    legItems.forEach(function (li) {
+      ctx.fillStyle = li.c;
+      ctx.beginPath();
+      ctx.arc(cx + li.ox + 34, legY - 4, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#334155';
+      ctx.textAlign = 'center';
+      ctx.fillText(li.t, cx + li.ox - 6, legY);
     });
   }
 
@@ -1285,9 +1479,7 @@
 
   // توليد عنصر Canvas لصفحة التقرير الكمي لعرضه مباشرة على شاشة الكمبيوتر أو طباعته
   async function renderQuantitativePageCanvas(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var statsObj = computeEvaluationStats(rep);
     var c = document.createElement('canvas');
@@ -1868,9 +2060,7 @@
 
 
   async function renderQualitativeFrenchToPdf(rep, childNameFr, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var stats = computeEvaluationStats(rep);
     var ev = stats.ev || rep || {};
     var W = 1240, H = 1754, M = 58, CW = W - M * 2;
@@ -1981,9 +2171,7 @@
     if (evObj && evObj.eval_type === 'mas_behavior_report') {
       return renderMasBehaviorReportToPdf(rep, childFullName, secName, kd);
     } // 'notes' | 'statistics' | 'full'
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var reportTemplateVersion = 'DE-EVAL-2.0';
     var generatedAtText = new Date().toLocaleString('ar-DZ', {
       timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -2492,7 +2680,7 @@
       }
 
       var y = 295;
-      var colW = [60, 140, 360, 220, 160, CW - (60 + 140 + 360 + 220 + 160)];
+      var colW = [148, 198, 122, 122, 118, 152, CW - 860];
       var colX = [];
       var curX = M;
       for (var ci = 0; ci < colW.length; ci++) { colX.push(curX); curX += colW[ci]; }
@@ -3052,9 +3240,7 @@
   }
 
   async function renderWeeklyProgramCanvas(progState, secName) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var c = document.createElement('canvas');
     c.width = 1754;
@@ -3072,9 +3258,7 @@
 
   
   async function renderBehaviorObservationToPdf(ev, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var c = document.createElement('canvas');
     var W = 1240, H = 1754;
@@ -3258,9 +3442,7 @@
      تصدير تقييم قياس السلوك المستهدف إلى PDF بدقة A4 (مطابق تماماً لملف قياس السلوك المستهدف)
      ══════════════════════════════════════════════════════════════════════════ */
   async function renderTargetBehaviorToPdf(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var ev = ensureParsedEval(rep);
     var tb = ev.target_behavior_eval || rep.target_behavior_eval || {};
     var days = Array.isArray(tb.days) ? tb.days : [];
@@ -3328,8 +3510,8 @@
         curX -= colW[i];
         colX.push(curX);
       }
-      var hdrH = 95;
-      ctx.fillStyle = '#FFFFFF';
+      var hdrH = 88;
+      ctx.fillStyle = '#F1F5F9';
       ctx.fillRect(M, y, CW, hdrH);
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1.6;
@@ -3337,15 +3519,16 @@
         ctx.strokeRect(colX[cIdx], y, colW[cIdx], hdrH);
       }
 
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 16.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       ctx.textAlign = 'center';
       var headers = [
         ['اليوم والتاريخ'],
-        ['نوع', 'السلوك'],
-        ['وقت و', 'مدة', 'حدوث', 'السلوك'],
-        ['عدد مرات', 'تكرار', 'السلوك'],
-        ['مكان', 'حدوث', 'السلوك'],
+        ['السلوك الرئيسي', 'والفرعي'],
+        ['وقت', 'السلوك'],
+        ['مدة', 'السلوك'],
+        ['عدد مرات', 'التكرار'],
+        ['مكان', 'الحدوث'],
         ['سوابق حدوث', 'السلوك']
       ];
       headers.forEach(function (hLines, idx) {
@@ -3394,17 +3577,21 @@
         ctx.fillText(dayNameStr || dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 6);
       }
 
-      // صفوف السلوكيات الفرعية لهذا اليوم
+      // صفوف السلوكيات الفرعية لهذا اليوم (مع فصل وقت السلوك عن مدة السلوك)
       rows.forEach(function (rItem, rIdx) {
         var ry = startY + rIdx * subRowH;
+        var behLabel = (rItem.main_behavior ? (rItem.main_behavior.replace(/\s*\([^)]*\)\s*/g, '').trim() + ': ') : '') + (rItem.sub_behavior || '');
+        var bTime = rItem.behavior_time || (rItem.time_duration && !rItem.behavior_duration ? rItem.time_duration : '');
+        var bDur = rItem.behavior_duration || '';
         var vals = [
-          rItem.sub_behavior || '',
-          rItem.time_duration || '',
+          behLabel.trim(),
+          bTime,
+          bDur,
           rItem.frequency || '',
           rItem.location || '',
           rItem.antecedents || ''
         ];
-        for (var cIdx = 1; cIdx < 6; cIdx++) {
+        for (var cIdx = 1; cIdx < 7; cIdx++) {
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(colX[cIdx], ry, colW[cIdx], subRowH);
           ctx.strokeStyle = '#000000';
@@ -3414,10 +3601,15 @@
           var cellTxt = String(vals[cIdx - 1] || '');
           if (cellTxt) {
             ctx.fillStyle = '#000000';
-            ctx.font = (cIdx === 1 ? 'bold 14.5px ' : '14.5px ') + '"Cairo", "IBM Plex Sans Arabic", sans-serif';
+            ctx.font = (cIdx === 1 ? 'bold 13.5px ' : '13.5px ') + '"Cairo", "IBM Plex Sans Arabic", sans-serif';
             ctx.textAlign = 'center';
-            var wrapped = wrapLines(ctx, cellTxt, colW[cIdx] - 10, 1);
-            ctx.fillText(wrapped[0] || '', colX[cIdx] + colW[cIdx] / 2, ry + 26);
+            var wrapped = wrapLines(ctx, cellTxt, colW[cIdx] - 10, 2);
+            if (wrapped.length === 1) {
+              ctx.fillText(wrapped[0], colX[cIdx] + colW[cIdx] / 2, ry + 26);
+            } else {
+              ctx.fillText(wrapped[0], colX[cIdx] + colW[cIdx] / 2, ry + 18);
+              ctx.fillText(wrapped[1], colX[cIdx] + colW[cIdx] / 2, ry + 35);
+            }
           }
         }
       });
@@ -3492,9 +3684,7 @@
   }
 
   async function renderMasBehaviorToPdf(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var ev = ensureParsedEval(rep);
     var mas = ev.mas_eval || rep.mas_eval || ev.mas || {};
     var answers = mas.answers || {};
@@ -4200,82 +4390,9 @@
     roundRect(ctx, rightBoxX, y, halfW, botH, 14);
     ctx.stroke();
 
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('مقياس متوسط التكرار اليومي', rightBoxX + halfW / 2, y + 40);
-
-    // رسم عداد نصف الدائرة (Gauge)
     var gCx = rightBoxX + halfW / 2;
-    var gCy = y + 275;
-    var gRadius = 145;
-    var gThickness = 36;
-    var gaugeMax = Math.max(5, Math.ceil(st.dailyAverage));
-    var segColors = ['#22C55E', '#84CC16', '#FACC15', '#F97316', '#EF4444'];
-    // من اليمين (0) إلى اليسار (5): الزاوية من 0 إلى -PI (أو PI إلى 2*PI عبر الأعلى)
-    // في Canvas: الزاوية 0 هي اليمين، -PI/2 هي الأعلى، -PI هي اليسار
-    for (var sIdx = 0; sIdx < 5; sIdx++) {
-      var aStart = -((sIdx + 1) / 5) * Math.PI;
-      var aEnd = -(sIdx / 5) * Math.PI;
-      ctx.beginPath();
-      ctx.arc(gCx, gCy, gRadius, aStart, aEnd, false);
-      ctx.strokeStyle = segColors[sIdx];
-      ctx.lineWidth = gThickness;
-      ctx.stroke();
-    }
-
-    // أرقام التدريج حول القوس (0 على اليمين إلى 5 على اليسار)
-    ctx.fillStyle = '#334155';
-    ctx.font = 'bold 16px "Cairo", sans-serif';
-    for (var tick = 0; tick <= 5; tick++) {
-      var tRatio = tick / 5;
-      var tAngle = -tRatio * Math.PI;
-      var tx = gCx + Math.cos(tAngle) * (gRadius + 34);
-      var ty = gCy + Math.sin(tAngle) * (gRadius + 34);
-      var labelNum = gaugeMax === 5 ? tick : Math.round(tRatio * gaugeMax * 10) / 10;
-      ctx.fillText(String(labelNum), tx, ty + 5);
-    }
-
-    ctx.fillStyle = '#15803D';
-    ctx.font = 'bold 16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-    ctx.fillText('منخفض', gCx + gRadius - 10, gCy + 28);
-
-    ctx.fillStyle = '#DC2626';
-    ctx.fillText('مرتفع', gCx - gRadius + 10, gCy + 28);
-
-    // مؤشر العداد (الإبرة)
-    var clampedVal = Math.min(gaugeMax, Math.max(0, st.dailyAverage));
-    var needleAngle = -(clampedVal / gaugeMax) * Math.PI;
-    var nLen = gRadius - 18;
-    ctx.save();
-    ctx.translate(gCx, gCy);
-    ctx.rotate(needleAngle);
-    ctx.fillStyle = '#1B365D';
-    ctx.beginPath();
-    ctx.moveTo(0, -7);
-    ctx.lineTo(nLen, 0);
-    ctx.lineTo(0, 7);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = '#1B365D';
-    ctx.beginPath();
-    ctx.arc(gCx, gCy, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(gCx, gCy, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#1B365D';
-    ctx.font = 'bold 38px "Cairo", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(st.dailyAverageFmt, gCx, gCy + 58);
-
-    ctx.fillStyle = '#64748B';
-    ctx.font = '16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-    ctx.fillText('مرة / يوم', gCx, gCy + 86);
+    var gCy = y + 258;
+    drawThreeZoneClockGauge(ctx, gCx, gCy, 132, 34, st.dailyAverage, 'مرة / يوم', 'مقياس الساعة — متوسط التكرار اليومي');
 
     // 2. بطاقة جدول التكرار اليومي (على اليسار)
     ctx.fillStyle = '#F8FAFC';
@@ -4368,40 +4485,44 @@
   }
 
   function drawDottedWritingSection(ctx, W, M, y, numStr, titleTxt, contentTxt, numLines) {
-    y = drawSectionPillBanner(ctx, W, M, y, numStr, titleTxt, 310);
+    y = drawSectionPillBanner(ctx, W, M, y, numStr, titleTxt, 330);
     var CW = W - M * 2;
-    var lineSpacing = 44;
+    var lineSpacing = 34;
     var linesText = [];
     if (contentTxt && String(contentTxt).trim()) {
-      ctx.font = 'bold 17.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.font = 'bold 17px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       String(contentTxt).replace(/\r\n/g, '\n').split('\n').forEach(function (rawLn) {
-        if (!rawLn.trim()) return;
-        var wrapped = wrapLines(ctx, rawLn.trim(), CW - 20, numLines);
+        if (!rawLn.trim()) { linesText.push(''); return; }
+        var wrapped = wrapLines(ctx, rawLn.trim(), CW - 28, 200);
         linesText = linesText.concat(wrapped);
       });
     }
+    var effectiveLines = Math.max(1, linesText.length);
+    var boxH = effectiveLines * lineSpacing + 22;
 
-    for (var i = 0; i < numLines; i++) {
-      var lineY = y + (i + 1) * lineSpacing;
-      ctx.save();
-      ctx.strokeStyle = '#94A3B8';
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.moveTo(M, lineY);
-      ctx.lineTo(W - M, lineY);
-      ctx.stroke();
-      ctx.restore();
+    ctx.fillStyle = '#F8FAFC';
+    roundRect(ctx, M, y, CW, boxH, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#CBD5E1';
+    ctx.lineWidth = 1.2;
+    roundRect(ctx, M, y, CW, boxH, 10);
+    ctx.stroke();
 
-      if (linesText[i]) {
-        ctx.fillStyle = '#0F172A';
-        ctx.font = 'bold 17.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(linesText[i], W - M - 8, lineY - 10);
-      }
+    if (linesText.length > 0) {
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 17px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'right';
+      linesText.forEach(function (ln, idx) {
+        if (ln) ctx.fillText(ln, W - M - 14, y + 26 + idx * lineSpacing);
+      });
+    } else {
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('— لم تُسجّل ملاحظات في هذا القسم —', W - M - 14, y + 28);
     }
 
-    return y + numLines * lineSpacing + 28;
+    return y + boxH + 18;
   }
 
   function drawTargetBehaviorReportPage2(ctx, W, H, repData, logoImg) {
@@ -4506,9 +4627,7 @@
   }
 
   async function renderTargetBehaviorReportPage1Canvas(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var W = 1240, H = 1754;
     var repData = prepareTargetBehaviorReportData(rep, childFullName, secName, kd);
@@ -4520,9 +4639,7 @@
   }
 
   async function renderTargetBehaviorReportToPdf(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var W = 1240, H = 1754;
     var repData = prepareTargetBehaviorReportData(rep, childFullName, secName, kd);
@@ -4620,6 +4737,7 @@
       keyFindings: mbr.key_findings || '',
       recommendationsText: mbr.recommendations_text || '',
       conclusionText: mbr.conclusion_text || '',
+      mbr: mbr,
       stats: stats
     };
   }
@@ -4738,8 +4856,8 @@
     // 2. النتائج العامة
     y = drawSectionPillBanner(ctx, W, M, y, '2', 'النتائج العامة', 255);
 
-    // صندوق الرسم البياني الكبير (مطابق لصفحة 1 من template_dawafi3_assulouk_v2.pdf)
-    var boxH = 710;
+    // صندوق الرسم البياني لأبعاد دوافع السلوك + مقياس الساعة (3 مجالات)
+    var boxH = 510;
     ctx.fillStyle = '#F8FAFC';
     roundRect(ctx, M, y, CW, boxH, 18);
     ctx.fill();
@@ -4750,8 +4868,8 @@
 
     var chartLeft = M + 95;
     var chartRight = W - M - 45;
-    var chartTop = y + 60;
-    var chartBottom = y + 530;
+    var chartTop = y + 48;
+    var chartBottom = y + 365;
     var chartW = chartRight - chartLeft;
     var chartH = chartBottom - chartTop;
 
@@ -4822,6 +4940,45 @@
       ctx.font = 'bold 20px "Cairo", sans-serif';
       ctx.fillText(dm.score + ' / 100', cx, scoreBoxY + 30);
     });
+
+    // بطاقة مقياس الساعة لتقييم دوافع السلوك (الأخضر 1-5 منخفض، البرتقالي 6-10 متوسط، الأحمر 11+ مرتفع)
+    var gaugeBoxY = y + boxH + 18;
+    var gaugeBoxH = Math.max(240, H - 88 - gaugeBoxY);
+    if (gaugeBoxH >= 220) {
+      ctx.fillStyle = '#F8FAFC';
+      roundRect(ctx, M, gaugeBoxY, CW, gaugeBoxH, 16);
+      ctx.fill();
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1.3;
+      roundRect(ctx, M, gaugeBoxY, CW, gaugeBoxH, 16);
+      ctx.stroke();
+
+      // حساب قيمة مقياس الساعة من متوسط/درجة الدوافع أو القيمة المحددة
+      var rawMasScore = 0;
+      if (repData.mbr && repData.mbr.clock_score != null && repData.mbr.clock_score !== '') {
+        rawMasScore = Number(repData.mbr.clock_score) || 0;
+      } else if (dims.length) {
+        var maxDimScore = 0;
+        dims.forEach(function (d) { if (d.rawTotal > maxDimScore) maxDimScore = d.rawTotal; });
+        if (maxDimScore > 0) {
+          rawMasScore = Math.round((maxDimScore / 24) * 15 * 10) / 10;
+        } else {
+          var avgPct = dims.reduce(function (acc, d) { return acc + (Number(d.score) || 0); }, 0) / dims.length;
+          rawMasScore = Math.round((avgPct / 100) * 15 * 10) / 10;
+        }
+      }
+      var masGaugeR = Math.min(86, Math.floor((gaugeBoxH - 145) * 0.65));
+      drawThreeZoneClockGauge(
+        ctx,
+        W / 2,
+        gaugeBoxY + masGaugeR + 105,
+        masGaugeR,
+        24,
+        rawMasScore,
+        'درجة شدة الدافع السلوكي',
+        'مقياس الساعة لمستوى دوافع السلوك (1-5 منخفض | 6-10 متوسط | 11+ مرتفع)'
+      );
+    }
 
     // تذييل الصفحة الأولى
     ctx.strokeStyle = '#CBD5E1';
@@ -4910,9 +5067,7 @@
   }
 
   async function renderMasBehaviorReportPage1Canvas(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var W = 1240, H = 1754;
     var repData = prepareMasBehaviorReportData(rep, childFullName, secName, kd);
@@ -4923,9 +5078,7 @@
   }
 
   async function renderMasBehaviorReportToPdf(rep, childFullName, secName, kd) {
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
-      try { await document.fonts.ready; } catch (e) {}
-    }
+    await safeWaitFonts(900);
     var logoImg = await loadLogoImage();
     var W = 1240, H = 1754;
     var repData = prepareMasBehaviorReportData(rep, childFullName, secName, kd);
@@ -4944,6 +5097,560 @@
       { data: jpg1, width: W, height: H },
       { data: jpg2, width: W, height: H }
     ]);
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     FICHE DE SUIVI MÉDICO-FONCTIONNEL — Suivi des crises épileptiques
+     Modèle officiel 100% fidèle (Sections I à VII) avec codes couleurs :
+     - Rouge (#B91C1C) : textes fixes unifiés pour tous les enfants
+     - Vert (#15803D) : options sélectionnées / sélectionnables
+     - Noir (#0F172A) : textes normaux et saisies manuelles
+     - Bleu marine (#1B365D) : grands titres de sections
+     - Logo Dar El Ihsan en haut à droite sur la page 1 et en-tête discret ensuite
+     ══════════════════════════════════════════════════════════════════════════ */
+  var MEDICO_SAFETY_FOOTER = "Consigne de sécurité : En cas de crise, protéger l'enfant, chronométrer sa durée, surveiller sa respiration, ne rien introduire dans sa bouche et ne pas le laisser seul. Appeler les secours si la crise atteint 5 minutes, si les crises se répètent sans reprise de conscience ou en cas de difficulté respiratoire.";
+
+  var MEDICO_SAFETY_RULES = [
+    "1. Noter précisément l'heure de début et de fin de chaque crise.",
+    "2. Éloigner les objets dangereux et protéger l'enfant contre les risques de blessures.",
+    "3. Placer l'enfant en position latérale de sécurité dès que possible, lorsque cela peut être fait sans danger, et surveiller sa respiration.",
+    "4. Ne jamais immobiliser ses mouvements et ne rien introduire dans sa bouche.",
+    "5. Ne donner ni eau, ni nourriture, ni médicament par voie orale avant la récupération complète de la conscience.",
+    "6. Ne jamais laisser l'enfant seul après une crise et surveiller son état de conscience et sa respiration.",
+    "7. Appeler immédiatement les secours si la crise atteint cinq (05) minutes, si une nouvelle crise survient sans récupération de conscience, en cas de difficulté respiratoire ou de blessure grave.",
+    "8. Informer la famille et consigner chaque épisode dans le dossier individuel de l'enfant.",
+    "9. Respecter le protocole médical d'urgence établi par le médecin traitant."
+  ];
+
+  async function renderMedicoFunctionalFrenchPages(rep, childNameFr, secName, kd) {
+    await safeWaitFonts(900);
+    var logoImg = await loadLogoImage();
+    var mf = (rep && rep.medico_functional_fr) ? rep.medico_functional_fr : (rep || {});
+    var W = 1240, H = 1754, M = 64, CW = W - M * 2;
+    var BOTTOM_LIMIT = H - 125;
+    var pages = [];
+
+    function drawFooter(ctx, pageNum) {
+      ctx.save();
+      ctx.direction = 'ltr';
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(M, H - 108);
+      ctx.lineTo(W - M, H - 108);
+      ctx.stroke();
+
+      ctx.font = 'bold 13.5px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.fillStyle = '#0F172A';
+      ctx.textAlign = 'left';
+      var fLines = wrapLines(ctx, MEDICO_SAFETY_FOOTER, CW - 40, 4);
+      fLines.forEach(function (fl, idx) {
+        ctx.fillText(fl, M, H - 88 + idx * 18);
+      });
+      ctx.fillStyle = '#475569';
+      ctx.font = '13px Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Page ' + pageNum, W - M, H - 22);
+      ctx.restore();
+    }
+
+    function newPage(isFirst) {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+      ctx.direction = 'ltr';
+
+      var y = 60;
+      if (isFirst) {
+        // Logo en haut à droite (exigence explicite)
+        if (logoImg && logoImg.width) {
+          try { ctx.drawImage(logoImg, W - M - 138, 36, 134, 134); } catch (e) {}
+        }
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#0F172A';
+        ctx.font = 'bold 30px "Times New Roman", Georgia, Arial, sans-serif';
+        ctx.fillText('A-P-E-H-M', W / 2 - 20, 72);
+        ctx.font = 'bold 25px "Times New Roman", Georgia, Arial, sans-serif';
+        ctx.fillText('Centre psychopédagogique Dar el ihsan', W / 2 - 20, 114);
+        ctx.font = 'bold 22px "Times New Roman", Georgia, Arial, sans-serif';
+        ctx.fillText('-El ATTEUF – Ghardaïa-', W / 2 - 20, 152);
+
+        // Titre principal souligné en bleu marine professionnel
+        ctx.fillStyle = '#1B365D';
+        ctx.font = 'bold 24px "Times New Roman", Georgia, Arial, sans-serif';
+        var mainTitle = 'FICHE DE SUIVI MÉDICO-FONCTIONNEL';
+        ctx.fillText(mainTitle, W / 2, 214);
+        var mtW = ctx.measureText(mainTitle).width;
+        ctx.strokeStyle = '#1B365D';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo((W - mtW) / 2, 220);
+        ctx.lineTo((W + mtW) / 2, 220);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0F172A';
+        ctx.font = 'bold 19px "Times New Roman", Georgia, Arial, sans-serif';
+        ctx.fillText('Suivi des crises épileptiques', W / 2, 250);
+        y = 290;
+      } else {
+        if (logoImg && logoImg.width) {
+          try { ctx.drawImage(logoImg, W - M - 60, 26, 54, 54); } catch (e) {}
+        }
+        ctx.fillStyle = '#1B365D';
+        ctx.font = 'bold 15px Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('FICHE DE SUIVI MÉDICO-FONCTIONNEL — ' + (childNameFr || mf.child_name_fr || '—'), M, 58);
+        ctx.strokeStyle = '#CBD5E1';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(M, 86);
+        ctx.lineTo(W - M, 86);
+        ctx.stroke();
+        y = 114;
+      }
+
+      var pg = { canvas: c, ctx: ctx, y: y };
+      pages.push(pg);
+      return pg;
+    }
+
+    var pg = newPage(true);
+    function ensureSpace(neededH) {
+      if (pg.y + neededH > BOTTOM_LIMIT) {
+        pg = newPage(false);
+      }
+      return pg;
+    }
+
+    function drawSectionTitle(titleTxt, color) {
+      ensureSpace(46);
+      var ctx = pg.ctx;
+      ctx.fillStyle = color || '#1B365D';
+      ctx.font = 'bold 19px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(titleTxt, M, pg.y);
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(M, pg.y + 8);
+      ctx.lineTo(W - M, pg.y + 8);
+      ctx.stroke();
+      pg.y += 32;
+    }
+
+    function drawSubTitleRed(txt) {
+      ensureSpace(34);
+      var ctx = pg.ctx;
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 17.5px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(txt, M, pg.y);
+      pg.y += 28;
+    }
+
+    function drawRedLabelBlackVal(bullet, labelTxt, valTxt, valColor) {
+      var ctx = pg.ctx;
+      var prefix = (bullet ? bullet + ' ' : '') + labelTxt + ' : ';
+      ctx.font = 'bold 17px "Times New Roman", Georgia, Arial, sans-serif';
+      var lblW = ctx.measureText(prefix).width;
+      var valStr = (valTxt && String(valTxt).trim()) ? String(valTxt).trim() : '................................................';
+      ctx.font = '17px "Times New Roman", Georgia, Arial, sans-serif';
+      var firstMaxW = Math.max(200, CW - lblW - 14);
+      var vLines = wrapLines(ctx, valStr, firstMaxW, 40);
+      ensureSpace(vLines.length * 25 + 10);
+      ctx = pg.ctx;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 17px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.fillText(prefix, M + 14, pg.y);
+
+      ctx.fillStyle = valColor || '#0F172A';
+      ctx.font = (valColor === '#15803D' ? 'bold ' : '') + '17px "Times New Roman", Georgia, Arial, sans-serif';
+      vLines.forEach(function (ln, idx) {
+        ctx.fillText(ln, idx === 0 ? (M + 14 + lblW) : (M + 28), pg.y + idx * 25);
+      });
+      pg.y += Math.max(1, vLines.length) * 25 + 6;
+    }
+
+    function drawGreenOptionList(allOptions, selectedArr, customExtras) {
+      var sel = Array.isArray(selectedArr) ? selectedArr : [];
+      var merged = [];
+      (allOptions || []).forEach(function (o) { if (merged.indexOf(o) < 0) merged.push(o); });
+      (customExtras || []).forEach(function (o) { if (o && merged.indexOf(o) < 0) merged.push(o); });
+      sel.forEach(function (o) { if (o && merged.indexOf(o) < 0) merged.push(o); });
+
+      merged.forEach(function (opt) {
+        var isChecked = sel.indexOf(opt) >= 0;
+        ensureSpace(28);
+        var ctx = pg.ctx;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#15803D';
+        ctx.font = (isChecked ? 'bold ' : '') + '16.5px "Times New Roman", Georgia, Arial, sans-serif';
+        var mark = isChecked ? '☑ ' : '☐ ';
+        var lines = wrapLines(ctx, mark + opt, CW - 48, 4);
+        lines.forEach(function (ln, idx) {
+          ctx.fillText(ln, M + 32, pg.y + idx * 23);
+        });
+        pg.y += Math.max(1, lines.length) * 23 + 4;
+      });
+      pg.y += 4;
+    }
+
+    function drawMultilineField(labelRed, valueBlack) {
+      var valStr = (valueBlack && String(valueBlack).trim()) ? String(valueBlack).trim() : '';
+      var ctx = pg.ctx;
+      ctx.font = '16.5px "Times New Roman", Georgia, Arial, sans-serif';
+      var lines = valStr ? wrapLines(ctx, valStr, CW - 28, 80) : ['....................................................................................................'];
+      var boxH = Math.max(1, lines.length) * 24 + 16;
+      ensureSpace(34 + boxH + 10);
+      ctx = pg.ctx;
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 17px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(labelRed + ' :', M, pg.y);
+      pg.y += 12;
+
+      ctx.fillStyle = '#F8FAFC';
+      roundRect(ctx, M, pg.y, CW, boxH, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1;
+      roundRect(ctx, M, pg.y, CW, boxH, 6);
+      ctx.stroke();
+
+      ctx.fillStyle = '#0F172A';
+      ctx.font = '16.5px "Times New Roman", Georgia, Arial, sans-serif';
+      lines.forEach(function (ln, idx) {
+        ctx.fillText(ln, M + 12, pg.y + 23 + idx * 24);
+      });
+      pg.y += boxH + 14;
+    }
+
+    // ── SECTION I. INFORMATIONS PERSONNELLES ──
+    drawSectionTitle('I. INFORMATIONS PERSONNELLES', '#1B365D');
+    var frChildDisplay = childNameFr || mf.child_name_fr || (kd && kd.full_name) || '—';
+    var ageFr = mf.age_fr || (kd && kd.dob ? (function (dob) {
+      var b = new Date(dob), n = new Date();
+      if (isNaN(b.getTime())) return '—';
+      var a = n.getFullYear() - b.getFullYear();
+      if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+      return (a < 10 ? '0' + a : String(a)) + ' ans';
+    })(kd.dob) : '—');
+    var sectionChoice = Array.isArray(mf.section_choices) && mf.section_choices.length
+      ? mf.section_choices.join(' / ')
+      : (mf.section_fr || secName || 'Retard mental (RM) / Trouble du spectre autistique / Trisomie 21');
+
+    drawRedLabelBlackVal('❖', 'Nom et prénom', frChildDisplay, '#0F172A');
+    drawRedLabelBlackVal('❖', 'Âge', ageFr, '#0F172A');
+    drawRedLabelBlackVal('❖', 'Section', sectionChoice, '#15803D');
+    drawRedLabelBlackVal('❖', "Date d'admission au centre", mf.admission_date || '', '#0F172A');
+    drawRedLabelBlackVal('❖', 'Données médicales connues', mf.medical_data || '', '#0F172A');
+    drawRedLabelBlackVal('❖', 'Traitement antiépileptique', mf.antiepileptic_treatment || '', '#0F172A');
+    drawRedLabelBlackVal('❖', 'Médecin traitant', mf.treating_doctor || '', '#0F172A');
+    drawRedLabelBlackVal('❖', 'Date de début du suivi', mf.followup_start_date || '', '#0F172A');
+    pg.y += 10;
+
+    // ── SECTION II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES ──
+    drawSectionTitle('II. FICHE DE SUIVI DES CRISES ÉPILEPTIQUES', '#1B365D');
+    ensureSpace(28);
+    pg.ctx.fillStyle = '#0F172A';
+    pg.ctx.font = 'italic 16px "Times New Roman", Georgia, Arial, sans-serif';
+    pg.ctx.textAlign = 'left';
+    pg.ctx.fillText("Cette fiche doit être renseignée à chaque épisode de crise observé au sein du centre.", M, pg.y);
+    pg.y += 24;
+
+    var ep1 = (mf.episodes && mf.episodes[0]) || {};
+    var ep2 = (mf.episodes && mf.episodes[1]) || {};
+    var crisisRows = [
+      { label: 'Date et heure', v1: ep1.date_time || '', v2: ep2.date_time || '', type: 'text' },
+      { label: 'Durée de la crise', v1: ep1.duration || '', v2: ep2.duration || '', type: 'text' },
+      { label: 'Lieu de survenue', v1: ep1.location || '', v2: ep2.location || '', type: 'text' },
+      { label: 'Activité avant la crise', v1: ep1.activity_before || '', v2: ep2.activity_before || '', type: 'text' },
+      { label: 'Perte de conscience', v1: ep1.loss_consciousness || '', v2: ep2.loss_consciousness || '', type: 'yn' },
+      { label: 'Convulsions', v1: ep1.convulsions || '', v2: ep2.convulsions || '', type: 'yn' },
+      { label: 'Difficultés respiratoires', v1: ep1.breathing_diff || '', v2: ep2.breathing_diff || '', type: 'yn' },
+      { label: 'Endormissement après la crise', v1: ep1.post_sleep || '', v2: ep2.post_sleep || '', type: 'yn' },
+      { label: 'Durée de récupération', v1: ep1.recovery_duration || '', v2: ep2.recovery_duration || '', type: 'text' }
+    ];
+
+    var cW = [CW * 0.27, CW * 0.23, CW * 0.27, CW * 0.23];
+    var cX = [M, M + cW[0], M + cW[0] + cW[1], M + cW[0] + cW[1] + cW[2]];
+
+    function drawCrisisTableHeader() {
+      ensureSpace(44);
+      var ctx = pg.ctx;
+      ctx.fillStyle = '#FEF2F2';
+      ctx.fillRect(M, pg.y, CW, 38);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.2;
+      for (var i = 0; i < 4; i++) ctx.strokeRect(cX[i], pg.y, cW[i], 38);
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 16px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ['Informations', 'Observations', 'Informations', 'Observations'].forEach(function (hTxt, i) {
+        ctx.fillText(hTxt, cX[i] + 10, pg.y + 25);
+      });
+      pg.y += 38;
+    }
+
+    drawCrisisTableHeader();
+    crisisRows.forEach(function (cr) {
+      var fmtVal = function (v) {
+        if (cr.type === 'yn') {
+          return (v === 'Oui' ? '☑ Oui   ☐ Non' : v === 'Non' ? '☐ Oui   ☑ Non' : '☐ Oui   ☐ Non');
+        }
+        return (v && String(v).trim()) ? String(v).trim() : '........................';
+      };
+      var s1 = fmtVal(cr.v1), s2 = fmtVal(cr.v2);
+      pg.ctx.font = '15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      var l1 = wrapLines(pg.ctx, s1, cW[1] - 16, 4);
+      var l2 = wrapLines(pg.ctx, s2, cW[3] - 16, 4);
+      var rH = Math.max(36, Math.max(l1.length, l2.length) * 21 + 14);
+      if (pg.y + rH > BOTTOM_LIMIT) {
+        pg = newPage(false);
+        drawCrisisTableHeader();
+      }
+      var ctx = pg.ctx;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(M, pg.y, CW, rH);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      for (var i = 0; i < 4; i++) ctx.strokeRect(cX[i], pg.y, cW[i], rH);
+
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(cr.label, cX[0] + 10, pg.y + 24);
+      ctx.fillText(cr.label, cX[2] + 10, pg.y + 24);
+
+      ctx.fillStyle = '#0F172A';
+      ctx.font = '15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      l1.forEach(function (ln, idx) { ctx.fillText(ln, cX[1] + 8, pg.y + 24 + idx * 20); });
+      l2.forEach(function (ln, idx) { ctx.fillText(ln, cX[3] + 8, pg.y + 24 + idx * 20); });
+      pg.y += rH;
+    });
+    pg.y += 18;
+
+    // 1. Manifestations observées pendant la crise
+    drawSubTitleRed('1. Manifestations observées pendant la crise :');
+    drawGreenOptionList([
+      'Perte de conscience.',
+      'Regard fixe et absence de réponse aux sollicitations.',
+      'Convulsions ou mouvements involontaires.',
+      'Chute brutale.'
+    ], mf.manifestations_selected, mf.manifestations_custom);
+    drawRedLabelBlackVal('✓', 'Autres manifestations', mf.other_manifestations || '', '#0F172A');
+    pg.y += 6;
+
+    // 2. État de l'enfant pendant la crise
+    drawSubTitleRed("2. État de l'enfant pendant la crise :");
+    var stDuring = mf.state_during || {};
+    var fmtYN = function (v) { return v === 'Oui' ? '☑ Oui   ☐ Non' : v === 'Non' ? '☐ Oui   ☑ Non' : '[ ] Oui   [ ] Non'; };
+    var fmtResp = function (v) {
+      return (v === 'Normale' ? '☑' : '[ ]') + ' Normale   ' + (v === 'Anormale' ? '☑' : '[ ]') + ' Anormale   ' + (v === 'Non évaluée' ? '☑' : '[ ]') + ' Non évaluée';
+    };
+    drawRedLabelBlackVal('✓', 'Réponse aux sollicitations verbales', fmtYN(stDuring.verbal_response), '#0F172A');
+    drawRedLabelBlackVal('✓', 'Respiration', fmtResp(stDuring.respiration), '#0F172A');
+    drawRedLabelBlackVal('✓', 'Changement de coloration du visage ou des lèvres', fmtYN(stDuring.color_change), '#0F172A');
+    drawRedLabelBlackVal('✓', 'Chute ou blessure', fmtYN(stDuring.fall_or_injury), '#0F172A');
+    pg.y += 6;
+
+    // 3. État de l'enfant après la crise
+    drawSubTitleRed("3. État de l'enfant après la crise :");
+    drawGreenOptionList([
+      'Récupération progressive de la conscience.',
+      'Endormissement.',
+      'Fatigue et épuisement.',
+      'Confusion ou absence de réponse.',
+      "Retour à l'activité habituelle."
+    ], mf.state_after_selected, mf.state_after_custom);
+
+    drawRedLabelBlackVal('', 'Durée du sommeil ou de la récupération', mf.sleep_recovery_duration || '', '#0F172A');
+    drawMultilineField('Observations complémentaires', mf.complementary_observations || '');
+    drawMultilineField('Conduite adoptée et interventions réalisées', mf.interventions_done || '');
+    drawRedLabelBlackVal('', "Nom et prénom de l'employé ayant observé la crise", mf.observer_name || '', '#0F172A');
+    pg.y += 10;
+
+    // ── SECTION III. FICHE DE SUIVI QUOTIDIEN DE LA VIGILANCE ET DE LA FATIGABILITÉ ──
+    drawSectionTitle('III. FICHE DE SUIVI QUOTIDIEN DE LA VIGILANCE ET DE LA FATIGABILITÉ', '#1B365D');
+    ensureSpace(26);
+    pg.ctx.fillStyle = '#0F172A';
+    pg.ctx.font = 'italic 16px "Times New Roman", Georgia, Arial, sans-serif';
+    pg.ctx.textAlign = 'left';
+    pg.ctx.fillText("À renseigner quotidiennement par l'éducateur ou l'encadreur pédagogique.", M, pg.y);
+    pg.y += 24;
+
+    var vigInds = [
+      { key: 'vigilance_ok', label: 'État de vigilance satisfaisant' },
+      { key: 'attention_fluct', label: 'Attention fluctuante' },
+      { key: 'somnolence', label: 'Somnolence / Léthargie' },
+      { key: 'fatigue_app', label: 'Fatigue apparente' },
+      { key: 'slow_reaction', label: 'Lenteur de réaction' },
+      { key: 'sleep_during_act', label: 'Endormissement pendant les activités' }
+    ];
+    var vW = [CW * 0.46, CW * 0.18, CW * 0.18, CW * 0.18];
+    var vX = [M, M + vW[0], M + vW[0] + vW[1], M + vW[0] + vW[1] + vW[2]];
+    var vigData = mf.vigilance_grid || {};
+
+    ensureSpace(44 + vigInds.length * 38);
+    pg.ctx.fillStyle = '#FEF2F2';
+    pg.ctx.fillRect(M, pg.y, CW, 38);
+    pg.ctx.strokeStyle = '#334155';
+    pg.ctx.lineWidth = 1.2;
+    for (var vi = 0; vi < 4; vi++) pg.ctx.strokeRect(vX[vi], pg.y, vW[vi], 38);
+    pg.ctx.fillStyle = '#B91C1C';
+    pg.ctx.font = 'bold 15.5px "Times New Roman", Georgia, Arial, sans-serif';
+    pg.ctx.textAlign = 'left';
+    pg.ctx.fillText('Indicateurs observés', vX[0] + 10, pg.y + 25);
+    pg.ctx.textAlign = 'center';
+    pg.ctx.fillText('Matin', vX[1] + vW[1] / 2, pg.y + 25);
+    pg.ctx.fillText('Pendant les activités', vX[2] + vW[2] / 2, pg.y + 25);
+    pg.ctx.fillText('Après-midi', vX[3] + vW[3] / 2, pg.y + 25);
+    pg.y += 38;
+
+    vigInds.forEach(function (ind) {
+      var row = vigData[ind.key] || {};
+      var rH = 36;
+      pg.ctx.fillStyle = '#FFFFFF';
+      pg.ctx.fillRect(M, pg.y, CW, rH);
+      pg.ctx.strokeStyle = '#334155';
+      pg.ctx.lineWidth = 1;
+      for (var i = 0; i < 4; i++) pg.ctx.strokeRect(vX[i], pg.y, vW[i], rH);
+      pg.ctx.fillStyle = '#B91C1C';
+      pg.ctx.font = 'bold 15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      pg.ctx.textAlign = 'left';
+      pg.ctx.fillText(ind.label, vX[0] + 10, pg.y + 24);
+      pg.ctx.fillStyle = '#0F172A';
+      pg.ctx.font = 'bold 18px Arial, sans-serif';
+      pg.ctx.textAlign = 'center';
+      pg.ctx.fillText(row.matin ? '☑' : '☐', vX[1] + vW[1] / 2, pg.y + 25);
+      pg.ctx.fillText(row.activites ? '☑' : '☐', vX[2] + vW[2] / 2, pg.y + 25);
+      pg.ctx.fillText(row.apres_midi ? '☑' : '☐', vX[3] + vW[3] / 2, pg.y + 25);
+      pg.y += rH;
+    });
+    pg.y += 16;
+
+    drawSubTitleRed('Niveau général de fatigue :');
+    drawGreenOptionList([
+      'Absence de fatigue apparente.',
+      'Fatigue légère.',
+      'Fatigue modérée.',
+      'Fatigue importante.'
+    ], mf.fatigue_level_selected, mf.fatigue_level_custom);
+
+    drawSubTitleRed('Niveau de participation aux activités pédagogiques :');
+    drawGreenOptionList([
+      'Bonne participation.',
+      'Participation intermittente.',
+      'Faible participation.',
+      'Refus ou incapacité à participer.'
+    ], mf.participation_level_selected, mf.participation_level_custom);
+
+    drawMultilineField("Observations de l'éducateur concernant l'état quotidien de l'enfant", mf.educator_daily_obs || '');
+
+    // ── SECTION IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL ──
+    drawSectionTitle("IV. SUIVI DU SOMMEIL ET DE L'ÉTAT GÉNÉRAL", '#1B365D');
+    var sleep = mf.sleep_general || {};
+    var sleepRows = [
+      { label: 'Durée du sommeil nocturne (selon la famille)', val: sleep.night_duration || '................' },
+      { label: 'Qualité du sommeil', val: sleep.sleep_quality || 'Bonne / Moyenne / Mauvaise' },
+      { label: 'Arrivée au centre en état de fatigue', val: sleep.arrived_tired || 'Oui / Non' },
+      { label: 'Somnolence inhabituelle', val: sleep.unusual_drowsiness || 'Oui / Non' },
+      { label: 'Changement notable du comportement', val: sleep.behavior_change || 'Oui / Non' },
+      { label: 'Remarques de la famille', val: sleep.family_remarks || '................' }
+    ];
+    var sW = [CW * 0.50, CW * 0.50];
+    ensureSpace(40 + sleepRows.length * 36);
+    pg.ctx.fillStyle = '#FEF2F2';
+    pg.ctx.fillRect(M, pg.y, CW, 36);
+    pg.ctx.strokeStyle = '#334155';
+    pg.ctx.lineWidth = 1.2;
+    pg.ctx.strokeRect(M, pg.y, sW[0], 36);
+    pg.ctx.strokeRect(M + sW[0], pg.y, sW[1], 36);
+    pg.ctx.fillStyle = '#B91C1C';
+    pg.ctx.font = 'bold 16px "Times New Roman", Georgia, Arial, sans-serif';
+    pg.ctx.textAlign = 'left';
+    pg.ctx.fillText('Indicateurs', M + 10, pg.y + 24);
+    pg.ctx.fillText('Observations', M + sW[0] + 10, pg.y + 24);
+    pg.y += 36;
+
+    sleepRows.forEach(function (sr) {
+      pg.ctx.font = '15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      var vLines = wrapLines(pg.ctx, String(sr.val || ''), sW[1] - 20, 6);
+      var rH = Math.max(36, vLines.length * 21 + 14);
+      if (pg.y + rH > BOTTOM_LIMIT) pg = newPage(false);
+      var ctx = pg.ctx;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(M, pg.y, CW, rH);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(M, pg.y, sW[0], rH);
+      ctx.strokeRect(M + sW[0], pg.y, sW[1], rH);
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = 'bold 15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(sr.label, M + 10, pg.y + 24);
+      ctx.fillStyle = '#0F172A';
+      ctx.font = '15.5px "Times New Roman", Georgia, Arial, sans-serif';
+      vLines.forEach(function (ln, idx) { ctx.fillText(ln, M + sW[0] + 10, pg.y + 24 + idx * 21); });
+      pg.y += rH;
+    });
+    pg.y += 16;
+
+    // ── SECTION V. BILAN HEBDOMADAIRE DU SUIVI ──
+    drawSectionTitle('V. BILAN HEBDOMADAIRE DU SUIVI', '#B91C1C');
+    var wb = mf.weekly_bilan || {};
+    drawRedLabelBlackVal('✓', 'Nombre de crises enregistrées', wb.crises_count || '', '#0F172A');
+    drawRedLabelBlackVal('✓', 'Nombre de jours avec fatigue importante', wb.heavy_fatigue_days || '', '#0F172A');
+    drawRedLabelBlackVal('✓', "Nombre d'épisodes d'endormissement pendant les activités", wb.sleep_episodes_count || '', '#0F172A');
+    drawRedLabelBlackVal('✓', 'Périodes de baisse de vigilance constatées', wb.low_vigilance_periods || '', '#0F172A');
+    drawMultilineField('Répercussions sur la participation pédagogique', wb.pedagogical_impact || '');
+    drawMultilineField("Observations de l'équipe pluridisciplinaire", wb.team_observations || '');
+
+    // ── SECTION VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE (ROUGE FIXE) ──
+    drawSectionTitle('VI. CONSIGNES DE SÉCURITÉ ET DE SURVEILLANCE', '#B91C1C');
+    MEDICO_SAFETY_RULES.forEach(function (ruleTxt) {
+      pg.ctx.font = '16px "Times New Roman", Georgia, Arial, sans-serif';
+      var rLines = wrapLines(pg.ctx, ruleTxt, CW - 24, 4);
+      ensureSpace(rLines.length * 23 + 8);
+      var ctx = pg.ctx;
+      ctx.fillStyle = '#B91C1C';
+      ctx.font = '16px "Times New Roman", Georgia, Arial, sans-serif';
+      ctx.textAlign = 'left';
+      rLines.forEach(function (ln, idx) {
+        ctx.fillText(ln, M + 16, pg.y + idx * 23);
+      });
+      pg.y += rLines.length * 23 + 6;
+    });
+    pg.y += 12;
+
+    // ── SECTION VII. VALIDATION ET RESPONSABILITÉS ──
+    drawSectionTitle('VII. VALIDATION ET RESPONSABILITÉS', '#B91C1C');
+    var valObj = mf.validation || {};
+    drawRedLabelBlackVal('', 'Responsable du suivi', valObj.followup_responsible || '', '#0F172A');
+    drawRedLabelBlackVal('', 'Éducateur / Encadreur', valObj.educator_name || '', '#0F172A');
+    drawRedLabelBlackVal('', 'Responsable de la structure', valObj.structure_responsible || '', '#0F172A');
+    drawRedLabelBlackVal('', 'Date de la dernière mise à jour', valObj.last_update_date || (rep && rep.report_date) || '', '#0F172A');
+
+    // Draw safety footer on every page
+    pages.forEach(function (pObj, idx) {
+      drawFooter(pObj.ctx, idx + 1);
+    });
+
+    return pages.map(function (pObj) { return pObj.canvas; });
+  }
+
+  async function renderMedicoFunctionalFrenchToPdf(rep, childNameFr, secName, kd) {
+    var canvases = await renderMedicoFunctionalFrenchPages(rep, childNameFr, secName, kd);
+    var jpegPages = [];
+    for (var i = 0; i < canvases.length; i++) {
+      var jpg = await canvasToJpegBytes(canvases[i], 0.94);
+      jpegPages.push({ data: jpg, width: canvases[i].width, height: canvases[i].height });
+    }
+    return buildPdfBinary(jpegPages);
   }
 
   root.DE_PDF = {
@@ -4968,6 +5675,9 @@
     renderReportToPdf: renderReportToPdf,
     renderEvaluationToPdf: renderEvaluationToPdf,
     renderQualitativeFrenchToPdf: renderQualitativeFrenchToPdf,
+    renderMedicoFunctionalFrenchPages: renderMedicoFunctionalFrenchPages,
+    renderMedicoFunctionalFrenchToPdf: renderMedicoFunctionalFrenchToPdf,
+    drawThreeZoneClockGauge: drawThreeZoneClockGauge,
     renderReinforcersToPdf: renderReinforcersToPdf,
     renderInterviewDiagnosticToPdf: renderInterviewDiagnosticToPdf,
     renderAnnualFinalToPdf: renderAnnualFinalToPdf,
