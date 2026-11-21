@@ -1867,6 +1867,96 @@
   }
 
 
+  async function renderQualitativeFrenchToPdf(rep, childNameFr, secName, kd) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try { await document.fonts.ready; } catch (e) {}
+    }
+    var stats = computeEvaluationStats(rep);
+    var ev = stats.ev || rep || {};
+    var W = 1240, H = 1754, M = 58, CW = W - M * 2;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+    var logo = await loadLogoImage();
+    if (logo && logo.width) { try { ctx.drawImage(logo, W - M - 132, 36, 116, 116); } catch (e) {} }
+    ctx.fillStyle = '#111827'; ctx.textAlign = 'center';
+    ctx.font = 'bold 25px Arial, sans-serif';
+    ctx.fillText('ASSOCIATION DES PARENTS DES ENFANTS EN SITUATION DE HANDICAP', W/2, 58);
+    ctx.font = 'bold 25px Arial, sans-serif';
+    ctx.fillText('CENTRE PSYCHOPÉDAGOGIQUE DAR EL IHSAN', W/2, 98);
+    ctx.font = '18px Arial, sans-serif';
+    ctx.fillText('El Atteuf – Wilaya de Ghardaïa', W/2, 132);
+    ctx.fillStyle = '#0B3B63'; ctx.fillRect(M, 166, CW, 5);
+    ctx.fillStyle = '#111827'; ctx.font = 'bold 30px Arial, sans-serif';
+    ctx.fillText("RAPPORT D’ANALYSE QUALITATIVE", W/2, 218);
+
+    var y = 250;
+    function bar(title, fill) {
+      ctx.fillStyle = fill || '#DCEBFA'; ctx.fillRect(M, y, CW, 38);
+      ctx.strokeStyle = '#315477'; ctx.strokeRect(M, y, CW, 38);
+      ctx.fillStyle = '#111827'; ctx.textAlign = 'center'; ctx.font = 'bold 19px Arial, sans-serif';
+      ctx.fillText(title, W/2, y+25); y += 48;
+    }
+    function textLines(value, x, yy, maxW, font, lineH, maxLines) {
+      ctx.font = font || '17px Arial, sans-serif';
+      var lines = wrapLines(ctx, String(value || '—'), maxW, maxLines || 6);
+      ctx.fillStyle = '#111827'; ctx.textAlign = 'left';
+      lines.forEach(function(line, i) { ctx.fillText(line, x, yy + i*(lineH || 24)); });
+      return Math.max(1, lines.length) * (lineH || 24);
+    }
+    bar('INFORMATIONS DE L’ENFANT', '#FDE68A');
+    var info = [
+      ['Nom et prénom', childNameFr || '—'],
+      ['Date de naissance', (kd && kd.dob) || ev.dob || '—'],
+      ['Âge', (function(){ var d=(kd&&kd.dob)||ev.dob; if(!d) return '—'; var b=new Date(d), n=new Date(); var a=n.getFullYear()-b.getFullYear(); if(n.getMonth()<b.getMonth() || (n.getMonth()===b.getMonth()&&n.getDate()<b.getDate())) a--; return a+' ans'; })()],
+      ['Diagnostic', (kd&&kd.disability)||ev.disability||'—'],
+      ['Classe / niveau', secName || ev.qualification_level || '—'],
+      ['Année scolaire', ev.school_year || '2024/2025']
+    ];
+    var colW=CW/2, rowH=48;
+    info.forEach(function(it,i){
+      var col=i%2, row=Math.floor(i/2), x=M+col*colW, yy=y+row*rowH;
+      ctx.fillStyle='#F3F4F6'; ctx.fillRect(x,yy,colW,rowH); ctx.strokeStyle='#64748B'; ctx.strokeRect(x,yy,colW,rowH);
+      ctx.fillStyle='#111827'; ctx.textAlign='left'; ctx.font='bold 15px Arial, sans-serif'; ctx.fillText(it[0]+' :',x+12,yy+18);
+      ctx.font='16px Arial, sans-serif'; ctx.fillText(String(it[1]).slice(0,58),x+12,yy+39);
+    });
+    y += rowH*3 + 18;
+    bar('SYNTHÈSE GÉNÉRALE', '#BFDBFE');
+    var general=String(ev.general_report||'').trim() || 'Aucune observation générale n’a été saisie.';
+    var gh=textLines(general,M+18,y+28,CW-36,'18px Arial, sans-serif',27,13);
+    var gBoxH=Math.max(88,gh+48); ctx.strokeStyle='#64748B'; ctx.strokeRect(M,y-8,CW,gBoxH); y+=gBoxH+18;
+    bar('DOMAINES DE DÉVELOPPEMENT', '#BFDBFE');
+    var ab=ev.abilities||{};
+    var domains=[
+      ['Potentiel et capacités actuelles',ab.current_potentials],
+      ['Compétences cognitives et intellectuelles',ab.cognitive_intellectual],
+      ['Langage réceptif et expressif',ab.language_receptive_expressive],
+      ['Communication et comportement',ab.communication_behavioral],
+      ['Acquis académiques et préacadémiques',ab.academic_preacademic],
+      ['Motricité et autonomie',ab.motor_independence]
+    ];
+    var gap=10, cellW=(CW-gap)/2, cellH=104;
+    domains.forEach(function(it,i){
+      var col=i%2,row=Math.floor(i/2),x=M+col*(cellW+gap),yy=y+row*(cellH+gap);
+      ctx.fillStyle='#FFFFFF'; ctx.fillRect(x,yy,cellW,cellH); ctx.strokeStyle='#64748B'; ctx.strokeRect(x,yy,cellW,cellH);
+      ctx.fillStyle='#DCEBFA'; ctx.fillRect(x,yy,cellW,30);
+      ctx.fillStyle='#111827'; ctx.textAlign='left'; ctx.font='bold 15px Arial, sans-serif'; ctx.fillText(it[0],x+10,yy+20);
+      textLines(it[1]||'—',x+10,yy+55,cellW-20,'15px Arial, sans-serif',20,2);
+    });
+    y += 3*(cellH+gap)+12;
+    bar('CONCLUSION ET RECOMMANDATIONS', '#FDE68A');
+    [ ['Points forts',ev.strengths], ['Points à améliorer',ev.weaknesses], ['Recommandations',ev.recommendations] ].forEach(function(it){
+      ctx.fillStyle='#F3F4F6'; ctx.fillRect(M,y,CW,28); ctx.strokeStyle='#64748B'; ctx.strokeRect(M,y,CW,28);
+      ctx.fillStyle='#111827'; ctx.textAlign='left'; ctx.font='bold 16px Arial, sans-serif'; ctx.fillText(it[0],M+12,y+20); y+=36;
+      var val=Array.isArray(it[1])?it[1].filter(Boolean).join(' • '):(it[1]||'—');
+      y+=textLines(val,M+14,y,CW-28,'15px Arial, sans-serif',21,3)+12;
+    });
+    ctx.fillStyle='#111827'; ctx.textAlign='center'; ctx.font='13px Arial, sans-serif';
+    ctx.fillText('Document confidentiel — Centre Psychopédagogique Dar El Ihsan',W/2,H-34);
+    var bytes=await canvasToJpegBytes(c,0.94);
+    return buildPdfBinary([{data:bytes,width:W,height:H}]);
+  }
+
   async function renderEvaluationToPdf(rep, childFullName, secName, kd, reportType) {
     reportType = reportType || 'full';
     var evObj = ensureParsedEval(rep);
@@ -1974,7 +2064,7 @@
       ];
 
       infoRows.forEach(function (row) {
-        var rh = 34;
+        var rh = 29;
         ctx.fillStyle = '#F8FAFC';
         ctx.fillRect(x1, y, c1W, rh);
         ctx.fillRect(x3, y, c3W, rh);
@@ -1991,14 +2081,14 @@
 
         ctx.fillStyle = '#0F172A';
         ctx.textAlign = 'right';
-        ctx.font = 'bold 16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.font = 'bold 14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
         ctx.fillText(row[0], x1 + c1W - 10, y + 23);
         ctx.fillText(row[2], x3 + c3W - 10, y + 23);
 
         ctx.textAlign = 'center';
-        ctx.font = 'bold 16px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-        ctx.fillText(String(row[1]), x2 + c2W / 2, y + 23);
-        ctx.fillText(String(row[3]), x4 + c4W / 2, y + 23);
+        ctx.font = 'bold 14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+        ctx.fillText(String(row[1]).slice(0, 38), x2 + c2W / 2, y + 23);
+        ctx.fillText(String(row[3]).slice(0, 38), x4 + c4W / 2, y + 23);
         y += rh;
       });
       y += 10;
@@ -2058,53 +2148,15 @@
       ctx.fillText('الوصف العام لأداء الحالة', W / 2, y + 25);
       y += 44;
 
-      // 5. شبكة الوصف العام (ديناميكية بالكامل بدون فراغات زائدة وبدون تقييد للكتابة)
+      // 5. شبكة الوصف العام (يمين: التقرير العام، يسار: 6 صناديق ملونة للقدرات)
+      // ارتفاع مضبوط بدقة لملء صفحة A4 بشكل متوازن دون تجاوزها
       var colGap = 14;
       var halfW = (CW - colGap) / 2; // 557
       var rightColX = W - M - halfW;
       var leftColX = M;
+      var gridH = 444; // 6 صناديق × 74px
 
-      ctx.font = '15.5px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-      var grText = (ev.general_report && String(ev.general_report).trim()) ? String(ev.general_report).trim() : '—';
-      var grAllLines = [];
-      grText.replace(/\r\n/g, '\n').split('\n').forEach(function (p) {
-        if (!p.trim()) return;
-        grAllLines = grAllLines.concat(wrapLines(ctx, p.trim(), halfW - 26, 0));
-      });
-      if (!grAllLines.length) grAllLines = ['—'];
-      var grContentH = Math.max(46, grAllLines.length * 24 + 22);
-
-      var ab = ev.abilities || {};
-      var abDefs = [
-        { title: 'إمكانيات والقدرات الحالية', val: ab.current_potentials || '—', bg: '#0F172A', fg: '#FFFFFF' },
-        { title: 'المهارات المعرفية والفكرية', val: ab.cognitive_intellectual || '—', bg: '#F472B6', fg: '#0F172A' },
-        { title: 'اللغة (استقبالية تعبيرية)', val: ab.language_receptive_expressive || '—', bg: '#60A5FA', fg: '#0F172A' },
-        { title: 'القدرات الإتصالية والسلوكية', val: ab.communication_behavioral || '—', bg: '#FBBF24', fg: '#0F172A' },
-        { title: 'المعارف الأكاديمية وما قبل الأكاديمي', val: ab.academic_preacademic || '—', bg: '#60A5FA', fg: '#0F172A' },
-        { title: 'القدرات الحركية والاستقلالية', val: ab.motor_independence || '—', bg: '#60A5FA', fg: '#0F172A' }
-      ];
-      ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-      var totalAbH = 0;
-      abDefs.forEach(function (item) {
-        var ls = [];
-        String(item.val || '—').replace(/\r\n/g, '\n').split('\n').forEach(function (p) {
-          if (!p.trim()) return;
-          ls = ls.concat(wrapLines(ctx, p.trim(), halfW - 22, 0));
-        });
-        if (!ls.length) ls = ['—'];
-        item._lines = ls;
-        item._bodyH = Math.max(28, ls.length * 20 + 12);
-        item._totalH = 26 + item._bodyH + 4;
-        totalAbH += item._totalH;
-      });
-
-      var gridH = Math.max(34 + grContentH, totalAbH - 4);
-      if (y + gridH > H - 120) {
-        var npGr = newPage('تقرير الأداء العام (تتمة)');
-        ctx = npGr.ctx; y = npGr.y + 10;
-      }
-
-      // يمين: التقرير العام (ينتهي عند نهاية الكتابة)
+      // يمين: التقرير العام
       ctx.fillStyle = '#93C5FD';
       ctx.fillRect(rightColX, y, halfW, 34);
       ctx.strokeStyle = '#334155';
@@ -2114,18 +2166,34 @@
       ctx.font = 'bold 17px "IBM Plex Sans Arabic", "Cairo", sans-serif';
       ctx.fillText('التقرير العام والملاحظات البيداغوجية', rightColX + halfW / 2, y + 24);
 
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(rightColX, y + 34, halfW, grContentH);
-      ctx.strokeRect(rightColX, y + 34, halfW, grContentH);
-
       ctx.fillStyle = '#0F172A';
       ctx.textAlign = 'right';
-      ctx.font = '15.5px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-      grAllLines.forEach(function (ln, idx) {
-        ctx.fillText(ln, rightColX + halfW - 14, y + 58 + idx * 24);
+      ctx.font = '15px "IBM Plex Sans Arabic", "Cairo", sans-serif';
+      var grLines = wrapLines(
+        ctx,
+        ev.general_report || 'تم تسجيل تقدم ملحوظ في الأداء العام للحالة مع مواصلة التأهيل التربوي والنفسي.',
+        halfW - 28,
+        15
+      );
+      var generalReportBoxH = Math.max(58, 30 + grLines.length * 25);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(rightColX, y + 34, halfW, generalReportBoxH);
+      ctx.strokeStyle = '#334155';
+      ctx.strokeRect(rightColX, y + 34, halfW, generalReportBoxH);
+      grLines.forEach(function (ln, idx) {
+        ctx.fillText(ln, rightColX + halfW - 14, y + 59 + idx * 25);
       });
 
-      // يسار: 6 صناديق القدرات (كل صندوق ينتهي عند نهاية كتابته)
+      // يسار: 6 صناديق القدرات بألوانها الرسمية
+      var ab = ev.abilities || {};
+      var abDefs = [
+        { title: 'إمكانيات والقدرات الحالية', val: ab.current_potentials || '—', bg: '#0F172A', fg: '#FFFFFF' },
+        { title: 'المهارات المعرفية والفكرية', val: ab.cognitive_intellectual || '—', bg: '#F472B6', fg: '#0F172A' },
+        { title: 'اللغة (استقبالية تعبيرية)', val: ab.language_receptive_expressive || '—', bg: '#60A5FA', fg: '#0F172A' },
+        { title: 'القدرات الإتصالية والسلوكية', val: ab.communication_behavioral || '—', bg: '#FBBF24', fg: '#0F172A' },
+        { title: 'المعارف الأكاديمية وما قبل الأكاديمي', val: ab.academic_preacademic || '—', bg: '#60A5FA', fg: '#0F172A' },
+        { title: 'القدرات الحركية والاستقلالية', val: ab.motor_independence || '—', bg: '#60A5FA', fg: '#0F172A' }
+      ];
       var ay = y;
       abDefs.forEach(function (item) {
         ctx.fillStyle = item.bg;
@@ -2138,36 +2206,20 @@
         ctx.fillText(item.title, leftColX + halfW - 10, ay + 19);
 
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(leftColX, ay + 26, halfW, item._bodyH);
-        ctx.strokeRect(leftColX, ay + 26, halfW, item._bodyH);
+        ctx.fillRect(leftColX, ay + 26, halfW, 44);
+        ctx.strokeRect(leftColX, ay + 26, halfW, 44);
         ctx.fillStyle = '#1E293B';
         ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-        item._lines.forEach(function (aln, aIdx) {
-          ctx.fillText(aln, leftColX + halfW - 10, ay + 44 + aIdx * 20);
+        var abLines = wrapLines(ctx, item.val || '—', halfW - 22, 2);
+        abLines.forEach(function (aln, aIdx) {
+          ctx.fillText(aln, leftColX + halfW - 10, ay + 44 + aIdx * 19);
         });
-        ay += item._totalH;
+        ay += 74;
       });
 
-      y += gridH + 14;
+      y += gridH + 16;
 
-      // 6. البانر: الخلاصة والتوصيات + 3 أعمدة (تنتهي عند نهاية الكتابة تماماً)
-      var recColW = CW / 3;
-      ctx.font = '14px "IBM Plex Sans Arabic", "Cairo", sans-serif';
-      var maxRecLines = 1;
-      [ev.strengths, ev.weaknesses, ev.recommendations].forEach(function (arr) {
-        var its = (arr || []).filter(function (x) { return x && String(x).trim(); });
-        var cnt = 0;
-        its.forEach(function (it) {
-          cnt += wrapLines(ctx, '• ' + String(it).trim(), recColW - 22, 0).length;
-        });
-        if (cnt > maxRecLines) maxRecLines = cnt;
-      });
-      var recH = Math.max(76, 38 + maxRecLines * 22 + 16);
-      if (y + 40 + recH > H - 100) {
-        var npRec = newPage('الخلاصة والتوصيات');
-        ctx = npRec.ctx; y = npRec.y + 10;
-      }
-
+      // 6. البانر الأخضر: الخلاصة والتوصيات + 3 أعمدة
       ctx.fillStyle = '#60A5FA';
       ctx.fillRect(M, y, CW, 34);
       ctx.strokeStyle = '#16A34A';
@@ -2177,6 +2229,9 @@
       ctx.font = 'bold 18px "IBM Plex Sans Arabic", "Cairo", sans-serif';
       ctx.fillText('الخلاصة والتوصيات', W / 2, y + 24);
       y += 40;
+
+      var recColW = CW / 3; // 376
+      var recH = Math.min(260, Math.max(140, 1520 - y));
       var recCols = [
         { title: '1. نقاط القوة', arr: ev.strengths, fb: 'استجابة وتفاعل إيجابي مع الأنشطة الموجهة.', x: W - M - recColW },
         { title: '2. نقاط الضعف', arr: ev.weaknesses, fb: 'الحاجة لتعزيز مهارات التركيز والاستقلالية.', x: W - M - recColW * 2 },
@@ -3206,38 +3261,19 @@
     if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
       try { await document.fonts.ready; } catch (e) {}
     }
-    var logoImg = await loadLogoImage();
     var ev = ensureParsedEval(rep);
     var tb = ev.target_behavior_eval || rep.target_behavior_eval || {};
     var days = Array.isArray(tb.days) ? tb.days : [];
     var W = 1240, H = 1754, M = 64, CW = W - M * 2;
 
-    var chName = childFullName || (kd && kd.full_name) || ev.child_name || tb.child_name || '—';
+    var chName = childFullName || (kd && kd.full_name) || ev.child_name || tb.child_name || '...........................................';
     var ageVal = tb.age || (kd && kd.dob ? (function (dob) {
       try {
         var bd = new Date(dob); var td = new Date(); var a = td.getFullYear() - bd.getFullYear();
-        return a > 0 ? (a + ' سنوات') : '—';
-      } catch (e) { return '—'; }
-    })(kd.dob) : '—');
-    var behaviorTitle = tb.selected_behaviors_text || (Array.isArray(tb.selected_behaviors) && tb.selected_behaviors.length ? tb.selected_behaviors.join(' ، ') : '—');
-
-    // تجميع السلوكيات الرئيسية والفرعية المختارة للجدول
-    var groupedMainSubs = [];
-    var mainMap = {};
-    if (Array.isArray(tb.selected_pairs) && tb.selected_pairs.length) {
-      tb.selected_pairs.forEach(function (p) {
-        if (!p || !p.main) return;
-        var mKey = String(p.main).trim();
-        if (!mainMap[mKey]) { mainMap[mKey] = []; groupedMainSubs.push({ main: mKey, subs: mainMap[mKey] }); }
-        if (p.sub && mainMap[mKey].indexOf(p.sub) < 0) mainMap[mKey].push(p.sub);
-      });
-    }
-    if (Array.isArray(tb.selected_mains) && tb.selected_mains.length) {
-      tb.selected_mains.forEach(function (m) {
-        var mKey = String(m || '').trim();
-        if (mKey && !mainMap[mKey]) { mainMap[mKey] = []; groupedMainSubs.push({ main: mKey, subs: mainMap[mKey] }); }
-      });
-    }
+        return a > 0 ? (a + ' سنوات') : '.....................';
+      } catch (e) { return '.....................'; }
+    })(kd.dob) : '.....................');
+    var behaviorTitle = tb.selected_behaviors_text || (Array.isArray(tb.selected_behaviors) && tb.selected_behaviors.length ? tb.selected_behaviors.join(' ، ') : '.................................');
 
     var pages = [];
     function createPage(isFirstPage) {
@@ -3248,107 +3284,52 @@
       ctx.fillRect(0, 0, W, H);
       ctx.direction = 'rtl';
 
-      // الشعار الرسمي في أعلى جميع صفحات الوثيقة
-      if (logoImg) {
-        ctx.drawImage(logoImg, W - M - 88, 36, 88, 88);
-      }
-
       var y = 85;
-      ctx.fillStyle = '#1B365D';
-      ctx.font = 'bold 28px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      // العنوان في الوسط مسطر: قياس السلوك المستهدف
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 30px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       ctx.textAlign = 'center';
       var titleTxt = 'قياس السلوك المستهدف';
       ctx.fillText(titleTxt, W / 2, y);
       var tw = ctx.measureText(titleTxt).width;
-      ctx.strokeStyle = '#1B365D';
+      ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(W / 2 - tw / 2 - 6, y + 8);
       ctx.lineTo(W / 2 + tw / 2 + 6, y + 8);
       ctx.stroke();
 
-      y += 54;
+      y += 52;
       if (isFirstPage) {
-        ctx.fillStyle = '#0F172A';
-        ctx.font = 'bold 19px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText('اسم الطفل: ' + chName, W - M, y);
         ctx.fillText('العمر: ' + ageVal, M + 320, y);
-        y += 34;
+        y += 42;
 
-        // جدول السلوك الرئيسي والسلوكيات المختارة (عند اختيار سلوك رئيسي أو أكثر)
-        if (groupedMainSubs.length > 0) {
-          ctx.font = 'bold 17.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-          ctx.fillStyle = '#1B365D';
-          ctx.fillText('جدول السلوك الرئيسي والسلوكيات المختارة:', W - M, y);
-          y += 14;
-          var gmW1 = Math.round(CW * 0.36);
-          var gmW2 = CW - gmW1;
-          var gmX1 = W - M - gmW1;
-          var gmX2 = M;
-          ctx.fillStyle = '#EFF6FF';
-          ctx.fillRect(gmX1, y, gmW1, 34);
-          ctx.fillRect(gmX2, y, gmW2, 34);
-          ctx.strokeStyle = '#1B365D';
-          ctx.lineWidth = 1.4;
-          ctx.strokeRect(gmX1, y, gmW1, 34);
-          ctx.strokeRect(gmX2, y, gmW2, 34);
-          ctx.fillStyle = '#1B365D';
-          ctx.font = 'bold 16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('السلوك الرئيسي', gmX1 + gmW1 / 2, y + 23);
-          ctx.fillText('السلوكيات المختارة', gmX2 + gmW2 / 2, y + 23);
-          y += 34;
-
-          groupedMainSubs.forEach(function (gm) {
-            ctx.font = '15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-            var mLines = wrapLines(ctx, gm.main, gmW1 - 16, 0);
-            var sTxt = gm.subs.length ? gm.subs.join(' — ') : '—';
-            var sLines = wrapLines(ctx, sTxt, gmW2 - 16, 0);
-            var rh = Math.max(32, Math.max(mLines.length, sLines.length) * 22 + 12);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(gmX1, y, gmW1, rh);
-            ctx.fillRect(gmX2, y, gmW2, rh);
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(gmX1, y, gmW1, rh);
-            ctx.strokeRect(gmX2, y, gmW2, rh);
-            ctx.fillStyle = '#0F172A';
-            ctx.textAlign = 'right';
-            ctx.font = 'bold 15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-            mLines.forEach(function (ln, li) { ctx.fillText(ln, gmX1 + gmW1 - 10, y + 22 + li * 22); });
-            ctx.font = '15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-            sLines.forEach(function (ln, li) { ctx.fillText(ln, gmX2 + gmW2 - 10, y + 22 + li * 22); });
-            y += rh;
-          });
-          y += 18;
-        } else {
-          ctx.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-          var bLines = wrapLines(ctx, 'السلوك: ' + behaviorTitle, CW, 0);
-          bLines.forEach(function (bl) {
-            ctx.fillText(bl, W - M, y);
-            y += 28;
-          });
-          y += 8;
-        }
-
-        ctx.fillStyle = '#0F172A';
         ctx.font = 'bold 19px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText('جدول القياس: التكرار + وقت ومدة السلوك', W - M, y);
-        y += 16;
+        var bLines = wrapLines(ctx, 'السلوك: ' + behaviorTitle, CW, 2);
+        bLines.forEach(function (bl) {
+          ctx.fillText(bl, W - M, y);
+          y += 30;
+        });
+        y += 10;
+
+        ctx.font = 'bold 20px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.fillText('جدول القياس: التكرار + المدة الزمنية', W - M, y);
+        y += 20;
       }
 
-      // ترويسة الجدول بـ 7 أعمدة (فصل خانة وقت السلوك عن خانة مدة السلوك)
-      var colW = [155, 170, 120, 120, 130, 175, CW - (155 + 170 + 120 + 120 + 130 + 175)];
+      // رسم ترويسة الجدول بـ 6 أعمدة مطابقة للملف المرفق تماماً
+      var colW = [180, 175, 185, 175, 175, CW - (180 + 175 + 185 + 175 + 175)];
       var colX = [];
       var curX = W - M;
       for (var i = 0; i < colW.length; i++) {
         curX -= colW[i];
         colX.push(curX);
       }
-      var hdrH = 74;
-      ctx.fillStyle = '#F8FAFC';
+      var hdrH = 95;
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(M, y, CW, hdrH);
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1.6;
@@ -3357,22 +3338,21 @@
       }
 
       ctx.fillStyle = '#000000';
-      ctx.font = 'bold 16.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.font = 'bold 18px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       ctx.textAlign = 'center';
       var headers = [
         ['اليوم والتاريخ'],
-        ['نوع السلوك'],
-        ['وقت', 'السلوك'],
-        ['مدة', 'السلوك'],
-        ['عدد مرات', 'التكرار'],
-        ['مكان حدوث', 'السلوك'],
+        ['نوع', 'السلوك'],
+        ['وقت و', 'مدة', 'حدوث', 'السلوك'],
+        ['عدد مرات', 'تكرار', 'السلوك'],
+        ['مكان', 'حدوث', 'السلوك'],
         ['سوابق حدوث', 'السلوك']
       ];
       headers.forEach(function (hLines, idx) {
         var cx = colX[idx] + colW[idx] / 2;
-        var startHy = y + (hLines.length === 1 ? 44 : 30);
+        var startHy = y + 28;
         hLines.forEach(function (ln, lIdx) {
-          ctx.fillText(ln, cx, startHy + lIdx * 22);
+          ctx.fillText(ln, cx, startHy + lIdx * 21);
         });
       });
 
@@ -3382,51 +3362,20 @@
     }
 
     var curPage = createPage(true);
+    var subRowH = 42;
 
     days.forEach(function (dayObj) {
-      var rawRows = Array.isArray(dayObj.rows) ? dayObj.rows : [];
-      var filledRows = rawRows.filter(function (r) {
-        return r && (r.sub_behavior || r.behavior_time || r.behavior_duration || r.time_duration || r.frequency || r.location || r.antecedents);
-      });
-      var rows = filledRows.length ? filledRows : (rawRows.length ? [rawRows[0]] : [{ sub_behavior: '', behavior_time: '', behavior_duration: '', frequency: '', location: '', antecedents: '' }]);
-
-      // حساب ارتفاع كل صف ديناميكياً حتى ينتهي الجدول عند نهاية الكتابة دون اقتطاع أو فراغ
-      var ctxMeasure = curPage.ctx;
-      var colW = curPage.colW;
-      var rowHeights = rows.map(function (rItem) {
-        var bTime = rItem.behavior_time || '';
-        var bDur = rItem.behavior_duration || '';
-        if (!bTime && !bDur && rItem.time_duration) bDur = rItem.time_duration;
-        var vals = [
-          rItem.sub_behavior || '',
-          bTime,
-          bDur,
-          rItem.frequency || '',
-          rItem.location || '',
-          rItem.antecedents || ''
-        ];
-        var maxL = 1;
-        ctxMeasure.font = '14.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-        vals.forEach(function (v, vi) {
-          if (v) {
-            var wl = wrapLines(ctxMeasure, String(v), colW[vi + 1] - 12, 0);
-            if (wl.length > maxL) maxL = wl.length;
-          }
-        });
-        return Math.max(38, maxL * 22 + 14);
-      });
-
-      var blockH = rowHeights.reduce(function (a, b) { return a + b; }, 0);
-      if (blockH < 48) { rowHeights[0] += (48 - blockH); blockH = 48; }
-      if (curPage.y + blockH > H - 65) {
+      var rows = (Array.isArray(dayObj.rows) && dayObj.rows.length) ? dayObj.rows : [{ sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }, { sub_behavior: '', time_duration: '', frequency: '', location: '', antecedents: '' }];
+      var blockH = rows.length * subRowH;
+      if (curPage.y + blockH > H - 70) {
         curPage = createPage(false);
       }
       var ctx = curPage.ctx;
-      colW = curPage.colW;
+      var colW = curPage.colW;
       var colX = curPage.colX;
       var startY = curPage.y;
 
-      // خلية اليوم والتاريخ مدمجة عمودياً
+      // خلية اليوم والتاريخ مدمجة عمودياً (rowspan)
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(colX[0], startY, colW[0], blockH);
       ctx.strokeStyle = '#000000';
@@ -3434,51 +3383,43 @@
       ctx.strokeRect(colX[0], startY, colW[0], blockH);
 
       ctx.fillStyle = '#000000';
-      ctx.font = 'bold 15px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.font = 'bold 16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       ctx.textAlign = 'center';
       var dayNameStr = dayObj.day_name || '';
       var dateFmtStr = dayObj.date_display || dayObj.date || '';
       if (dayNameStr && dateFmtStr) {
         ctx.fillText(dayNameStr, colX[0] + colW[0] / 2, startY + blockH / 2 - 4);
-        ctx.fillText(dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 18);
+        ctx.fillText(dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 20);
       } else {
         ctx.fillText(dayNameStr || dateFmtStr, colX[0] + colW[0] / 2, startY + blockH / 2 + 6);
       }
 
-      var curRy = startY;
+      // صفوف السلوكيات الفرعية لهذا اليوم
       rows.forEach(function (rItem, rIdx) {
-        var rH = rowHeights[rIdx];
-        var bTime = rItem.behavior_time || '';
-        var bDur = rItem.behavior_duration || '';
-        if (!bTime && !bDur && rItem.time_duration) bDur = rItem.time_duration;
+        var ry = startY + rIdx * subRowH;
         var vals = [
           rItem.sub_behavior || '',
-          bTime,
-          bDur,
+          rItem.time_duration || '',
           rItem.frequency || '',
           rItem.location || '',
           rItem.antecedents || ''
         ];
-        for (var cIdx = 1; cIdx < 7; cIdx++) {
+        for (var cIdx = 1; cIdx < 6; cIdx++) {
           ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(colX[cIdx], curRy, colW[cIdx], rH);
+          ctx.fillRect(colX[cIdx], ry, colW[cIdx], subRowH);
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1.3;
-          ctx.strokeRect(colX[cIdx], curRy, colW[cIdx], rH);
+          ctx.strokeRect(colX[cIdx], ry, colW[cIdx], subRowH);
 
           var cellTxt = String(vals[cIdx - 1] || '');
           if (cellTxt) {
             ctx.fillStyle = '#000000';
             ctx.font = (cIdx === 1 ? 'bold 14.5px ' : '14.5px ') + '"Cairo", "IBM Plex Sans Arabic", sans-serif';
             ctx.textAlign = 'center';
-            var wrapped = wrapLines(ctx, cellTxt, colW[cIdx] - 12, 0);
-            var startTy = curRy + 24;
-            wrapped.forEach(function (ln, li) {
-              ctx.fillText(ln, colX[cIdx] + colW[cIdx] / 2, startTy + li * 22);
-            });
+            var wrapped = wrapLines(ctx, cellTxt, colW[cIdx] - 10, 1);
+            ctx.fillText(wrapped[0] || '', colX[cIdx] + colW[cIdx] / 2, ry + 26);
           }
         }
-        curRy += rH;
       });
 
       curPage.y += blockH;
@@ -3554,7 +3495,6 @@
     if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
       try { await document.fonts.ready; } catch (e) {}
     }
-    var logoImg = await loadLogoImage();
     var ev = ensureParsedEval(rep);
     var mas = ev.mas_eval || rep.mas_eval || ev.mas || {};
     var answers = mas.answers || {};
@@ -3592,7 +3532,6 @@
     ctx1.fillStyle = '#FFFFFF';
     ctx1.fillRect(0, 0, W, H);
     ctx1.direction = 'rtl';
-    if (logoImg) { ctx1.drawImage(logoImg, M, 22, 82, 82); }
 
     var y = 80;
     ctx1.fillStyle = '#000000';
@@ -4266,56 +4205,47 @@
     ctx.textAlign = 'center';
     ctx.fillText('مقياس متوسط التكرار اليومي', rightBoxX + halfW / 2, y + 40);
 
-    // رسم عداد نصف الدائرة (الساعة) بثلاث مجالات: الأخضر (1-5 منخفض)، البرتقالي (6-10 متوسط)، الأحمر (11+ مرتفع)
+    // رسم عداد نصف الدائرة (Gauge)
     var gCx = rightBoxX + halfW / 2;
-    var gCy = y + 265;
-    var gRadius = 140;
+    var gCy = y + 275;
+    var gRadius = 145;
     var gThickness = 36;
-    var zoneDefs = [
-      { color: '#22C55E', aStart: -Math.PI / 3, aEnd: 0, label: 'منخفض (1-5)' },
-      { color: '#F97316', aStart: -(2 * Math.PI) / 3, aEnd: -Math.PI / 3, label: 'متوسط (6-10)' },
-      { color: '#EF4444', aStart: -Math.PI, aEnd: -(2 * Math.PI) / 3, label: 'مرتفع (+11)' }
-    ];
-    zoneDefs.forEach(function (z) {
+    var gaugeMax = Math.max(5, Math.ceil(st.dailyAverage));
+    var segColors = ['#22C55E', '#84CC16', '#FACC15', '#F97316', '#EF4444'];
+    // من اليمين (0) إلى اليسار (5): الزاوية من 0 إلى -PI (أو PI إلى 2*PI عبر الأعلى)
+    // في Canvas: الزاوية 0 هي اليمين، -PI/2 هي الأعلى، -PI هي اليسار
+    for (var sIdx = 0; sIdx < 5; sIdx++) {
+      var aStart = -((sIdx + 1) / 5) * Math.PI;
+      var aEnd = -(sIdx / 5) * Math.PI;
       ctx.beginPath();
-      ctx.arc(gCx, gCy, gRadius, z.aStart, z.aEnd, false);
-      ctx.strokeStyle = z.color;
+      ctx.arc(gCx, gCy, gRadius, aStart, aEnd, false);
+      ctx.strokeStyle = segColors[sIdx];
       ctx.lineWidth = gThickness;
       ctx.stroke();
-    });
+    }
 
-    // أرقام التدريج حول القوس (0 - 5 - 10 - +11)
+    // أرقام التدريج حول القوس (0 على اليمين إلى 5 على اليسار)
     ctx.fillStyle = '#334155';
-    ctx.font = 'bold 15.5px "Cairo", sans-serif';
-    var tickDefs = [
-      { r: 0, txt: '1' },
-      { r: 1 / 3, txt: '5' },
-      { r: 2 / 3, txt: '10' },
-      { r: 1, txt: '+11' }
-    ];
-    tickDefs.forEach(function (tk) {
-      var tAngle = -tk.r * Math.PI;
-      var tx = gCx + Math.cos(tAngle) * (gRadius + 32);
-      var ty = gCy + Math.sin(tAngle) * (gRadius + 32);
-      ctx.fillText(tk.txt, tx, ty + 5);
-    });
+    ctx.font = 'bold 16px "Cairo", sans-serif';
+    for (var tick = 0; tick <= 5; tick++) {
+      var tRatio = tick / 5;
+      var tAngle = -tRatio * Math.PI;
+      var tx = gCx + Math.cos(tAngle) * (gRadius + 34);
+      var ty = gCy + Math.sin(tAngle) * (gRadius + 34);
+      var labelNum = gaugeMax === 5 ? tick : Math.round(tRatio * gaugeMax * 10) / 10;
+      ctx.fillText(String(labelNum), tx, ty + 5);
+    }
 
-    // تسميات المجالات الثلاثة بوضوح
-    ctx.font = 'bold 14px "Cairo", "IBM Plex Sans Arabic", sans-serif';
     ctx.fillStyle = '#15803D';
-    ctx.fillText('منخفض (1-5)', gCx + gRadius - 8, gCy + 28);
-    ctx.fillStyle = '#EA580C';
-    ctx.fillText('متوسط (6-10)', gCx, gCy - gRadius - 32);
-    ctx.fillStyle = '#DC2626';
-    ctx.fillText('مرتفع (+11)', gCx - gRadius + 8, gCy + 28);
+    ctx.font = 'bold 16px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+    ctx.fillText('منخفض', gCx + gRadius - 10, gCy + 28);
 
-    // مؤشر العداد (الإبرة): 0..5 -> 0..PI/3 | 5..10 -> PI/3..2PI/3 | 10..15+ -> 2PI/3..PI
-    var vAvg = Math.max(0, Number(st.dailyAverage || 0));
-    var normRatio = 0;
-    if (vAvg <= 5) normRatio = (vAvg / 5) * (1 / 3);
-    else if (vAvg <= 10) normRatio = (1 / 3) + ((vAvg - 5) / 5) * (1 / 3);
-    else normRatio = (2 / 3) + Math.min(1, (vAvg - 10) / 5) * (1 / 3);
-    var needleAngle = -normRatio * Math.PI;
+    ctx.fillStyle = '#DC2626';
+    ctx.fillText('مرتفع', gCx - gRadius + 10, gCy + 28);
+
+    // مؤشر العداد (الإبرة)
+    var clampedVal = Math.min(gaugeMax, Math.max(0, st.dailyAverage));
+    var needleAngle = -(clampedVal / gaugeMax) * Math.PI;
     var nLen = gRadius - 18;
     ctx.save();
     ctx.translate(gCx, gCy);
@@ -4440,38 +4370,38 @@
   function drawDottedWritingSection(ctx, W, M, y, numStr, titleTxt, contentTxt, numLines) {
     y = drawSectionPillBanner(ctx, W, M, y, numStr, titleTxt, 310);
     var CW = W - M * 2;
-    var lineSpacing = 32;
+    var lineSpacing = 44;
     var linesText = [];
     if (contentTxt && String(contentTxt).trim()) {
-      ctx.font = 'bold 17px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+      ctx.font = 'bold 17.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
       String(contentTxt).replace(/\r\n/g, '\n').split('\n').forEach(function (rawLn) {
         if (!rawLn.trim()) return;
-        var wrapped = wrapLines(ctx, rawLn.trim(), CW - 24, 0);
+        var wrapped = wrapLines(ctx, rawLn.trim(), CW - 20, numLines);
         linesText = linesText.concat(wrapped);
       });
     }
-    if (!linesText.length) {
-      linesText = ['—'];
+
+    for (var i = 0; i < numLines; i++) {
+      var lineY = y + (i + 1) * lineSpacing;
+      ctx.save();
+      ctx.strokeStyle = '#94A3B8';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(M, lineY);
+      ctx.lineTo(W - M, lineY);
+      ctx.stroke();
+      ctx.restore();
+
+      if (linesText[i]) {
+        ctx.fillStyle = '#0F172A';
+        ctx.font = 'bold 17.5px "Cairo", "IBM Plex Sans Arabic", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(linesText[i], W - M - 8, lineY - 10);
+      }
     }
 
-    // صندوق متراص ينتهي مباشرة عند نهاية الكتابة دون ترك فراغات
-    var boxH = linesText.length * lineSpacing + 20;
-    ctx.fillStyle = '#F8FAFC';
-    roundRect(ctx, M, y, CW, boxH, 10);
-    ctx.fill();
-    ctx.strokeStyle = '#CBD5E1';
-    ctx.lineWidth = 1.2;
-    roundRect(ctx, M, y, CW, boxH, 10);
-    ctx.stroke();
-
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 17px "Cairo", "IBM Plex Sans Arabic", sans-serif';
-    ctx.textAlign = 'right';
-    linesText.forEach(function (ln, idx) {
-      ctx.fillText(ln, W - M - 14, y + 28 + idx * lineSpacing);
-    });
-
-    return y + boxH + 22;
+    return y + numLines * lineSpacing + 28;
   }
 
   function drawTargetBehaviorReportPage2(ctx, W, H, repData, logoImg) {
@@ -5025,7 +4955,6 @@
     prepareMasBehaviorReportData: prepareMasBehaviorReportData,
     renderMasBehaviorReportPage1Canvas: renderMasBehaviorReportPage1Canvas,
     renderMasBehaviorReportToPdf: renderMasBehaviorReportToPdf,
-    renderEpilepsyFollowupToPdf: renderEpilepsyFollowupToPdf,
     renderTargetBehaviorToPdf: renderTargetBehaviorToPdf,
     renderMasBehaviorToPdf: renderMasBehaviorToPdf,
     renderBehaviorObservationToPdf: renderBehaviorObservationToPdf,
@@ -5038,6 +4967,7 @@
     renderWeeklyProgramToPdf: renderWeeklyProgramToPdf,
     renderReportToPdf: renderReportToPdf,
     renderEvaluationToPdf: renderEvaluationToPdf,
+    renderQualitativeFrenchToPdf: renderQualitativeFrenchToPdf,
     renderReinforcersToPdf: renderReinforcersToPdf,
     renderInterviewDiagnosticToPdf: renderInterviewDiagnosticToPdf,
     renderAnnualFinalToPdf: renderAnnualFinalToPdf,
