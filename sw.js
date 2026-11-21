@@ -1,10 +1,10 @@
 /* Service worker — دار الإحسان.
    الاستراتيجية: الشبكة أولاً مع تجاوز الكاش القديم لتطبيق كافة التعديلات فوراً. */
 'use strict';
-var CACHE = 'de-admin-dev-20261121-v16';
+var CACHE = 'de-admin-dev-20261121-v17';
 var SHELL = [
   "./", "index.html", "site.html", "navback.js", "icons.js", "icons.css",
-  "parent.html", "manage.html", "qr.html", "style.css", "cms.css", "portal.css",
+  "parent.html", "manage.html", "qr.html", "style.css", "cms.css", "portal.css", "crystal-blue-glass.css",
   "qr.css", "manage-theme.css", "parent-modern.css", "pdf-writer.js", "zip-builder.js", "mobile-admin.css",
   "manage.webmanifest", "pwa.css", "pwa.js", "script.js", "i18n-data.js", "cms.js",
   "cms-config.js", "parent.js", "parent-guard.js", "de-core.js", "username.js", "manage.js",
