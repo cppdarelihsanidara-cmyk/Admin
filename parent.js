@@ -497,7 +497,7 @@
   }
 
   
-  var VAPID_PUBLIC_KEY = 'BP5NQl5SsJ7Vf43R815QfXeJYgf6vJdAv80YgFPbO8DbKjCXUzrPtd5V0XyNlUAe0uA00DC-tvqaOruwXwUgvKs';
+  var VAPID_PUBLIC_KEY = 'BKS9I5zdBUYc2P3UIiyiMa9cPl8qcQ6bSz6RaauctEsjPITvmLxIXLbdyQSGquQ8OjnHGpLu_ewOfk4jHFikTO0';
 
   function urlBase64ToUint8Array(base64String) {
     var padding = '='.repeat((4 - base64String.length % 4) % 4);
