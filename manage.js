@@ -145,6 +145,9 @@
         return {
           load: function () { session = load(); return !!session; },
           loggedIn: function () { return !!session; },
+          // إتاحة رمز الجلسة الحالي للطلبات الموثقة من داخل لوحة الإدارة فقط.
+          // لا يتم حفظ الرمز في DOM أو في إعدادات عامة.
+          token: function () { return session && session.access_token ? session.access_token : ''; },
           onExpire: function (cb) { expireCb = cb; },
           me: async function () { return session ? session.user : null; },
           signIn: async function (email, password) {
