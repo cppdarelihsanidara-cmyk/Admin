@@ -16469,6 +16469,37 @@
         h('button', {
           type: 'button',
           class: 'btn gold',
+          onclick: async function () {
+            var btn = this;
+            btn.disabled = true;
+            var oldText = btn.textContent;
+            btn.textContent = 'جارٍ إرسال الاختبار…';
+            try {
+              var cfg = window.DE_CMS || window.CMS || {};
+              var baseUrl = (cfg.url || 'https://qgjddtylriqdwvpihvmi.supabase.co').replace(/\/$/, '');
+              var anonKey = cfg.anonKey || cfg.key || '';
+              var token = (C && typeof C.token === 'function' ? C.token() : (C && C.accessToken)) || '';
+              if (!token || token === anonKey) throw new Error('انتهت جلسة الدخول؛ أعد تسجيل الدخول إلى لوحة الإدارة.');
+              var res = await fetch(baseUrl + '/functions/v1/send-push-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({})
+              });
+              var data = {};
+              try { data = await res.json(); } catch (e) {}
+              if (!res.ok || !data.ok) throw new Error(data.message || data.error || ('فشل الاختبار (' + res.status + ')'));
+              toast('قبلت خدمة الإشعارات إرسال الاختبار. تحقق من هاتفك.', 'ok');
+            } catch (err) {
+              toast(err && err.message ? err.message : 'تعذر إرسال الإشعار التجريبي.', 'error');
+            } finally {
+              btn.disabled = false;
+              btn.textContent = oldText || 'إرسال إشعار تجريبي إلى هاتفي';
+            }
+          }
+        }, makeSvgIcon('s-bell'), h('span', { text: 'إرسال إشعار تجريبي إلى هاتفي' })),
+        h('button', {
+          type: 'button',
+          class: 'btn gold',
           onclick: function () {
             markAllAdminNotificationsReadDb().then(function () { renderList(); });
             toast('تم تحديد جميع الإشعارات كمقروءة.', 'ok');
