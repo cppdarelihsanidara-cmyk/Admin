@@ -1,15 +1,14 @@
 /* Service worker — دار الإحسان.
    الاستراتيجية: الشبكة أولاً مع تجاوز الكاش القديم لتطبيق كافة التعديلات فوراً. */
 'use strict';
-var CACHE = 'de-admin-dev-20261122-v24';
+var CACHE = 'de-parents-prod-20261123-pushfix1';
 var SHELL = [
-  "./", "index.html", "site.html", "navback.js", "icons.js", "icons.css",
-  "parent.html", "manage.html", "qr.html", "style.css", "cms.css", "portal.css", "crystal-blue-glass.css",
-  "qr.css", "manage-theme.css", "parent-modern.css", "pdf-writer.js", "zip-builder.js", "mobile-admin.css",
-  "manage.webmanifest", "pwa.css", "pwa.js", "script.js", "i18n-data.js", "cms.js",
-  "cms-config.js", "parent.js", "parent-guard.js", "de-core.js", "username.js", "manage.js",
-  "xlsx-writer.js", "card.js", "centers.js", "fr-names.js", "qr-encoder.js", "qr-gen.js",
-  "qr.js", "logo.png", "logo-sq.png", "icon-192.png", "manifest.webmanifest"
+  "./", "index.html", "navback.js", "icons.js", "icons.css", "parent.html",
+  "manage.html", "portal.css", "crystal-blue-glass.css", "manage-theme.css", "parent-modern.css", "pdf-writer.js", "zip-builder.js",
+  "manage.webmanifest", "pwa.css", "pwa.js", "cms-config.js", "parent.js", "parent-guard.js",
+  "de-core.js", "username.js", "manage.js", "card.js", "centers.js", "fr-names.js",
+  "qr-encoder.js", "qr-gen.js", "qr.js", "logo.png", "logo-sq.png", "icon-192.png",
+  "manifest.webmanifest"
 ];
 
 self.addEventListener('install', function (e) {
@@ -61,7 +60,12 @@ self.addEventListener('notificationclick', function (e) {
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
         if (client.url.indexOf('parent.html') !== -1 && 'focus' in client) {
-          return client.focus();
+          // Navigate the existing PWA window to the notification's destination before focusing it.
+          return Promise.resolve(
+            (client.url !== targetUrl && 'navigate' in client) ? client.navigate(targetUrl) : client
+          ).then(function (navigatedClient) {
+            return (navigatedClient || client).focus();
+          });
         }
       }
       if (self.clients.openWindow) return self.clients.openWindow(targetUrl);

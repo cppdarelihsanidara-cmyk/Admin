@@ -32,8 +32,8 @@
   if (typeof window !== 'undefined') { window.fmtDate = fmtDate; }
 
   try {
-    if (typeof window !== 'undefined' && localStorage.getItem('de_app_ver') !== 'v70') {
-      localStorage.setItem('de_app_ver', 'v70');
+    if (typeof window !== 'undefined' && localStorage.getItem('de_manage_app_ver') !== 'v71') {
+      localStorage.setItem('de_manage_app_ver', 'v71');
       if (window.caches && caches.keys) {
         caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
       }
@@ -44,7 +44,7 @@
       }
     }
   } catch (eVer) {}
-  var FILE_BUILD = '2026-10-26.5';
+  var FILE_BUILD = '2026-11-23.1';
 
   var DEFAULT_CFG = {
     supabaseUrl: 'https://qgjddtylriqdwvpihvmi.supabase.co',
@@ -145,9 +145,6 @@
         return {
           load: function () { session = load(); return !!session; },
           loggedIn: function () { return !!session; },
-          // إتاحة رمز الجلسة الحالي للطلبات الموثقة من داخل لوحة الإدارة فقط.
-          // لا يتم حفظ الرمز في DOM أو في إعدادات عامة.
-          token: function () { return session && session.access_token ? session.access_token : ''; },
           onExpire: function (cb) { expireCb = cb; },
           me: async function () { return session ? session.user : null; },
           signIn: async function (email, password) {
@@ -16147,15 +16144,20 @@
 
     // إذا كان الإشعار موجهاً للأولياء: أرسله مباشرة عبر Web Push إلى هواتفهم فقط دون إضافته لجرس لوحة الإدارة
     if (audience === 'parents' || audience === 'parent' || audience === 'all') {
-      sendWebPushToParents({
-        title: title,
-        body: body,
-        childId: childId || null,
-        audience: audience,
-        url: './parent.html'
-      }).catch(function (pe) { console.warn('[DarElIhsan] Web Push dispatch warning:', pe); });
-      toast('تم إرسال الإشعار الفوري إلى هواتف الأولياء.', 'ok');
-      return;
+      try {
+        var queued = await sendWebPushToParents({
+          title: title,
+          body: body,
+          childId: childId || null,
+          audience: audience,
+          url: './parent.html'
+        });
+        toast('تمت إضافة الإشعار إلى قائمة الإرسال. سيُرسل آلياً بعد معالجة الطابور.', 'ok');
+        return queued;
+      } catch (pushQueueError) {
+        toast('تعذرت إضافة الإشعار إلى قائمة الإرسال: ' + (pushQueueError.message || 'خطأ غير معروف'), 'error');
+        throw pushQueueError;
+      }
     }
 
     var list = getLocalNotifications();
@@ -16186,57 +16188,32 @@
   /* ══ إرسال إشعارات Web Push الحقيقية إلى هواتف الأولياء عبر Supabase Edge Function (send-push-notifications) ══ */
   async function sendWebPushToParents(opts) {
     var o = opts || {};
-    var targetType = o.parentUserId || o.childId ? "single_parent" : (o.sectionId ? "section_parents" : "all_parents");
+    var targetType = o.parentUserId || o.childId ? 'single_parent' : (o.sectionId ? 'section_parents' : 'all_parents');
     var outboxRow = {
       target_type: targetType,
       target_child_id: o.childId || null,
       target_parent_id: o.parentUserId || null,
       target_section_id: o.sectionId || null,
-      event_type: o.eventType || "manual_push",
-      title: o.title || "دار الإحسان",
-      body: o.body || "لديك إشعار جديد من المركز",
-      url: o.url || "./parent.html",
-      tag: o.tag || ("de-admin-push-" + Date.now()),
-      status: "pending",
+      event_type: o.eventType || 'manual_push',
+      title: o.title || 'دار الإحسان',
+      body: o.body || 'لديك إشعار جديد من المركز',
+      url: o.url || './parent.html',
+      tag: o.tag || ('de-admin-push-' + Date.now()),
+      status: 'pending',
       scheduled_at: new Date().toISOString()
     };
-    await C.rest("POST", "/notification_outbox", outboxRow);
-
-    var cfg = window.DE_CMS || window.CMS || {};
-    var baseUrl = (cfg.url || "https://qgjddtylriqdwvpihvmi.supabase.co").replace(/\/$/, "");
-    var anonKey = cfg.anonKey || cfg.key || "";
-    var token = (C && typeof C.token === "function" ? C.token() : (C && C.accessToken)) || anonKey;
-    var res = await fetch(baseUrl + "/functions/v1/send-push-notifications", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": anonKey,
-        "Authorization": "Bearer " + token
-      },
-      body: JSON.stringify({ limit: 25 })
-    });
-    if (!res.ok) {
-      var errTxt = "";
-      try { errTxt = await res.text(); } catch (e) {}
-      throw new Error("فشل إرسال Push (" + res.status + "): " + (errTxt || res.statusText));
-    }
-    try { return await res.json(); } catch (e) { return { ok: true }; }
+    // The scheduled worker is the only queue processor. Never invoke it from the UI:
+    // it handles batches and must not be used as a single-message send endpoint.
+    await C.rest('POST', '/notification_outbox', outboxRow, 'return=minimal');
+    return { queued: true, message: 'Notification queued for scheduled delivery.' };
   }
-
 
   function flushPushOutboxNow() {
-    try {
-      var cfg = window.DE_CMS || window.CMS || {};
-      var baseUrl = (cfg.url || "https://qgjddtylriqdwvpihvmi.supabase.co").replace(/\/$/, "");
-      var anonKey = cfg.anonKey || cfg.key || "";
-      var token = (C && typeof C.token === "function" ? C.token() : (C && C.accessToken)) || anonKey;
-      fetch(baseUrl + "/functions/v1/send-push-notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": anonKey, "Authorization": "Bearer " + token },
-        body: JSON.stringify({ limit: 30 })
-      }).catch(function () {});
-    } catch (e) {}
+    // Intentionally no-op. The one-minute Cron job processes only eligible new items.
+    // Calling the batch worker here could drain unrelated or historical queue entries.
+    return Promise.resolve({ scheduled: true });
   }
+
 
   async function markAdminNotificationReadDb(n) {
     if (!n || n.is_read) return;
@@ -16478,22 +16455,25 @@
             var oldText = btn.textContent;
             btn.textContent = 'جارٍ إرسال الاختبار…';
             try {
-              var cfg = window.DE_CMS || window.CMS || {};
-              var baseUrl = (cfg.url || 'https://qgjddtylriqdwvpihvmi.supabase.co').replace(/\/$/, '');
-              var anonKey = cfg.anonKey || cfg.key || '';
-              var token = (C && typeof C.token === 'function' ? C.token() : (C && C.accessToken)) || '';
-              if (!token || token === anonKey) throw new Error('انتهت جلسة الدخول؛ أعد تسجيل الدخول إلى لوحة الإدارة.');
-              var res = await fetch(baseUrl + '/functions/v1/send-push-test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + token },
-                body: JSON.stringify({})
-              });
-              var data = {};
-              try { data = await res.json(); } catch (e) {}
-              if (!res.ok || !data.ok) throw new Error(data.message || data.error || ('فشل الاختبار (' + res.status + ')'));
-              toast('قبلت خدمة الإشعارات إرسال الاختبار. تحقق من هاتفك.', 'ok');
+              // C.fn uses de-core's authenticated client, refreshes expired access tokens,
+              // and includes the active user JWT without exposing it to this UI handler.
+              var data = await C.fn('send-push-test', {});
+              if (!data || data.ok !== true || data.accepted !== true) {
+                throw new Error((data && (data.message || data.error)) || 'لم تؤكد خدمة Push قبول الإشعار.');
+              }
+              toast('قبلت خدمة Push الإشعار التجريبي. تحقق من هاتفك؛ القبول لا يثبت ظهوره بعد.', 'ok');
             } catch (err) {
-              toast(err && err.message ? err.message : 'تعذر إرسال الإشعار التجريبي.', 'error');
+              var status = Number(err && err.status) || 0;
+              var errorText = status === 401
+                ? 'انتهت جلسة لوحة الإدارة أو تعذر تجديدها. سجّل الدخول مجدداً.'
+                : status === 403
+                  ? 'حسابك لا يملك صلاحية إرسال الإشعار التجريبي.'
+                  : status === 404
+                    ? 'لا يوجد اشتراك هاتف نشط للاختبار. افتح فضاء الأولياء على الهاتف وسجّل الدخول وفعّل الإشعارات.'
+                    : status === 502
+                      ? 'رفضت خدمة Push الاشتراك الحالي. افتح فضاء الأولياء على الهاتف لتجديد الاشتراك.'
+                      : (err && err.message ? err.message : 'تعذر إرسال الإشعار التجريبي.');
+              toast(errorText, 'error');
             } finally {
               btn.disabled = false;
               btn.textContent = oldText || 'إرسال إشعار تجريبي إلى هاتفي';
