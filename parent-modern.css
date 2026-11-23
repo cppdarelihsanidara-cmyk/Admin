@@ -472,3 +472,5 @@ body {
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+.pm-notif-badge[hidden] { display: none !important; }

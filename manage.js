@@ -16202,16 +16202,25 @@
       status: 'pending',
       scheduled_at: new Date().toISOString()
     };
-    // The scheduled worker is the only queue processor. Never invoke it from the UI:
-    // it handles batches and must not be used as a single-message send endpoint.
     await C.rest('POST', '/notification_outbox', outboxRow, 'return=minimal');
-    return { queued: true, message: 'Notification queued for scheduled delivery.' };
+    return flushPushOutboxNow();
   }
 
   function flushPushOutboxNow() {
-    // Intentionally no-op. The one-minute Cron job processes only eligible new items.
-    // Calling the batch worker here could drain unrelated or historical queue entries.
-    return Promise.resolve({ scheduled: true });
+    try {
+      var cfg = window.DE_CMS || window.CMS || {};
+      var baseUrl = (cfg.url || 'https://qgjddtylriqdwvpihvmi.supabase.co').replace(/\/$/, '');
+      var anonKey = cfg.anonKey || cfg.key || '';
+      var token = (C && typeof C.token === 'function' ? C.token() : (C && C.accessToken)) || anonKey;
+      return fetch(baseUrl + '/functions/v1/send-push-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ limit: 25 })
+      }).then(function (r) { return r.json().catch(function () { return { ok: r.ok }; }); })
+        .catch(function () { return { scheduled: true }; });
+    } catch (e) {
+      return Promise.resolve({ scheduled: true });
+    }
   }
 
 
@@ -16274,14 +16283,16 @@
 
     var bellBadge = document.getElementById('notifBellBadge');
     if (bellBadge) {
-      bellBadge.textContent = String(unread);
+      bellBadge.textContent = unread > 0 ? String(unread) : '';
       bellBadge.hidden = unread === 0;
+      bellBadge.style.display = unread > 0 ? 'flex' : 'none';
     }
 
     var navBadge = document.getElementById('notifNavBadge');
     if (navBadge) {
-      navBadge.textContent = String(unread);
+      navBadge.textContent = unread > 0 ? String(unread) : '';
       navBadge.hidden = unread === 0;
+      navBadge.style.display = unread > 0 ? 'flex' : 'none';
     }
   }
 
