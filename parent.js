@@ -34,9 +34,7 @@
   try {
     if (typeof window !== 'undefined' && safeGetItem('local', 'de_app_ver') !== 'v98') {
       safeSetItem('local', 'de_app_ver', 'v98');
-      if (window.caches && caches.keys) {
-        caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
-      }
+      /* Cache cleanup is handled safely by sw.js activate using CACHE_PREFIX. */
       if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           regs.forEach(function (r) { r.update(); });
@@ -533,6 +531,7 @@
             }
             var subJson = sub.toJSON();
             var kid0 = (S.d && S.d.children && S.d.children[0]) || null;
+            var devType = /android|iphone|ipad|ipod|mobile|tablet/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
             var subBody = {
               parent_user_id: S.me || null,
               child_id: kid0 ? kid0.id : null,
@@ -540,16 +539,31 @@
               p256dh: subJson.keys ? subJson.keys.p256dh : '',
               auth: subJson.keys ? subJson.keys.auth : '',
               user_agent: navigator.userAgent,
-              device_type: /mobi/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-              is_active: true
+              device_type: devType,
+              device_label: devType === 'mobile' ? 'هاتف محمول' : 'حاسوب',
+              role: 'parent',
+              is_active: true,
+              last_used_at: new Date().toISOString()
             };
-            await C.rest('POST', '/push_subscriptions', subBody, { Prefer: 'resolution=merge-duplicates' }).catch(function () {});
+            try {
+              await C.rpc('upsert_my_push_subscription', {
+                p_endpoint: subBody.endpoint,
+                p_p256dh: subBody.p256dh,
+                p_auth: subBody.auth,
+                p_child_id: subBody.child_id,
+                p_user_agent: subBody.user_agent,
+                p_device_type: subBody.device_type,
+                p_device_label: subBody.device_label
+              });
+            } catch (rpcErr) {
+              await C.rest('POST', '/push_subscriptions?on_conflict=endpoint', subBody, 'resolution=merge-duplicates,return=minimal');
+            }
           } catch (eSub) {
             console.warn('Push registration warning:', eSub);
           }
         }
 
-        triggerPhoneNotification('دار الإحسان — تم التفعيل بنجاح 🔔', 'ستصلك الآن تنبيهات ورسائل المركز مباشرة على الهاتف حتى عندما يكون التطبيق مغلقاً.', './parent.html');
+        triggerPhoneNotification('دار الإحسان — تم التفعيل بنجاح 🔔', 'ستصلك الآن تنبيهات ورسائل المركز مباشرة على الهاتف حتى عندما يكون التطبيق مغلقاً.', 'de-push-enrollment-test', { url: './parent.html' });
         toast('تم تفعيل إشعارات الهاتف مع الرنة الصوتية بنجاح!', 'ok');
         return true;
       } else {
@@ -560,6 +574,15 @@
       toast('تعذّر تفعيل الإشعارات: ' + e.message, 'err');
       return false;
     }
+  }
+
+
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function (ev) {
+      if (ev && ev.data && ev.data.type === 'DE_PUSH_SUBSCRIPTION_CHANGED' && S.me) {
+        if (typeof syncExistingPushSubscription === 'function') syncExistingPushSubscription();
+      }
+    });
   }
 
   function resolveParentLoginEmail(raw) {
