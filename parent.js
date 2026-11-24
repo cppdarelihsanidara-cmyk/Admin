@@ -38,8 +38,8 @@
   }
 
   try {
-    if (typeof window !== 'undefined' && safeGetItem('local', 'de_app_ver') !== 'v98') {
-      safeSetItem('local', 'de_app_ver', 'v98');
+    if (typeof window !== 'undefined' && safeGetItem('local', 'de_parent_app_ver') !== 'v101') {
+      safeSetItem('local', 'de_parent_app_ver', 'v101');
       /* Cache cleanup is handled safely by sw.js activate using CACHE_PREFIX. */
       if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
@@ -48,7 +48,7 @@
       }
     }
   } catch (eVer) {}
-  var FILE_BUILD = '2026-10-24.2';
+  var FILE_BUILD = '2026-11-23.2';
   if (window.top !== window.self) { document.body.textContent = ''; return; }
 
   var DEFAULT_CFG = {
@@ -469,7 +469,6 @@
   }
 
   function triggerPhoneNotification(title, body, tag, extraData) {
-    playNotificationRingtone();
     if (navigator.vibrate) {
       try { navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
     }
@@ -514,6 +513,47 @@
     return outputArray;
   }
 
+  function currentPushDeviceType() {
+    var ua = String(navigator.userAgent || '');
+    var mobileHint = navigator.userAgentData && navigator.userAgentData.mobile;
+    return mobileHint || /(android|iphone|ipad|ipod|mobile|tablet|silk|kindle)/i.test(ua) ? 'mobile' : 'desktop';
+  }
+
+  async function saveCurrentPushSubscription(sub) {
+    if (!sub || !sub.endpoint || !S.me) throw new Error('جلسة الولي غير متاحة لتسجيل جهاز الإشعارات.');
+    var json = sub.toJSON();
+    if (!json.keys || !json.keys.p256dh || !json.keys.auth) throw new Error('بيانات اشتراك الإشعارات غير مكتملة.');
+    var kid = (S.d && S.d.children && S.d.children[0]) || null;
+    var body = {
+      parent_user_id: S.me,
+      child_id: kid ? kid.id : null,
+      endpoint: sub.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: navigator.userAgent,
+      device_type: currentPushDeviceType(),
+      device_label: currentPushDeviceType() === 'mobile' ? 'هاتف محمول' : 'حاسوب',
+      role: 'parent',
+      is_active: true,
+      last_used_at: new Date().toISOString()
+    };
+    try {
+      await C.rpc('upsert_my_push_subscription', {
+        p_endpoint: body.endpoint,
+        p_p256dh: body.p256dh,
+        p_auth: body.auth,
+        p_child_id: body.child_id,
+        p_user_agent: body.user_agent,
+        p_device_type: body.device_type,
+        p_device_label: body.device_label
+      });
+    } catch (rpcErr) {
+      // Fallback for older DB instances: endpoint has a UNIQUE constraint.
+      await C.rest('POST', '/push_subscriptions?on_conflict=endpoint', body, 'resolution=merge-duplicates,return=minimal');
+    }
+    return true;
+  }
+
   async function requestPhoneNotificationPermission() {
     if (typeof Notification === 'undefined') {
       toast('المتصفح لا يدعم إشعارات النظام المباشرة.', 'err');
@@ -521,63 +561,105 @@
     }
     try {
       var perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        safeSetItem('local', 'de_phone_notif_enabled', '1');
-        
-        // تسجيل اشتراك Web Push الرسمي مع خادم Supabase
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-          try {
-            var reg = await navigator.serviceWorker.ready;
-            var sub = await reg.pushManager.getSubscription();
-            if (!sub) {
-              sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-              });
-            }
-            var subJson = sub.toJSON();
-            var kid0 = (S.d && S.d.children && S.d.children[0]) || null;
-            var devType = /android|iphone|ipad|ipod|mobile|tablet/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
-            var subBody = {
-              parent_user_id: S.me || null,
-              child_id: kid0 ? kid0.id : null,
-              endpoint: sub.endpoint,
-              p256dh: subJson.keys ? subJson.keys.p256dh : '',
-              auth: subJson.keys ? subJson.keys.auth : '',
-              user_agent: navigator.userAgent,
-              device_type: devType,
-              device_label: devType === 'mobile' ? 'هاتف محمول' : 'حاسوب',
-              role: 'parent',
-              is_active: true,
-              last_used_at: new Date().toISOString()
-            };
-            try {
-              await C.rpc('upsert_my_push_subscription', {
-                p_endpoint: subBody.endpoint,
-                p_p256dh: subBody.p256dh,
-                p_auth: subBody.auth,
-                p_child_id: subBody.child_id,
-                p_user_agent: subBody.user_agent,
-                p_device_type: subBody.device_type,
-                p_device_label: subBody.device_label
-              });
-            } catch (rpcErr) {
-              await C.rest('POST', '/push_subscriptions?on_conflict=endpoint', subBody, 'resolution=merge-duplicates,return=minimal');
-            }
-          } catch (eSub) {
-            console.warn('Push registration warning:', eSub);
-          }
-        }
-
-        triggerPhoneNotification('دار الإحسان — تم التفعيل بنجاح 🔔', 'ستصلك الآن تنبيهات ورسائل المركز مباشرة على الهاتف حتى عندما يكون التطبيق مغلقاً.', 'de-push-enrollment-test', { url: './parent.html' });
-        toast('تم تفعيل إشعارات الهاتف مع الرنة الصوتية بنجاح!', 'ok');
-        return true;
-      } else {
-        toast('تم رفض إذن الإشعارات من إعدادات المتصفح.', 'err');
+      if (perm !== 'granted') {
+        toast('تم رفض إذن الإشعارات. لتفعيله لاحقاً: إعدادات المتصفح ← إعدادات الموقع ← الإشعارات ← سماح لدار الإحسان.', 'err');
         return false;
       }
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !S.me) {
+        throw new Error('يتعذر تسجيل هذا الجهاز الآن. تأكد من فتح فضاء الأولياء بعد تسجيل الدخول في Chrome.');
+      }
+      var synced = await syncExistingPushSubscription();
+      if (!synced) throw new Error('لم يكتمل حفظ اشتراك الإشعارات في الخادم. حاول مجدداً.');
+      safeSetItem('local', 'de_phone_notif_enabled', '1');
+      S._pushSyncedOnce = true;
+      triggerPhoneNotification('دار الإحسان — تم التفعيل بنجاح 🔔', 'تم حفظ اشتراك هذا الجهاز لاستقبال تنبيهات المركز.', 'de-push-enrollment-test', { url: './parent.html' });
+      toast('تم حفظ اشتراك هذا الجهاز في خادم الإشعارات بنجاح.', 'ok');
+      return true;
     } catch (e) {
-      toast('تعذّر تفعيل الإشعارات: ' + e.message, 'err');
+      S._pushSyncedOnce = false;
+      console.warn('Push registration warning:', e);
+      toast('لم يكتمل تسجيل الإشعارات: ' + (e && e.message ? e.message : 'خطأ غير معروف'), 'err');
+      return false;
+    }
+  }
+
+
+
+  /* ══ التحديث التلقائي الفوري للإشعارات والتقارير دون الحاجة لإعادة تحميل الصفحة ══ */
+  var _livePollTimer = null;
+  var _livePollingBusy = false;
+  var _lastKnownUnread = -1;
+
+  async function pollParentDataSilently() {
+    if (_livePollingBusy || !S.me || document.hidden) return;
+    _livePollingBusy = true;
+    try {
+      if (typeof load === 'function') {
+        var prevCount = (typeof getTotalUnreadNotifs === 'function') ? getTotalUnreadNotifs() : (S.d && S.d.msgs ? S.d.msgs.length : 0);
+        await load(true);
+        var nextCount = (typeof getTotalUnreadNotifs === 'function') ? getTotalUnreadNotifs() : (S.d && S.d.msgs ? S.d.msgs.length : 0);
+        updateNotifBadge();
+        if (_lastKnownUnread >= 0 && nextCount > prevCount) {
+          toast('وصل إشعار جديد في ملف طفلك!', 'ok');
+          if (typeof playNotificationChime === 'function') { try { playNotificationChime(); } catch (e) {} }
+        }
+        _lastKnownUnread = nextCount;
+      }
+    } catch (e) {}
+    finally { _livePollingBusy = false; }
+  }
+
+  function startParentLivePolling() {
+    if (_livePollTimer) return;
+    _livePollTimer = setInterval(pollParentDataSilently, 12000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && S.me) pollParentDataSilently();
+    });
+    window.addEventListener('focus', function () {
+      if (S.me) pollParentDataSilently();
+    });
+  }
+
+  async function syncExistingPushSubscription() {
+    // Silent migration: reuse the already-granted browser permission; never prompt again.
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return true;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !S.me) return true;
+    try {
+      var reg = await navigator.serviceWorker.ready;
+      var expectedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      var sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        var savedRows = await C.rest('GET', '/push_subscriptions?select=id,is_active&parent_user_id=eq.' + encodeURIComponent(S.me) + '&endpoint=eq.' + encodeURIComponent(sub.endpoint) + '&limit=1');
+        var serverMarkedInactive = Array.isArray(savedRows) && savedRows.length > 0 && savedRows[0].is_active === false;
+        var currentKey = sub.options && sub.options.applicationServerKey;
+        var currentBytes = currentKey ? new Uint8Array(currentKey) : null;
+        var sameKey = !!currentBytes && currentBytes.length === expectedKey.length;
+        if (sameKey) {
+          for (var ki = 0; ki < expectedKey.length; ki++) {
+            if (currentBytes[ki] !== expectedKey[ki]) { sameKey = false; break; }
+          }
+        }
+        if (!sameKey || serverMarkedInactive) {
+          // Replace old-key and server-deactivated (expired/410 or invalid/403) subscriptions.
+          try {
+            await C.rest('PATCH', '/push_subscriptions?endpoint=eq.' + encodeURIComponent(sub.endpoint), { is_active: false });
+          } catch (dbOldErr) { console.warn('Could not deactivate previous push endpoint:', dbOldErr); }
+          await sub.unsubscribe();
+          sub = null;
+        }
+      }
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: expectedKey
+        });
+      }
+      await saveCurrentPushSubscription(sub);
+      console.info('Push subscription synchronized with current VAPID key.');
+      return true;
+    } catch (e) {
+      S._pushSyncedOnce = false;
+      console.warn('Automatic push subscription migration will retry:', e);
       return false;
     }
   }
@@ -683,7 +765,8 @@
       S.me = me.id;
       var q = function (p) { return C.rest('GET', p); };
 
-      // Fail closed: child visibility must come from the authenticated parent-child relation.
+      // Fail closed: parent-child visibility must come from the explicit relation.
+      // Never fall back to listing all children and guessing ownership from usernames.
       var fetchKidsResilient = async function () {
         try {
           var linkedKids = await q('/parent_children?select=child:children(id,membership_no,full_name,dob,disability,center,section,branch_id,section_id,academic_year,basic_info)&parent_id=eq.' + uid(me.id));
@@ -727,13 +810,14 @@
         q('/parent_profiles?select=full_name&limit=1').catch(function () { return []; }),
         fetchKidsResilient(),
         fetchReportsResilient(),
-        q('/appointments?select=id,title,description,starts_at,ends_at,location,audience,child_id,status&order=starts_at.asc').catch(function () { return []; }),
+        q('/appointments?select=id,title,description,starts_at,ends_at,location,audience,child_id,parent_id,status&order=starts_at.asc').catch(function () { return []; }),
         q('/messages?select=id,kind,title,body,published_at&order=published_at.desc').catch(function () { return []; }),
-        q('/message_reads?select=message_id').catch(function () { return []; }),
-        q('/documents?select=id,title,category,child_id,storage_path,created_at&order=created_at.desc').catch(function () { return []; }),
-        q('/educational_programs?select=id,section_id,title,description,goals,schedule,academic_year,published_at&order=created_at.desc').catch(function () { return []; }),
+        q('/message_reads?select=message_id&parent_id=eq.' + uid(S.me)).catch(function () { return []; }),
+        q('/documents?select=id,title,category,child_id,storage_path,created_at,shared_with_parent&order=created_at.desc').catch(function () { return []; }),
+        q('/educational_programs?select=id,section_id,title,description,goals,schedule,academic_year,published_at,status,is_archived&order=created_at.desc').catch(function () { return []; }),
         q('/sections?select=id,name').catch(function () { return []; }),
-        fetchCloudPublishedEvaluations()
+        fetchCloudPublishedEvaluations(),
+        q('/notifications?select=related_record_id,is_read,notification_type&recipient_user_id=eq.' + uid(S.me)).catch(function () { return []; })
       ]);
 
       var kids = r[1] || [];
@@ -787,13 +871,21 @@
         msgs: r[4],
         docs: r[6],
         programs: r[7] || [],
-        sections: r[8] || []
+        sections: r[8] || [],
+        notifications: r[10] || []
       };
       S.reads = {}; r[5].forEach(function (x) { S.reads[x.message_id] = true; });
 
       if (S.d.children.length && !S.selectedChildId) {
         S.selectedChildId = S.d.children[0].id;
       }
+
+      // Migrate old VAPID subscriptions automatically for parents who already granted permission.
+      if (!S._pushSyncedOnce && S.me) {
+        S._pushSyncedOnce = true;
+        syncExistingPushSubscription().then(function (ok) { if (!ok) S._pushSyncedOnce = false; });
+      }
+      if (typeof startParentLivePolling === 'function') startParentLivePolling();
 
       show('app');
       applyLang();
@@ -851,26 +943,95 @@
     return S.d ? S.d.msgs.filter(function (m) { return !S.reads[m.id]; }).length : 0;
   }
 
+  function isParentRecordNew(kind, recordId, legacyPrefix) {
+    if (!recordId) return false;
+    var stored = (S.d && Array.isArray(S.d.notifications)) ? S.d.notifications.filter(function (n) {
+      return String(n.related_record_id || '') === String(recordId);
+    }) : [];
+    if (stored.length) return stored.some(function (n) { return n.is_read !== true; });
+    return safeGetItem('local', legacyPrefix + recordId) !== '1';
+  }
+
   function getNewReportsCount() {
     if (!S.d || !S.d.reports) return 0;
     var stdReps = S.d.reports.filter(function (r) { return !isEvalReport(r); });
-    return stdReps.filter(function (r) {
-      return safeGetItem('local', 'de_seen_rep_' + r.id) !== '1';
-    }).length;
+    return stdReps.filter(function (r) { return isParentRecordNew('report', r.id, 'de_seen_rep_'); }).length;
   }
 
   function getNewEvaluationsCount() {
     if (!S.d || !S.d.reports) return 0;
     var evReps = S.d.reports.filter(isEvalReport);
-    return evReps.filter(function (e) {
-      return safeGetItem('local', 'de_seen_ev_' + e.id) !== '1';
+    return evReps.filter(function (e) { return isParentRecordNew('evaluation', e.id, 'de_seen_ev_'); }).length;
+  }
+
+  function getParentVisibleItems(kind) {
+    if (!S.d) return [];
+    var children = Array.isArray(S.d.children) ? S.d.children : [];
+    var childIds = children.map(function (c) { return String(c.id); });
+    if (kind === 'doc') return (S.d.docs || []).filter(function (d) { return d.shared_with_parent === true && childIds.indexOf(String(d.child_id || '')) >= 0; });
+    if (kind === 'appt') return (S.d.appts || []).filter(function (a) { return a.audience === 'all' || (a.parent_id && String(a.parent_id) === String(S.me && (S.me.id || S.me.user_id))) || (a.child_id && childIds.indexOf(String(a.child_id)) >= 0); });
+    if (kind === 'program') {
+      var secIds = children.map(function (c) { return String(c.section_id || ''); }).filter(Boolean);
+      var secNames = children.map(function (c) { return String(c.section || ''); }).filter(Boolean);
+      return (S.d.programs || []).filter(function (pr) {
+        if (pr.status === 'draft' || pr.is_archived === true) return false;
+        if (pr.section_id && secIds.indexOf(String(pr.section_id)) >= 0) return true;
+        var hay = String(pr.title || '') + ' ' + (typeof pr.schedule === 'string' ? pr.schedule : JSON.stringify(pr.schedule || {}));
+        return secNames.some(function (name) { return name && hay.indexOf(name) >= 0; });
+      });
+    }
+    return [];
+  }
+
+  function getNewContentCount(kind, list) {
+    var items = list || getParentVisibleItems(kind);
+    if (!Array.isArray(items)) return 0;
+    return items.filter(function (item) {
+      return item && item.id && isParentRecordNew(kind, item.id, 'de_seen_' + kind + '_');
     }).length;
   }
 
+  function getTotalUnreadNotifs() { return getTotalNotificationsCount(); }
+
   function getTotalNotificationsCount() {
-    return unreadCount() + getNewReportsCount() + getNewEvaluationsCount();
+    if (!S.d) return unreadCount() + getNewReportsCount() + getNewEvaluationsCount();
+    return unreadCount() + getNewReportsCount() + getNewEvaluationsCount()
+      + getNewContentCount('doc')
+      + getNewContentCount('program')
+      + getNewContentCount('appt');
   }
 
+
+  async function markParentDbNotifsRead(relatedRecordId) {
+    if (!S.me) return false;
+    try {
+      var filter = relatedRecordId
+        ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&related_record_id=eq.' + uid(relatedRecordId) + '&is_read=eq.false')
+        : ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&is_read=eq.false');
+      if (relatedRecordId) {
+        try { await C.rpc('mark_parent_item_read', { p_related_record_id: relatedRecordId }); } catch (eRpc) { await C.rest('PATCH', filter, { is_read: true }); }
+      } else {
+        await C.rest('PATCH', filter, { is_read: true });
+      }
+      if (S.d && Array.isArray(S.d.notifications)) S.d.notifications.forEach(function (n) { if (!relatedRecordId || String(n.related_record_id) === String(relatedRecordId)) n.is_read = true; });
+      updateNotifBadge();
+      return true;
+    } catch (e) {
+      console.warn('تعذر تعليم إشعار قاعدة البيانات كمقروء:', e);
+      return false;
+    }
+  }
+
+
+  async function markParentContentRead(kind, recordId) {
+    if (!recordId) return false;
+    var key = 'de_seen_' + kind + '_' + recordId;
+    safeSetItem('local', key, '1');
+    if (S.d && Array.isArray(S.d.notifications)) S.d.notifications.forEach(function (n) { if (String(n.related_record_id) === String(recordId)) n.is_read = true; });
+    var ok = await markParentDbNotifsRead(recordId);
+    updateNotifBadge();
+    return ok;
+  }
 
   function applyParentHashRoute() {
     if (!S.me || !S.d) return;
@@ -924,60 +1085,81 @@
           type: 'button',
           class: 'btn small light',
           text: 'تعليم الكل كمقروء',
-          onclick: function () {
-            if (S.d && S.d.msgs) {
-              S.d.msgs.forEach(function (m) {
-                if (!S.reads[m.id]) {
-                  S.reads[m.id] = true;
-                  C.rest('POST', '/message_reads', { message_id: m.id, parent_id: S.me }).catch(function () {});
+          onclick: async function () {
+            if (S._markingAllNotifs) return;
+            S._markingAllNotifs = true;
+            try {
+              var failed = 0;
+              if (S.d && S.d.msgs) {
+                var unreadList = S.d.msgs.filter(function (m) { return !S.reads[m.id]; });
+                for (var i = 0; i < unreadList.length; i++) {
+                  var m = unreadList[i];
+                  try {
+                    await C.rest('POST', '/message_reads', { message_id: m.id, parent_id: S.me });
+                    S.reads[m.id] = true;
+                  } catch (err) {
+                    if (String(err && err.message || '').indexOf('23505') >= 0 || String(err && err.message || '').indexOf('409') >= 0) {
+                      S.reads[m.id] = true;
+                    } else {
+                      failed++;
+                    }
+                  }
                 }
+              }
+              if (S.d && S.d.reports) {
+                for (var j = 0; j < S.d.reports.length; j++) {
+                  var r = S.d.reports[j];
+                  if (isEvalReport(r)) safeSetItem('local', 'de_seen_ev_' + r.id, '1');
+                  else safeSetItem('local', 'de_seen_rep_' + r.id, '1');
+                  await markParentDbNotifsRead(r.id);
+                }
+              }
+              [['doc', getParentVisibleItems('doc')], ['program', getParentVisibleItems('program')], ['appt', getParentVisibleItems('appt')]].forEach(function (bucket) {
+                (bucket[1] || []).forEach(function (item) {
+                  if (!item || !item.id) return;
+                  safeSetItem('local', 'de_seen_' + bucket[0] + '_' + item.id, '1');
+                  if (S.d && Array.isArray(S.d.notifications)) S.d.notifications.forEach(function (n) { if (String(n.related_record_id) === String(item.id)) n.is_read = true; });
+                });
               });
+              updateNotifBadge();
+    if (!S._pushSyncedOnce && S.me) {
+      S._pushSyncedOnce = true;
+      syncExistingPushSubscription().then(function (ok) { if (!ok) S._pushSyncedOnce = false; });
+      startParentLivePolling();
+    }
+              closeModal();
+              render();
+              if (failed > 0) toast('تعذر تحديث بعض الإشعارات في قاعدة البيانات، يرجى المحاولة لاحقاً.', 'err');
+              else await markParentDbNotifsRead(null);
+              toast('تم تعليم كل الإشعارات كمقروءة وحفظها بنجاح.', 'ok');
+            } finally {
+              S._markingAllNotifs = false;
             }
-            if (S.d && S.d.reports) {
-              S.d.reports.forEach(function (r) {
-                if (isEvalReport(r)) safeSetItem('local', 'de_seen_ev_' + r.id, '1');
-                else safeSetItem('local', 'de_seen_rep_' + r.id, '1');
-              });
-            }
-            updateNotifBadge();
-            closeModal();
-            render();
-            toast('تم تعليم كل الإشعارات كمقروءة.', 'ok');
           }
         })
       )
     );
 
-    // بطاقة تفعيل إشعارات الهاتف مع الرنة
-    var notifPermState = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
-    var isPhoneActive = notifPermState === 'granted' && safeGetItem('local', 'de_phone_notif_enabled') === '1';
-
-    var phoneNotifBox = h('div', {
-      class: 'pm-notif-phone-card',
-      style: 'background: linear-gradient(135deg, #0c2d55, #144275); color: #fff; padding: 14px 16px; border-radius: 12px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; box-shadow: 0 4px 12px rgba(12,45,85,0.25);'
-    },
-      h('div', { style: 'flex: 1; min-width: 200px;' },
-        h('strong', { style: 'display: block; font-size: 0.95rem; margin-bottom: 4px;', text: isPhoneActive ? '🔔 إشعارات الهاتف مع الرنة مفعّلة' : '🔔 تفعيل إشعارات الهاتف مع الرنة' }),
-        h('p', { style: 'margin: 0; font-size: 0.8rem; opacity: 0.9;', text: isPhoneActive ? 'تصلك تنبيهات ورسائل وتقارير طفلك مباشرة على هاتفك مع نغمة التنبيه الصوتية.' : 'اضغط لتفعيل وصول الإشعارات إلى شاشة هاتفك مع إطلاق رنة تنبيهية مسموعة عند إضافة أي تقرير أو رسالة.' })
-      ),
+    // Keep the enrollment action inside the existing notifications screen (no persistent banner).
+    card.appendChild(h('div', { class: 'card', style: 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;' },
+      h('p', { style: 'margin:0;flex:1;min-width:180px;font-size:0.9rem;', text: 'فعّل إشعارات الهاتف لتصلك تنبيهات المركز حتى عند إغلاق فضاء الأولياء.' }),
       h('button', {
         type: 'button',
-        class: isPhoneActive ? 'btn small light' : 'btn small gold',
-        style: 'font-weight: 700; white-space: nowrap;',
-        text: isPhoneActive ? 'تجربة الرنة 🔊' : 'تفعيل مع الرنة 🔔',
-        onclick: function () {
-          if (isPhoneActive) {
-            triggerPhoneNotification('دار الإحسان — اختبار الرنة 🔔', 'هذه نغمة تنبيهات دار الإحسان على هاتفك.', 'test-ring');
-            toast('تم إطلاق نغمة الإشعار على الهاتف.', 'ok');
-          } else {
-            requestPhoneNotificationPermission().then(function (ok) {
-              if (ok) { closeModal(); openNotificationsModal(); }
-            });
+        class: 'btn small gold',
+        text: (typeof Notification !== 'undefined' && Notification.permission === 'granted') ? 'تحديث اشتراك الإشعارات' : 'تفعيل إشعارات الهاتف',
+        onclick: async function () {
+          var btn = this;
+          var oldText = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'جارٍ التفعيل…';
+          try { await requestPhoneNotificationPermission(); }
+          finally {
+            btn.disabled = false;
+            btn.textContent = (typeof Notification !== 'undefined' && Notification.permission === 'granted') ? 'تحديث اشتراك الإشعارات' : (oldText || 'تفعيل إشعارات الهاتف');
           }
         }
       })
-    );
-    card.appendChild(phoneNotifBox);
+    ));
 
     var list = h('div', { class: 'dynamic-items-container', style: 'max-height: 400px; overflow-y: auto;' });
     var itemsCount = 0;
@@ -999,7 +1181,26 @@
             type: 'button',
             class: 'btn-pm-primary',
             text: 'عرض الرسالة',
-            onclick: function () {
+            onclick: async function () {
+              if (!S._markingRead) S._markingRead = {};
+              if (S._markingRead[m.id]) return;
+              if (!S.reads[m.id]) {
+                S._markingRead[m.id] = true;
+                try {
+                  await C.rest('POST', '/message_reads', { message_id: m.id, parent_id: S.me });
+                  S.reads[m.id] = true;
+                } catch (err) {
+                  if (String(err && err.message || '').indexOf('23505') >= 0 || String(err && err.message || '').indexOf('409') >= 0) {
+                    S.reads[m.id] = true;
+                  } else {
+                    toast('تعذر تحديث حالة الإشعار في قاعدة البيانات: ' + ((err && err.message) || 'خطأ اتصال'), 'err');
+                    S._markingRead[m.id] = false;
+                    return;
+                  }
+                }
+                S._markingRead[m.id] = false;
+                updateNotifBadge();
+              }
               closeModal();
               S.tab = 'msgs';
               render();
@@ -1028,8 +1229,8 @@
             type: 'button',
             class: 'btn-pm-gold',
             text: 'عرض ورقة التقييم',
-            onclick: function () {
-              safeSetItem('local', 'de_seen_ev_' + e.id, '1');
+            onclick: async function () {
+              safeSetItem('local', 'de_seen_ev_' + e.id, '1'); await markParentDbNotifsRead(e.id);
               updateNotifBadge();
               closeModal();
               S.tab = 'evaluations';
@@ -1057,8 +1258,8 @@
             type: 'button',
             class: 'btn-pm-primary',
             text: 'عرض التقرير',
-            onclick: function () {
-              safeSetItem('local', 'de_seen_rep_' + r.id, '1');
+            onclick: async function () {
+              safeSetItem('local', 'de_seen_rep_' + r.id, '1'); await markParentDbNotifsRead(r.id);
               updateNotifBadge();
               closeModal();
               S.tab = 'reports';
@@ -1070,6 +1271,36 @@
         list.appendChild(itemEl);
       });
     }
+
+    // الوثائق الجديدة المتاحة للولي
+    getParentVisibleItems('doc').filter(function (d) { return isParentRecordNew('doc', d.id, 'de_seen_doc_'); }).forEach(function (d) {
+      itemsCount++;
+      list.appendChild(h('div', { class: 'pm-list-item-card', style: 'padding:10px 14px; margin-bottom:8px;' },
+        h('div', { class: 'pm-lic-right' }, h('div', { class: 'pm-lic-icon-box' }, icon('i-file')),
+          h('div', { class: 'pm-lic-info' }, h('strong', { class: 'pm-lic-title', text: 'وثيقة جديدة: ' + (d.title || 'وثيقة') }), h('span', { class: 'pm-lic-meta', text: fmtDate(d.created_at) }))),
+        h('button', { type: 'button', class: 'btn-pm-primary', text: 'عرض الوثائق', onclick: async function () { await markParentContentRead('doc', d.id); closeModal(); S.tab = 'docs'; render(); } })
+      ));
+    });
+
+    // البرامج الأسبوعية المنشورة أو المحدّثة
+    getParentVisibleItems('program').filter(function (pr) { return isParentRecordNew('program', pr.id, 'de_seen_program_'); }).forEach(function (pr) {
+      itemsCount++;
+      list.appendChild(h('div', { class: 'pm-list-item-card', style: 'padding:10px 14px; margin-bottom:8px;' },
+        h('div', { class: 'pm-lic-right' }, h('div', { class: 'pm-lic-icon-box' }, icon('i-book')),
+          h('div', { class: 'pm-lic-info' }, h('strong', { class: 'pm-lic-title', text: 'برنامج أسبوعي جديد: ' + (pr.title || 'البرنامج الأسبوعي') }), h('span', { class: 'pm-lic-meta', text: fmtDate(pr.published_at || pr.created_at) }))),
+        h('button', { type: 'button', class: 'btn-pm-primary', text: 'عرض البرنامج', onclick: async function () { await markParentContentRead('program', pr.id); closeModal(); S.tab = 'programs'; render(); } })
+      ));
+    });
+
+    // المواعيد الجديدة
+    getParentVisibleItems('appt').filter(function (a) { return isParentRecordNew('appt', a.id, 'de_seen_appt_'); }).forEach(function (a) {
+      itemsCount++;
+      list.appendChild(h('div', { class: 'pm-list-item-card', style: 'padding:10px 14px; margin-bottom:8px;' },
+        h('div', { class: 'pm-lic-right' }, h('div', { class: 'pm-lic-icon-box' }, icon('i-cal')),
+          h('div', { class: 'pm-lic-info' }, h('strong', { class: 'pm-lic-title', text: 'موعد جديد: ' + (a.title || 'موعد') }), h('span', { class: 'pm-lic-meta', text: fmtDate(a.starts_at) }))),
+        h('button', { type: 'button', class: 'btn-pm-primary', text: 'عرض المواعيد', onclick: async function () { await markParentContentRead('appt', a.id); closeModal(); S.tab = 'appts'; render(); } })
+      ));
+    });
 
     if (itemsCount === 0) {
       list.appendChild(h('div', { class: 'card empty', text: 'لا توجد إشعارات جديدة حالياً.' }));
@@ -1385,26 +1616,8 @@
       )
     );
 
-    // بانر تنبيه في حال وجود إشعارات جديدة غير مقروءة
-    var totalNotifs = getTotalNotificationsCount();
-    var alertBanner = null;
-    if (totalNotifs > 0) {
-      alertBanner = h('div', { class: 'pm-alert-banner' },
-        h('div', { class: 'pm-alert-banner-content' },
-          icon('i-bell'),
-          h('span', { text: 'لديك ' + totalNotifs + ' إشعار جديد في ملف طفلك (رسائل، تقارير أو تقييمات جديدة)!' })
-        ),
-        h('button', {
-          type: 'button',
-          class: 'pm-alert-btn',
-          text: 'اطّلع عليها الآن',
-          onclick: openNotificationsModal
-        })
-      );
-    }
-
+    // تمت إزالة البطاقة الصفراء بناءً على طلب الإدارة
     var host = h('div', null, hero);
-    if (alertBanner) host.appendChild(alertBanner);
     return host;
   }
 
@@ -1494,7 +1707,7 @@
           c.section ? ['الفوج / القسم', c.section] : null,
           c.dob ? ['تاريخ الميلاد', fmtDate(c.dob)] : null,
           c.disability ? ['طبيعة الإعاقة', c.disability] : null,
-          c.academic_year ? ['الموسم الدراسي', c.academic_year] : ['الموسم الدراسي', '2026–2027']
+          c.academic_year ? ['الموسم الدراسي', c.academic_year] : ['الموسم الدراسي', getCurrentAcademicYear()]
         ].filter(Boolean).map(function (it) {
           return h('div', { class: 'cd-item' }, h('span', { text: it[0] }), h('b', { text: it[1] }));
         }))
@@ -1609,10 +1822,14 @@
           var isLib = (s.kind === 'library' || (!!s.domain && !!s.skill));
           var isMan = (s.kind === 'manual' || (!isLib && !isAct && !!(s.manual_text || s.title)));
           var k = isLib ? 'library' : (isAct ? 'activity' : (isMan ? 'manual' : 'empty'));
+          var slotIndex = slots.findIndex(function (ts) { return String(ts.id) === String(s.slot_id); });
+          var firstSlot = slotIndex >= 0 ? slots[slotIndex] : null;
+          var lastIndex = slotIndex >= 0 ? Math.min(slots.length - 1, slotIndex + Math.max(1, Number(s.rowspan || 1)) - 1) : -1;
+          var lastSlot = lastIndex >= 0 ? slots[lastIndex] : null;
           return {
             slot_id: s.slot_id,
-            start: s.start || '08:00',
-            end: s.end || '08:30',
+            start: s.start || (firstSlot && firstSlot.start) || '08:00',
+            end: s.end || (lastSlot && lastSlot.end) || (firstSlot && firstSlot.end) || '08:30',
             colspan: s.colspan || s.span || 1,
             rowspan: s.rowspan || 1,
             kind: k,
@@ -1834,6 +2051,33 @@
     });
     tableEl.appendChild(tbodyEl);
 
+    // عرض بديل للهاتف على شكل بطاقات يومية دون تمرير أفقي.
+    var parentMobileDayView = h('section', { class: 'wk-parent-mobile-day-view', style: 'display:none;' });
+    var parentTodayKey = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];
+    var parentMobileDaySelect = h('select', { class: 'input wk-parent-mobile-day-select' }, st.days.map(function (dy) { return h('option', { value: dy.day, text: dy.label }); }));
+    parentMobileDaySelect.value = st.days.some(function (dy) { return dy.day === parentTodayKey; }) ? parentTodayKey : (st.days[0] && st.days[0].day) || '';
+    var parentMobileCards = h('div', { class: 'wk-parent-mobile-day-cards' });
+    function renderParentMobileDay() {
+      parentMobileCards.textContent = '';
+      var dyIdx = st.days.findIndex(function (dy) { return dy.day === parentMobileDaySelect.value; });
+      var dy = st.days[dyIdx];
+      if (!dy) return parentMobileCards.appendChild(h('div', { class: 'muted small', text: 'لا توجد حصص لهذا اليوم.' }));
+      (dy.sessions || []).slice().sort(function (a, b) { return (a.slot_id || 0) - (b.slot_id || 0); }).forEach(function (sess) {
+        var isLib = sess.kind === 'library' || (!!sess.domain && !!sess.skill);
+        var isAct = sess.kind === 'activity' || sess.kind === 'break';
+        var detail = isLib ? (sess.skill || sess.title || '') : (isAct ? (sess.activity || sess.title || '') : (sess.manual_text || sess.title || ''));
+        parentMobileCards.appendChild(h('article', { class: 'wk-parent-mobile-session-card' + (!detail ? ' is-empty' : '') },
+          h('span', { class: 'wk-parent-mobile-time', dir: 'ltr', text: (sess.start || '—') + ' – ' + (sess.end || '—') }),
+          h('span', { class: 'wk-parent-mobile-kind', text: isLib ? (sess.domain || 'حصة بيداغوجية') : (isAct ? 'نشاط يومي' : 'حصة') }),
+          h('strong', { class: 'wk-parent-mobile-detail', text: detail || 'لا يوجد نشاط مسجل' })
+        ));
+      });
+    }
+    parentMobileDaySelect.addEventListener('change', renderParentMobileDay);
+    parentMobileDayView.appendChild(h('div', { class: 'wk-parent-mobile-head' }, h('strong', { text: 'البرنامج حسب اليوم' }), parentMobileDaySelect));
+    parentMobileDayView.appendChild(parentMobileCards);
+    renderParentMobileDay();
+
     // حاوية عرض الوثيقة الرسمية Canvas
     var pdfCanvasHost = h('div', {
       class: 'wk-parent-pdf-canvas-host',
@@ -1866,7 +2110,8 @@
           printProgramBtn
         )
       ),
-      loadTable,
+      h('div', { class: 'wk-parent-load-table-scroll', style: 'max-width:100%; overflow-x:auto; margin-bottom:12px;' }, loadTable),
+      parentMobileDayView,
       h('div', { class: 'wk-parent-sheet-scroll no-print', style: 'overflow-x:auto; margin-bottom:18px;' },
         tableEl
       ),
@@ -1918,9 +2163,7 @@
       return false;
     });
 
-    if (!matchingProgs.length && allProgs.length > 0) {
-      matchingProgs = allProgs.slice();
-    }
+    matchingProgs.forEach(function (pr) { markParentContentRead('program', pr.id); });
     if (!matchingProgs.length) {
       var defaultSecName = kidSecName || (sections[0] ? sections[0].name : 'توحد 02');
       var presetProg = {
@@ -2104,28 +2347,25 @@ function getEvalType(r) {
     } catch (e) {}
   }
   var t = String(r.title || '');
+  if (t.indexOf('ملاحظة سلوك') >= 0 || t.indexOf('استمارة ملاحظة') >= 0 || t.indexOf('behavior_observation') >= 0) return 'behavior_observation';
+  if (t.indexOf('المعززات') >= 0 || t.indexOf('reinforcers') >= 0) return 'reinforcers';
+  if (t.indexOf('شبكة المقابلة') >= 0 || t.indexOf('الفحص') >= 0 || t.indexOf('interview') >= 0) return 'interview_diagnostic';
+  if (t.indexOf('التقرير النهائي') >= 0 || t.indexOf('annual') >= 0) return 'annual_final';
   if (t.indexOf('MAS') >= 0 || t.indexOf('دوافع السلوك') >= 0 || t.indexOf('مدا') >= 0) return 'mas';
   if (t.indexOf('ملاحظة سلوك') >= 0 || t.indexOf('استمارة ملاحظة') >= 0) return 'observation';
   return 'comp';
 }
 
 function getEvalTypeName(type) {
-  if (type === 'mas' || type === 'mas_behavior') return 'استمارة تقييم دوافع السلوك MAS';
-  if (type === 'mas_behavior_report') return 'تقرير دوافع السلوك';
-  if (type === 'target_behavior') return 'تقييم قياس السلوك المستهدف';
-  if (type === 'target_behavior_report') return 'تقرير قياس السلوك المستهدف';
-  if (type === 'reinforcers') return 'استبيان تقييم المعززات';
+  if (type === 'mas') return 'استمارة تقييم دوافع السلوك (مدا - MAS)';
   if (type === 'observation') return 'استمارة ملاحظة سلوك';
-  return 'تقييم الأداء الحالي';
+  return 'تقرير اللجنة البيداغوجية والتربوية';
 }
 
 function getEvalTypeBadge(type) {
-  if (type === 'mas' || type === 'mas_behavior') return badge('استمارة تقييم دوافع السلوك MAS', 'gold');
-  if (type === 'mas_behavior_report') return badge('تقرير دوافع السلوك', 'ok');
-  if (type === 'target_behavior') return badge('تقييم قياس السلوك المستهدف', 'gold');
-  if (type === 'target_behavior_report') return badge('تقرير قياس السلوك المستهدف', 'ok');
+  if (type === 'mas') return badge('تقييم دوافع السلوك (MAS)', 'gold');
   if (type === 'observation') return badge('استمارة ملاحظة سلوك', 'blue');
-  return badge('تقييم الأداء الحالي', 'ok');
+  return badge('تقرير بيداغوجي شامل', 'ok');
 }
 
 /* ---------- حساب نقاط مقياس MAS ---------- */
@@ -2429,6 +2669,15 @@ function generateWordDocObservation(rep, child, secName, brName) {
       try {
         var rawJson = JSON.parse(r.activities.slice(EVAL_MARKER.length));
         if (rawJson && typeof rawJson === 'object') {
+          if (rawJson.eval_type) res.eval_type = rawJson.eval_type;
+          if (rawJson.medico_functional_fr) res.medico_functional_fr = Object.assign({}, rawJson.medico_functional_fr);
+          if (rawJson.target_behavior_eval) res.target_behavior_eval = Object.assign({}, rawJson.target_behavior_eval);
+          if (rawJson.target_behavior_report) res.target_behavior_report = Object.assign({}, rawJson.target_behavior_report);
+          if (rawJson.mas_eval) res.mas_eval = Object.assign({}, rawJson.mas_eval);
+          if (rawJson.mas_behavior_report) res.mas_behavior_report = Object.assign({}, rawJson.mas_behavior_report);
+          if (rawJson.reinforcers) res.reinforcers = Object.assign({}, res.reinforcers, rawJson.reinforcers);
+          if (rawJson.interview) res.interview = Object.assign({}, res.interview, rawJson.interview);
+          if (rawJson.annual_final) res.annual_final = Object.assign({}, res.annual_final, rawJson.annual_final);
           if (rawJson.term) res.term = rawJson.term;
           if (rawJson.school_year) res.school_year = rawJson.school_year;
           if (rawJson.degree_of_disability) res.degree_of_disability = rawJson.degree_of_disability;
@@ -2504,6 +2753,465 @@ function generateWordDocObservation(rep, child, secName, brName) {
      - تخرج للأولياء بزرّين فقط (مثل الإدارة ولكن بدون زر التقرير الشامل والجداول التفصيلية):
        1) الزر الأول: التقرير البيداغوجي الوصفي (تقرير الملاحظات والتوجيهات — الصفحة الأولى فقط بدون الكشف والجداول، مضبوطة لصفحة A4).
        2) الزر الثاني: التقرير التقييمي الكمي (الجدول والأعمدة البيانية والدائرة النسبية والمشرفون — مطابق للصورة 56725.jpg). */
+  
+  /* ورقات التقييم الثلاثة الجديدة في فضاء الأولياء */
+  var REINFORCERS_CATALOG = [
+    {
+      cat: 'المعززات الغذائية',
+      items: ['فواكه', 'شيكولاتة', 'خضار خيار', 'بسكويت', 'عيش', 'ماء', 'مشروبات غازية', 'لبن', 'عصير', 'قهوة', 'أخرى (غذائية)']
+    },
+    {
+      cat: 'المعززات الإجتماعية',
+      items: ['الإبتسام', 'الكلمات التشجيعية', 'الثناء', 'الانتباه', 'أخرى (اجتماعية)']
+    },
+    {
+      cat: 'المعززات المادية',
+      items: ['قطار', 'حافلة', 'مكعبات', 'هواتف', 'أخرى (مادية)']
+    },
+    {
+      cat: 'المعززات الرمزية',
+      items: ['النقاط', 'النجوم', 'الكوبانات', 'أو أى اشياء أخر قابلة للإستبدال بمعززات أخرى فى وقت أخر', 'أخرى (رمزية)']
+    },
+    {
+      cat: 'المعززات النشاطية',
+      items: ['برنامج تلفزيونى مفضل', 'اللعب بالكرة', 'الخروج مع الأصدقاء', 'الزيارات', 'الرحلات', 'الرسم', 'السباحة', 'الجرى', 'أخرى (نشاطية)']
+    },
+    {
+      cat: 'معززات جسدية',
+      items: ['الأحضان', 'القبلات', 'الربت على الكتف', 'السلام باليد فى مواجهة اليد (GIVE me five)', 'الدغدغة باليد على جسم الطفل', 'أخرى (جسدية)']
+    }
+  ];
+
+  /* مساعدات عناصر الواجهة الاحترافية (Modern UI Helpers) */
+  function makeRatingSegment(curVal, onChange) {
+    var wrap = h('div', { class: 'segmented-rating-wrap', style: 'display:flex; gap:6px; background:#F1F5F9; padding:4px; border-radius:10px; border:1.5px solid #CBD5E1;' });
+    var opts = [
+      { val: 'ضعيف', bg: '#EF4444' },
+      { val: 'متوسط', bg: '#F59E0B' },
+      { val: 'جيد', bg: '#2563EB' }
+    ];
+    var btns = [];
+    opts.forEach(function (opt) {
+      var isSel = (curVal === opt.val);
+      var b = h('button', {
+        type: 'button',
+        style: 'flex:1; padding:7px 12px; border:none; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; transition:all 0.15s ease; ' +
+               (isSel ? ('background:' + opt.bg + '; color:#FFF; box-shadow:0 2px 6px rgba(0,0,0,0.15);') : 'background:transparent; color:#475569;')
+      }, h('span', { text: opt.val }));
+
+      b.onclick = function () {
+        curVal = opt.val;
+        btns.forEach(function (btnObj) {
+          var active = (btnObj.val === curVal);
+          btnObj.el.style.background = active ? btnObj.bg : 'transparent';
+          btnObj.el.style.color = active ? '#FFF' : '#475569';
+          btnObj.el.style.boxShadow = active ? '0 2px 6px rgba(0,0,0,0.15)' : 'none';
+        });
+        if (typeof onChange === 'function') onChange(curVal);
+      };
+      btns.push({ el: b, val: opt.val, bg: opt.bg });
+      wrap.appendChild(b);
+    });
+    wrap.getVal = function () { return curVal; };
+    wrap.setVal = function (v) {
+      curVal = v;
+      btns.forEach(function (btnObj) {
+        var active = (btnObj.val === curVal);
+        btnObj.el.style.background = active ? btnObj.bg : 'transparent';
+        btnObj.el.style.color = active ? '#FFF' : '#475569';
+        btnObj.el.style.boxShadow = active ? '0 2px 6px rgba(0,0,0,0.15)' : 'none';
+      });
+    };
+    return wrap;
+  }
+
+  function makeModernYesNoSegment(name, curVal) {
+    var wrap = h('div', { style: 'display:flex; gap:6px; background:#F1F5F9; padding:3px; border-radius:8px; border:1px solid #CBD5E1; min-width:140px;' });
+    var val = curVal || 'لا';
+    var bYes = h('button', {
+      type: 'button',
+      style: 'flex:1; padding:5px 12px; border:none; border-radius:6px; font-size:12.5px; font-weight:800; cursor:pointer; transition:all 0.15s ease; ' +
+             (val === 'نعم' ? 'background:#2563EB; color:#FFF; box-shadow:0 2px 4px rgba(37, 99, 235,0.25);' : 'background:transparent; color:#475569;')
+    }, h('span', { text: '✔ نعم' }));
+
+    var bNo = h('button', {
+      type: 'button',
+      style: 'flex:1; padding:5px 12px; border:none; border-radius:6px; font-size:12.5px; font-weight:800; cursor:pointer; transition:all 0.15s ease; ' +
+             (val !== 'نعم' ? 'background:#64748B; color:#FFF; box-shadow:0 2px 4px rgba(100,116,139,0.25);' : 'background:transparent; color:#475569;')
+    }, h('span', { text: '✕ لا' }));
+
+    bYes.onclick = function () {
+      val = 'نعم';
+      bYes.style.background = '#2563EB'; bYes.style.color = '#FFF'; bYes.style.boxShadow = '0 2px 4px rgba(37, 99, 235,0.25)';
+      bNo.style.background = 'transparent'; bNo.style.color = '#475569'; bNo.style.boxShadow = 'none';
+    };
+    bNo.onclick = function () {
+      val = 'لا';
+      bNo.style.background = '#64748B'; bNo.style.color = '#FFF'; bNo.style.boxShadow = '0 2px 4px rgba(100,116,139,0.25)';
+      bYes.style.background = 'transparent'; bYes.style.color = '#475569'; bYes.style.boxShadow = 'none';
+    };
+
+    wrap.appendChild(bYes);
+    wrap.appendChild(bNo);
+    wrap.getVal = function () { return val; };
+    return wrap;
+  }
+
+  
+
+  /* 5. عرض ورقة استبانة المعززات الرسمية مع كامل الملاحظات ومبدأ بريماك ولوغو المركز */
+  function renderReinforcersSheetView(r, childFullName, secName, kd) {
+    var ev = parseEvaluationReport(r);
+    var rf = (ev.reinforcers) || {};
+    var items = rf.items || {};
+    var custom = rf.custom_items || {};
+
+    var wrap = h('div', { class: 'oep-sheet-container reinforcers-sheet', style: 'background:#FFF; padding:28px 32px; border:2px solid #163B65; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl;' });
+
+    // ترويسة الوثيقة الرسمية مع الشعار الرسمي لدار الإحسان
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:12px; margin-bottom:16px;' },
+      h('div', { style: 'text-align:right;' },
+        h('h3', { style: 'margin:0 0 4px; color:#163B65; font-size:16px; font-weight:900;', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا دار الإحسان' }),
+        h('div', { style: 'font-size:13px; color:#475569; font-weight:700;', text: 'المركز النفسي البيداغوجي — العطف غرداية' })
+      ),
+      h('div', { style: 'text-align:center;' },
+        h('h2', { style: 'margin:0; color:#0F172A; font-size:18px; font-weight:900; text-decoration:underline;', text: 'استبانة لتحديد المعززات التي يرغب فيها الشخص' })
+      ),
+      h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:62px; height:62px; object-fit:contain;' })
+    ));
+
+    // معلومات المفحوص
+    wrap.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; font-size:12.5px; font-weight:700; margin-bottom:14px; background:#F8FAFC; padding:10px 14px; border-radius:8px; border:1px solid #CBD5E1;' },
+      h('span', { text: 'اسم المفحوص: ' + (childFullName || '—') }),
+      h('span', { text: 'تاريخ الميلاد: ' + (rf.dob ? fmt(rf.dob) : (kd && kd.dob ? fmt(kd.dob) : '—')) }),
+      h('span', { text: 'القائم بالمقابلة: ' + (rf.interviewer || 'مدير المركز') }),
+      h('span', { text: 'تاريخ المقابلة: ' + fmt(rf.interview_date || ev.report_date) })
+    ));
+
+    // جدول المعززات مع 3 خيارات وعلامة ✔
+    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; text-align:center; border:1.5px solid #163B65; font-size:11.5px; margin-bottom:16px;' });
+    tbl.appendChild(h('thead', null,
+      h('tr', { style: 'background:#163B65; color:#FFF; font-weight:800;' },
+        h('th', { style: 'padding:6px; border:1px solid #163B65; text-align:right; width:45%;' }, 'المعزز المطلوب تقييمه'),
+        h('th', { style: 'padding:6px; border:1px solid #163B65; width:18%;' }, 'شديدة'),
+        h('th', { style: 'padding:6px; border:1px solid #163B65; width:18%;' }, 'متوسطة'),
+        h('th', { style: 'padding:6px; border:1px solid #163B65; width:18%;' }, 'قليلة')
+      )
+    ));
+
+    var tb = h('tbody', null);
+    REINFORCERS_CATALOG.forEach(function (catObj, cIdx) {
+      tb.appendChild(h('tr', { style: 'background:#DCFCE7; font-weight:800;' },
+        h('td', { colspan: 4, style: 'padding:5px 10px; text-align:right; border:1px solid #CBD5E1; color:#163B65;', text: '● ' + catObj.cat })
+      ));
+      catObj.items.forEach(function (itemLabel, iIdx) {
+        var key = cIdx + '_' + iIdx;
+        var chosen = items[key] || '';
+        var isOther = itemLabel.indexOf('أخرى') >= 0;
+        var displayLabel = isOther && custom[key] ? (itemLabel + ': ' + custom[key]) : itemLabel;
+
+        tb.appendChild(h('tr', { style: 'border:1px solid #CBD5E1;' },
+          h('td', { style: 'padding:4px 10px; border:1px solid #CBD5E1; text-align:right; font-weight:600;' }, displayLabel),
+          h('td', { style: 'padding:4px; border:1px solid #CBD5E1; font-weight:900; color:#2563EB; font-size:13px;' }, chosen === 'شديدة' ? '✔' : ''),
+          h('td', { style: 'padding:4px; border:1px solid #CBD5E1; font-weight:900; color:#D97706; font-size:13px;' }, chosen === 'متوسطة' ? '✔' : ''),
+          h('td', { style: 'padding:4px; border:1px solid #CBD5E1; font-weight:900; color:#64748B; font-size:13px;' }, chosen === 'قليلة' ? '✔' : '')
+        ));
+      });
+    });
+    tbl.appendChild(tb);
+    wrap.appendChild(tbl);
+
+    // الملاحظات الكاملة ومواصفات المعزز الفعال ومبدأ بريماك (المطابقة للوثيقة الأصلية)
+    var notesBox = h('div', { style: 'background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:10px; padding:16px; margin-bottom:16px; font-size:11.5px; line-height:1.7; color:#1E293B;' },
+      h('strong', { style: 'display:block; color:#163B65; font-size:13px; font-weight:900; margin-bottom:6px;', text: 'ويتم التقييم للمعززات من خلال الآتي:' }),
+      h('div', { style: 'margin-bottom:8px; padding-right:12px;' },
+        h('div', { text: '1- من خلال الملاحظة المباشرة للفرد يمكن أن نحدد النشاطات المحببة له.' }),
+        h('div', { text: '2- من خلال المقابلة مع الوالدين وذلك بسؤالهم لتحديد المعززات المحتملة.' }),
+        h('div', { text: '3- سؤال الفرد نفسه.' })
+      ),
+      h('strong', { style: 'display:block; color:#163B65; font-size:13px; font-weight:900; margin-bottom:6px;', text: 'مواصفات المعزز الفعال:' }),
+      h('div', { style: 'display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; padding-right:12px;' },
+        h('div', null,
+          h('b', { text: '1- فورية التعزيز: ' }), h('span', { text: 'الذي يحدث بعد السلوك مباشرة أكثر فاعلية من المؤجل.' }),
+          h('br'),
+          h('b', { text: '2- تنويع التعزيز: ' }), h('span', { text: 'استخدام معززات متنوعة يؤدي لفاعلية أكبر ولا يؤدي للإشباع أو الملل.' }),
+          h('br'),
+          h('b', { text: '3- جدول التعزيز: ' }), h('span', { text: 'يكون متواصلاً في المراحل الأولى ومتقطعاً في المراحل الأخيرة.' }),
+          h('br'),
+          h('b', { text: '4- مستوى الحرمان: ' }), h('span', { text: 'يكون المعزز أكثر أثراً إذا كان الفرد ممنوعاً منه.' })
+        ),
+        h('div', null,
+          h('b', { text: '5- نوعية التعزيز: ' }), h('span', { text: 'التعزيز الطبيعي (كالمدح) أكثر فاعلية من الصناعي (كالكوبونات).' }),
+          h('br'),
+          h('b', { text: '6- طريقة التقديم: ' }), h('span', { text: 'يجب أن يخلو التعزيز من التكلف.' }),
+          h('br'),
+          h('b', { text: '7- كمية التعزيز: ' }), h('span', { text: 'التعزيز الفعال الذي يتناسب مع صعوبة السلوك المطلوب.' })
+        )
+      ),
+      h('strong', { style: 'display:block; color:#163B65; font-size:13px; font-weight:900; margin-bottom:4px;', text: 'ملاحظات على أنواع المعززات ومبدأ بريماك:' }),
+      h('p', { style: 'margin:0; padding-right:12px;', text: 'المعززات النشاطية تعد من أفضل أنواع المعززات وأكثرها قبولاً لأن الإشباع نادراً ما يحدث فيها، وتستند دائماً لمبدأ بريماك (Premack Principle) الذي نستخدم فيه سلوكاً محبباً للفرد في تعزيز سلوك نادراً ما يقوم به (مثل: مشاهدة التلفزيون بعد إنجاز الواجب والمهام المطلوبة).' })
+    );
+    wrap.appendChild(notesBox);
+
+    // توقيع وختم مدير المركز فقط
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:center; align-items:center; margin-top:20px; border-top:1.5px solid #163B65; padding-top:14px;' },
+      h('div', { style: 'text-align:center; padding:12px 32px; border:none; background:#FFFFFF; min-width:280px;' },
+        h('strong', { style: 'color:#163B65; font-size:15px; font-weight:900; display:block; margin-bottom:4px;', text: 'مدير المركز — الإمضاء' }),
+        h('div', { style: 'height:50px;' }),
+        h('span', { class: 'small muted', style: 'font-size:11.5px; color:#64748B;', text: 'التأشيرة والختم الرسمي لدار الإحسان' })
+      )
+    ));
+
+    return wrap;
+  }
+
+  /* 6. عرض ورقة شبكة المقابلة والفحص الرسمية مع لوغو المركز وإمضاء المدير فقط */
+  function renderInterviewDiagnosticSheetView(r, childFullName, secName, kd) {
+    var ev = parseEvaluationReport(r);
+    var iv = (ev.interview) || {};
+
+    var wrap = h('div', { class: 'oep-sheet-container interview-sheet', style: 'background:#FFF; padding:28px 32px; border:2px solid #163B65; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl;' });
+
+    // ترويسة الوثيقة مع الشعار
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:12px; margin-bottom:14px;' },
+      h('div', { style: 'text-align:right;' },
+        h('h3', { style: 'margin:0 0 2px; color:#163B65; font-size:15px; font-weight:900;', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا دار الإحسان' }),
+        h('div', { style: 'font-size:12.5px; color:#475569; font-weight:700;', text: 'المركز النفسي البيداغوجي — العطف غرداية' })
+      ),
+      h('div', { style: 'text-align:center;' },
+        h('h2', { style: 'margin:0 0 4px; color:#0F172A; font-size:18px; font-weight:900; text-decoration:underline;', text: 'شبكة المقابلة والفحص البيداغوجي والنفسي' }),
+        h('div', { style: 'font-size:12.5px; font-weight:700; color:#475569;', text: 'تاريخ الفحص: ' + fmt(iv.exam_date || ev.report_date) })
+      ),
+      h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:60px; height:60px; object-fit:contain;' })
+    ));
+
+    function makeH(num, title) {
+      return h('div', { style: 'background:#163B65; color:#FFF; padding:6px 12px; font-weight:800; font-size:13px; margin:12px 0 6px; border-radius:6px;' }, num + '- ' + title);
+    }
+
+    // 1- تقديم الحالة
+    wrap.appendChild(makeH('1', 'تقديم الحالة:'));
+    var t1 = h('table', { style: 'width:100%; border-collapse:collapse; font-size:12px; margin-bottom:8px; border:1px solid #CBD5E1;' });
+    var t1Rows = [
+      ['الاسم واللقب:', childFullName || iv.fullname || '—', 'تاريخ الميلاد:', (iv.dob ? fmt(iv.dob) : (kd && kd.dob ? fmt(kd.dob) : '—'))],
+      ['الجنس:', iv.gender || 'ذكر', 'السن:', iv.age || '—'],
+      ['الحالة المدنية:', iv.marital_status || 'طفل', 'عدد الأطفال/الإخوة:', iv.children_count || '—'],
+      ['العنوان:', iv.address || (kd && kd.address) || 'غرداية', 'تاريخ الالتحاق:', fmt(iv.join_date || '2024-09-15')],
+      ['المستوى التعليمي:', iv.education_level || secName || '—', 'اللغة المستعملة:', iv.language || 'العربية']
+    ];
+    t1Rows.forEach(function (row) {
+      t1.appendChild(h('tr', null,
+        h('td', { style: 'padding:5px 8px; font-weight:700; background:#F8FAF9; width:20%; border:1px solid #CBD5E1;' }, row[0]),
+        h('td', { style: 'padding:5px 8px; width:30%; border:1px solid #CBD5E1;' }, row[1]),
+        h('td', { style: 'padding:5px 8px; font-weight:700; background:#F8FAF9; width:20%; border:1px solid #CBD5E1;' }, row[2]),
+        h('td', { style: 'padding:5px 8px; width:30%; border:1px solid #CBD5E1;' }, row[3])
+      ));
+    });
+    wrap.appendChild(t1);
+
+    // 2- دوافع الفحص
+    wrap.appendChild(makeH('2', 'دوافع الفحص:'));
+    wrap.appendChild(h('div', { style: 'font-size:12.5px; padding:8px 14px; background:#F8FAF9; border:1px solid #CBD5E1; border-radius:6px; display:flex; gap:24px; font-weight:700;' },
+      h('span', { text: '- من الذي طلب إجراء الفحص؟' }),
+      h('span', { text: (iv.motive_doctor ? '[✔] ' : '[ ] ') + 'الطبيب' }),
+      h('span', { text: (iv.motive_case ? '[✔] ' : '[ ] ') + 'الحالة' }),
+      h('span', { text: (iv.motive_family ? '[✔] ' : '[ ] ') + 'الأسرة' })
+    ));
+
+    // 3 و 4 - السوابق
+    wrap.appendChild(makeH('3 & 4', 'السوابق المرضية الشخصية والعائلية:'));
+    var t3 = h('table', { style: 'width:100%; border-collapse:collapse; font-size:12px; border:1px solid #CBD5E1;' });
+    t3.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1; width:75%;' }, 'هل تعرضت الحالة لصدمة دماغية؟'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1; text-align:center; font-weight:800;' }, iv.past_stroke || 'لا')
+    ));
+    t3.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, 'هل للحالة سوابق عقلية؟'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1; text-align:center; font-weight:800;' }, iv.past_mental || 'لا')
+    ));
+    t3.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, 'هل تعاني الحالة من أمراض معينة؟ ' + (iv.past_diseases_text ? ('(' + iv.past_diseases_text + ')') : '')),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1; text-align:center; font-weight:800;' }, iv.past_diseases || 'لا')
+    ));
+    t3.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, 'هل أصيب أحد الأقارب بالخرف؟ (السوابق العائلية)'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1; text-align:center; font-weight:800;' }, iv.family_dementia || 'لا')
+    ));
+    wrap.appendChild(t3);
+
+    // 5 و 6 - نتائج الفحوصات وتاريخ المرض
+    wrap.appendChild(makeH('5 & 6', 'نتائج الفحوصات وتاريخ المرض:'));
+    var t5 = h('table', { style: 'width:100%; border-collapse:collapse; font-size:12px; border:1px solid #CBD5E1;' });
+    t5.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; font-weight:700; width:25%; border:1px solid #CBD5E1;' }, 'الفحص العصبي:'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, iv.neuro_exam || 'طبيعي'),
+      h('td', { style: 'padding:5px 8px; font-weight:700; width:25%; border:1px solid #CBD5E1;' }, 'الفحص البيولوجي:'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, iv.bio_exam || 'طبيعي')
+    ));
+    t5.appendChild(h('tr', null,
+      h('td', { style: 'padding:5px 8px; font-weight:700; border:1px solid #CBD5E1;' }, 'بداية المرض:'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, iv.disease_start_date || 'منذ الولادة'),
+      h('td', { style: 'padding:5px 8px; font-weight:700; border:1px solid #CBD5E1;' }, 'الأدوية الحالية:'),
+      h('td', { style: 'padding:5px 8px; border:1px solid #CBD5E1;' }, iv.takes_medication || 'لا')
+    ));
+    wrap.appendChild(t5);
+
+    // 7- تاريخ الاضطرابات المعرفية والنفسية
+    wrap.appendChild(makeH('7', 'تاريخ الاضطرابات المعرفية والنفسية:'));
+    var t7 = h('table', { style: 'width:100%; border-collapse:collapse; font-size:11.5px; border:1px solid #CBD5E1;' });
+    var items7 = [
+      ['اضطرابات الذاكرة: ظهور تدريجي/فجأة، تذكر مواضع الأشياء والمواعيد', (iv.memory_onset || 'تدريجا') + ' • مواضع الأشياء: ' + (iv.memory_places || 'نعم') + ' • المواعيد: ' + (iv.memory_appointments || 'نعم')],
+      ['اضطرابات اللغة ونقص الكلمة وسلاسة التعبير', 'نقص الكلمة: ' + (iv.lang_anomia || 'لا') + ' • الكلام: ' + (iv.lang_speech_quality || 'تعبير مقبول')],
+      ['التوجه الزماني والمكاني', 'التباس الأيام: ' + (iv.time_days || 'لا') + ' • التباس الوقت: ' + (iv.time_hours || 'لا') + ' • تيهان بالمركز: ' + (iv.space_center || 'لا')],
+      ['الأبراكسيا والأقنوزيا والنوم', 'صعوبة الثياب: ' + (iv.apraxia_clothes || 'لا') + ' • الطعام: ' + (iv.apraxia_eating || 'لا') + ' • التعرف على الوجوه: ' + (iv.agnosia_faces || 'نعم') + ' • صعوبة النوم: ' + (iv.sleep_difficulty || 'لا')],
+      ['الجانب العلائقي الاجتماعي', iv.social_relationships || 'تفاعل إيجابي']
+    ];
+    items7.forEach(function (it) {
+      t7.appendChild(h('tr', null,
+        h('td', { style: 'padding:4px 8px; font-weight:700; background:#F8FAF9; width:40%; border:1px solid #CBD5E1;' }, it[0]),
+        h('td', { style: 'padding:4px 8px; border:1px solid #CBD5E1;' }, it[1])
+      ));
+    });
+    wrap.appendChild(t7);
+
+    wrap.appendChild(h('div', { style: 'margin-top:10px; background:#F8FAF9; border:1px solid #CBD5E1; padding:10px 14px; border-radius:8px;' },
+      h('strong', { style: 'display:block; margin-bottom:3px; color:#163B65;', text: 'تعليق مدير المركز والمختصين:' }),
+      h('p', { style: 'margin:0; font-size:12px; line-height:1.6;', text: iv.expert_comment || 'الحالة تظهر مؤشرات إيجابية للاستجابة للمرافقة والتأهيل المستمر.' })
+    ));
+
+    // توقيع وختم مدير المركز فقط
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:center; align-items:center; margin-top:20px; border-top:1.5px solid #163B65; padding-top:14px;' },
+      h('div', { style: 'text-align:center; padding:12px 32px; border:none; background:#FFFFFF; min-width:280px;' },
+        h('strong', { style: 'color:#163B65; font-size:15px; font-weight:900; display:block; margin-bottom:4px;', text: 'مدير المركز — الإمضاء' }),
+        h('div', { style: 'height:50px;' }),
+        h('span', { class: 'small muted', style: 'font-size:11.5px; color:#64748B;', text: 'التأشيرة والختم الرسمي لدار الإحسان' })
+      )
+    ));
+
+    return wrap;
+  }
+
+  /* 7. عرض ورقة التقرير النهائي لمتابعة الطالب مع لوغو المركز وإمضاء المدير فقط وخيارات ضعيف/متوسط/جيد */
+  function renderAnnualFinalSheetView(r, childFullName, secName, kd) {
+    var ev = parseEvaluationReport(r);
+    var af = (ev.annual_final) || {};
+
+    var wrap = h('div', { class: 'oep-sheet-container annual-sheet', style: 'background:#FFF; padding:32px 36px; border:2.5px solid #000; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl; max-width:850px; margin:0 auto; line-height:1.6;' });
+
+    // ترويسة مع الشعار الرسمي لدار الإحسان
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px;' },
+      h('div', { style: 'text-align:right;' },
+        h('div', { style: 'font-size:12.5px; font-weight:700;', text: 'الجمهورية الجزائرية الديمقراطية الشعبية' }),
+        h('div', { style: 'font-size:14px; font-weight:900; color:#163B65;', text: 'جمعية أولياء الأطفال المعاقين ذهنياً دار الإحسان' }),
+        h('div', { style: 'font-size:12px; color:#475569; font-weight:700;', text: 'المركز النفسي البيداغوجي — العطف غرداية' })
+      ),
+      h('div', { style: 'text-align:center;' },
+        h('h2', { style: 'margin:0; font-size:19px; font-weight:900; text-decoration:underline; font-style:italic;', text: 'التقرير النهائي لمتابعة الطالب ' + (childFullName || 'الطفل') + ' حفظه الله' })
+      ),
+      h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:62px; height:62px; object-fit:contain;' })
+    ));
+
+    // المخاطبة
+    wrap.appendChild(h('div', { style: 'text-align:center; margin-bottom:14px;' },
+      h('div', { style: 'font-size:15.5px; font-weight:900;', text: 'المكرم ولي أمر / الطالب' }),
+      h('div', { style: 'font-size:15px; font-weight:800; margin-top:2px; color:#163B65;', text: af.parent_name || (typeof getChildParentName === 'function' ? getChildParentName(r && r.child_id) : '') || 'ولي أمر الطالب' })
+    ));
+
+    // السلام عليكم والنص التمهيدي
+    wrap.appendChild(h('div', { style: 'text-align:center; margin-bottom:12px; font-size:15px; font-weight:900;', text: 'السلام عليكم ورحمة الله وبركاته' }));
+    wrap.appendChild(h('div', { style: 'text-align:justify; font-size:13.5px; margin-bottom:16px;' },
+      'في إطار متابعة المسار التربوي لأبنائكم، نحيطكم علما بأنه تم حصر مختلف المهارات التي تم تدريب ابنكم عليها خلال الموسم الدراسي ' +
+      h('strong', null, af.school_year || getCurrentAcademicYear()).outerHTML +
+      '، وذلك لتمكينكم من الاطلاع عليها وتعزيز متابعتها خلال العطلة الصيفية. ويأتي هذا في سياق التعاون المستمر بين الأسرة والمركز، وحرصا على المحافظة على المكتسبات وضمان استمرارية البرنامج التربوي، بما يساهم في تحقيق الأهداف المسطرة ودعم تطور الطفل بشكل أفضل.'
+    ));
+
+    // • الحالة الانضباطية
+    wrap.appendChild(h('div', { style: 'font-size:15px; font-weight:900; margin-bottom:6px;', text: '• الحالة الانضباطية:' }));
+    wrap.appendChild(h('div', { style: 'font-size:13.5px; font-weight:800; margin-bottom:8px;', text: 'نظام الحصص في الأسبوع للحالة:' }));
+
+    // مربعات نظام الحصص (1/5 إلى 5/5)
+    var ratioBox = h('div', { style: 'display:flex; justify-content:space-between; margin-bottom:14px; font-size:13px; font-weight:800;' });
+    var curRatio = af.weekly_ratio || '3/5';
+    var ratios = ['1/5', '2/5', '3/5', '4/5', '5/5'];
+    ratios.forEach(function (rItem) {
+      var isChosen = (curRatio === rItem);
+      ratioBox.appendChild(h('div', { style: 'display:flex; align-items:center; gap:6px;' },
+        h('span', { style: 'display:inline-block; width:16px; height:16px; border:2px solid #000; background:' + (isChosen ? '#000' : '#FFF') + ';' }),
+        h('span', { text: rItem + ' حصص' })
+      ));
+    });
+    wrap.appendChild(ratioBox);
+
+    // جدول الحصص والأحجام الساعية
+    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; text-align:center; border:2px solid #000; font-size:13px; margin-bottom:18px;' });
+    tbl.appendChild(h('thead', null,
+      h('tr', { style: 'font-weight:800; background:#F8FAF9;' },
+        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحصص الفردية السنوية المفروضة'),
+        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحجم الساعي السنوي المقابل'),
+        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحصص الفردية المستغلة'),
+        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحجم الساعي المقابل'),
+        h('th', { style: 'border:1.5px solid #000; padding:6px; color:#DC2626;' }, 'الحجم الساعي السنوي غير المستغل')
+      )
+    ));
+    tbl.appendChild(h('tbody', null,
+      h('tr', { style: 'font-weight:800;' },
+        h('td', { style: 'border:1.5px solid #000; padding:8px;' }, (af.prescribed_sessions != null ? af.prescribed_sessions : 54) + ' حصة'),
+        h('td', { style: 'border:1.5px solid #000; padding:8px;' }, (af.prescribed_hours != null ? af.prescribed_hours : 770) + ' ساعة'),
+        h('td', { style: 'border:1.5px solid #000; padding:8px;' }, (af.utilized_sessions != null ? af.utilized_sessions : 47) + ' حصة'),
+        h('td', { style: 'border:1.5px solid #000; padding:8px;' }, (af.utilized_hours != null ? af.utilized_hours : 760)),
+        h('td', { style: 'border:1.5px solid #000; padding:8px; color:#DC2626; font-size:14px;' }, (af.unspent_hours != null ? af.unspent_hours : 10) + ' ساعة')
+      )
+    ));
+    wrap.appendChild(tbl);
+
+    // • ملاحظات (مظللة بالأصفر الفاقع)
+    wrap.appendChild(h('div', { style: 'font-size:15px; font-weight:900; margin-bottom:4px;', text: '• ملاحظات:' }));
+    wrap.appendChild(h('div', { style: 'background:#FEF08A; padding:8px 12px; font-size:13.5px; font-weight:800; color:#000; border-radius:4px; margin-bottom:14px;' },
+      af.pedagogical_notes || 'الحالة تستجيب للتدريب وتظهر قابلية للتحسن التدريجي، خاصة عند توفير بيئة تربوية منظمة، دعم مستمر، وتعاون فعال بين الأسرة والمختصين وأعانكم الله.'
+    ));
+
+    // • ملاحظات الإدارة (مع خيارات ضعيف / متوسط / جيد والغياب مثلما في الجدول)
+    wrap.appendChild(h('div', { style: 'font-size:15px; font-weight:900; margin-bottom:4px;', text: '• ملاحظات الإدارة:' }));
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:13px; font-weight:800; margin-bottom:16px; background:#F8FAFC; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px;' },
+      h('span', { text: '*الغياب: ' + (af.admin_absence || ((af.absent_days != null ? String(af.absent_days).padStart(2, '0') : '02') + ' يوم')) }),
+      h('span', { text: '*النظافة العامة: ' + (af.admin_hygiene || 'جيد') }),
+      h('span', { text: '*التواصل مع المركز: ' + (af.admin_contact || 'جيد') }),
+      h('span', { text: '*الاستجابة إلى الدعوات: ' + (af.admin_response || 'جيد') })
+    ));
+
+    // • التذكير ببعض الالتزامات منها
+    wrap.appendChild(h('div', { style: 'font-size:14px; font-weight:900; margin-bottom:4px;', text: '• التذكير ببعض الالتزامات منها:' }));
+    var ul = h('ul', { style: 'margin:0 0 16px; padding-right:20px; font-size:12.5px; line-height:1.6;' },
+      h('li', { text: 'احترام النظام الداخلي لتعهد الولي كاملا والعمل به.' }),
+      h('li', { text: 'دفع الاشتراك السنوي حسب الاتفاق المبرم مع الإدارة.' }),
+      h('li', { text: 'حضور اللقاءات والجلسات التكوينية المبرمجة مع الأولياء الفردية والجماعية وحسب الأفواج.' }),
+      h('li', { text: 'متابعة الخطة العلاجية للطفل والمرافقة الوالدية خلال الموسم الدراسي والعطل.' }),
+      h('li', { text: 'المشاركة في العمل التطوعي والأنشطة اللاصفية المبرمجة للأبناء وأوليائهم.' }),
+      h('li', { text: 'المساهمة ماديا ومعنويا لرفع من درجة الوعي لدى الأولياء للتكفل ومرافقة أبنائهم.' }),
+      h('li', { text: 'التواصل الدائم مع الإدارة والطاقم التربوي المتخصص في المجال.' }),
+      h('li', { text: 'تجديد تسجيل الطفل المتمدرس بالمركز نهاية كل موسم دراسي.' })
+    );
+    wrap.appendChild(ul);
+
+    // التعهد
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:13px; font-weight:800; margin-bottom:16px;' },
+      h('span', { text: 'ألتزم بما اطلعت عليه للموسم الدراسي المقبل ' + (af.school_year || getCurrentAcademicYear()) }),
+      h('span', { text: 'الاسم اللقب: ....................................................' })
+    ));
+
+    // توقيع وختم مدير المركز فقط (مع نزع غيره)
+    wrap.appendChild(h('div', { style: 'display:flex; justify-content:center; text-align:center; margin-top:22px;' },
+      h('div', { style: 'min-width:280px; padding:12px 24px; border:2px solid #000; border-radius:8px;' },
+        h('span', { style: 'font-size:16px; font-weight:900; text-decoration:underline; display:block;', text: 'مدير المركز — الإمضاء' }),
+        h('div', { style: 'height:50px;' }),
+        h('span', { style: 'font-size:11.5px; color:#475569;', text: 'التأشيرة والختم الرسمي لدار الإحسان' })
+      )
+    ));
+
+    return wrap;
+  }
+
+
   
   var BEHAVIOR_OBSERVATION_ITEMS = [
     { id: 1, icon: '🏫', text: 'الاستقرار داخل القسم' },
@@ -2623,6 +3331,10 @@ function generateWordDocObservation(rep, child, secName, brName) {
 
 function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, initialReportMode) {
     var t = getEvalType(r);
+    if (t === 'behavior_observation') return renderBehaviorObservationSheetView(r, childFullName, secName, kd);
+    if (t === 'reinforcers') return renderReinforcersSheetView(r, childFullName, secName, kd);
+    if (t === 'interview_diagnostic') return renderInterviewDiagnosticSheetView(r, childFullName, secName, kd);
+    if (t === 'annual_final') return renderAnnualFinalSheetView(r, childFullName, secName, kd);
     if (t === 'mas') return renderMasEvaluationSheetView(r, childFullName, secName, kd);
     if (t === 'observation') return renderObservationEvaluationSheetView(r, childFullName, secName, kd);
 
@@ -2649,8 +3361,8 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
         h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
         h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
         h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
-        h('div', { class: 'oep-fr-title', text: "RAPPORT D'ANALYSE QUALITATIF" }),
-        h('h2', { class: 'oep-report-heading', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
+        h('div', { class: 'oep-fr-title', text: "COMPTE RENDU DE L'EQUIPE PEDAGOGIQUE" }),
+        h('h2', { class: 'oep-report-heading', text: 'التقرير البيداغوجي الوصفي (تقرير الملاحظات والتوجيهات)' })
       )
     );
 
@@ -2850,15 +3562,15 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
 
     var pTab1 = makeParentReportControlRow(
       'notes',
-      'معاينة التقرير النوعي',
-      "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)",
-      'تقرير_نوعي_تحليلي'
+      'التقرير الأول (الكتابي)',
+      'التقرير البيداغوجي الوصفي — تقرير الملاحظات والتوجيهات',
+      'تقرير_الملاحظات_والتوجيهات'
     );
     var pTab2 = makeParentReportControlRow(
       'statistics',
-      'معاينة التقرير الكمي',
-      'تقرير الكمي (quantitative)',
-      'تقرير_الكمي_quantitative'
+      'التقرير الثاني (الكمي)',
+      'التقرير التقييمي الكمي — كشف النتائج والأعمدة والدائرة النسبية',
+      'التقرير_الكمي_لنتائج_التقييم'
     );
 
     var printBtn = h('button', {
@@ -3144,8 +3856,8 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
         type: 'button',
         class: 'btn-pm-primary',
         text: 'التفاصيل',
-        onclick: function () {
-          safeSetItem('local', 'de_seen_ev_' + e.id, '1');
+        onclick: async function () {
+          safeSetItem('local', 'de_seen_ev_' + e.id, '1'); await markParentDbNotifsRead(e.id);
           updateNotifBadge();
           isExpanded = !isExpanded;
           detailsBtn.textContent = isExpanded ? 'إخفاء التفاصيل' : 'التفاصيل';
@@ -3200,13 +3912,13 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
     }
 
     stdReports.forEach(function (r) {
-      var isNew = false; try { isNew = safeGetItem('local', 'de_seen_rep_' + r.id) !== '1'; } catch (errS) {}
+      var isNew = isParentRecordNew('report', r.id, 'de_seen_rep_');
 
       var card = h('div', { class: 'pm-list-item-card' },
         h('div', { class: 'pm-lic-right' },
           h('div', { class: 'pm-lic-icon-box' }, icon('i-report')),
           h('div', { class: 'pm-lic-info' },
-            h('h3', { class: 'pm-lic-title', text: /^(تقرير الأداء الحالي|تقييم الأداء الحالي|الاداء الحالي)$/.test(String(r.title || '').trim()) ? 'التقرير الدوري' : r.title }),
+            h('h3', { class: 'pm-lic-title', text: /^(تقرير الأداء الحالي|تقييم الأداء الحالي|الاداء الحالي)$/.test(String(r.title || '').trim()) ? 'التقرير الدوري' : (r.title || 'التقرير الدوري') }),
             h('div', { class: 'pm-lic-meta' },
               h('span', { text: 'تاريخ التقرير: ' + fmtDate(r.report_date) }),
               r.attachment_path ? h('span', { class: 'badge ok', text: 'يحتوي على مرفق للتحميل' }) : null,
@@ -3219,14 +3931,17 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
             type: 'button',
             class: 'btn-pm-primary',
             text: 'التفاصيل',
-            onclick: function () {
-              safeSetItem('local', 'de_seen_rep_' + r.id, '1');
+            onclick: async function () {
+              safeSetItem('local', 'de_seen_rep_' + r.id, '1'); await markParentDbNotifsRead(r.id);
               updateNotifBadge();
-              var body = h('div', { class: 'modal-body' },
-                h('div', { class: 'bar-sub' },
-                  h('h2', { text: r.title }),
+              var rawRepTitle = String(r.title || '').trim();
+              var repDisplayTitle = /^(تقرير الأداء الحالي|تقييم الأداء الحالي|الاداء الحالي)$/.test(rawRepTitle) ? 'التقرير الدوري' : (rawRepTitle || 'التقرير الدوري');
+              var body = h('div', { class: 'modal-body pm-regular-report-sheet' },
+                h('div', { class: 'pm-rep-head' },
+                  h('h2', { style: 'margin:0; font-size:1.15rem; font-weight:900; color:#101D35;', text: repDisplayTitle }),
                   h('span', { class: 'badge ok', text: fmtDate(r.report_date) })
-                )
+                ),
+                h('hr', { class: 'pm-rep-hr' })
               );
               if (r.achievements) body.appendChild(h('div', { style: 'margin-bottom:12px;' }, h('h3', { text: 'المكتسبات والمهارات المحققة:' }), h('p', { class: 'txt', text: r.achievements })));
               if (r.activities) body.appendChild(h('div', { style: 'margin-bottom:12px;' }, h('h3', { text: 'الأنشطة والورشات المنجزة:' }), h('p', { class: 'txt', text: r.activities })));
@@ -3272,9 +3987,11 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
   }
 
   function vAppts(v) {
+    var visibleAppts = getParentVisibleItems('appt');
+    visibleAppts.forEach(function (a) { markParentContentRead('appt', a.id); });
     var now = new Date();
-    var up = S.d.appts.filter(function (a) { return new Date(a.starts_at) >= now && a.status !== 'cancelled'; });
-    var past = S.d.appts.filter(function (a) { return new Date(a.starts_at) < now || a.status === 'cancelled'; });
+    var up = visibleAppts.filter(function (a) { return new Date(a.starts_at) >= now && a.status !== 'cancelled'; });
+    var past = visibleAppts.filter(function (a) { return new Date(a.starts_at) < now || a.status === 'cancelled'; });
 
     v.appendChild(h('div', { class: 'bar-sub' }, h('h2', { text: t('apptsUpcoming') })));
     if (!up.length) v.appendChild(empty(t('emptyAppts'))); else up.forEach(function (a) { v.appendChild(apptCard(a)); });
@@ -3286,11 +4003,34 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
   }
 
   /* تبويب الرسائل والإعلانات */
+  async function markMessageAsRead(m) {
+    if (!m || !m.id || !S.me) return;
+    if (!S._markingRead) S._markingRead = {};
+    if (S._markingRead[m.id]) return;
+    S._markingRead[m.id] = true;
+    try {
+      try {
+        await C.rest('POST', '/message_reads', { message_id: m.id, parent_id: S.me });
+      } catch (err) {
+        var em = String((err && err.message) || '');
+        if (em.indexOf('23505') < 0 && em.indexOf('409') < 0 && em.indexOf('duplicate') < 0) {
+          throw err;
+        }
+      }
+      S.reads[m.id] = true;
+      await markParentDbNotifsRead(m.id);
+      updateNotifBadge();
+      render();
+    } finally {
+      delete S._markingRead[m.id];
+    }
+  }
+
   function vMsgs(v) {
     if (!S.d.msgs.length) return v.appendChild(empty(t('emptyMsgs')));
     S.d.msgs.forEach(function (m) {
       var isUnread = !S.reads[m.id];
-      var card = h('div', { class: 'card' },
+      var card = h('div', { class: 'card', style: isUnread ? 'cursor:pointer; border-inline-start:4px solid #244B78;' : '' },
         h('h2', { text: m.title }),
         h('div', { class: 'meta' },
           h('span', { text: fmtDate(m.published_at) }),
@@ -3301,14 +4041,18 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
       );
       if (isUnread) {
         var markBtn = h('button', { class: 'btn small light', type: 'button', text: t('markAsRead') });
-        markBtn.addEventListener('click', function () {
+        markBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
           lockBtn(markBtn, async function () {
             try {
-              await C.rest('POST', '/message_reads', { message_id: m.id, parent_id: S.me });
-              S.reads[m.id] = true;
-              render();
+              await markMessageAsRead(m);
             } catch (er) { toast(er.message, 'bad'); }
           });
+        });
+        card.addEventListener('click', function () {
+          var sel = window.getSelection ? String(window.getSelection()) : '';
+          if (sel && sel.length > 0) return;
+          markMessageAsRead(m).catch(function () {});
         });
         card.appendChild(h('div', { class: 'row-actions' }, markBtn));
       }
@@ -3323,7 +4067,7 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
     );
     v.appendChild(topRow);
 
-    var docsList = (S.d && S.d.docs) || [];
+    var docsList = getParentVisibleItems('doc');
     if (!docsList.length) return v.appendChild(empty(t('emptyDocs')));
 
     docsList.forEach(function (d) {
@@ -3342,6 +4086,7 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
           d.storage_path ? fileBtn(d.storage_path, 'تحميل / فتح الوثيقة') : null
         )
       );
+      card.addEventListener('click', function () { markParentContentRead('doc', d.id); });
       v.appendChild(card);
     });
   }
@@ -3482,6 +4227,8 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
     apply: function (st) { if (st.tab) S.tab = st.tab; render(); window.scrollTo(0, 0); }
   });
 
+
+
   function render() {
     checkAndHideInstallButtons();
     if (window.DE_NAV) DE_NAV.push({ tab: S.tab });
@@ -3600,11 +4347,11 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
 async function init() {
       // التحقق من تحديث النسخة وتفريغ الذاكرة المؤقتة التلقائي
       try {
-        var APP_VER = 'v98';
-        if (safeGetItem('local', 'de_app_ver') !== APP_VER) {
+        var APP_VER = 'v100';
+        if (safeGetItem('local', 'de_parent_app_ver') !== APP_VER) {
           if ('caches' in window) {
             caches.keys().then(function (names) {
-              names.forEach(function (nm) { caches.delete(nm); });
+              names.forEach(function (nm) { if (nm.indexOf('de-parents-') === 0) caches.delete(nm); });
             });
           }
           if ('serviceWorker' in navigator) {
@@ -3612,7 +4359,7 @@ async function init() {
               regs.forEach(function (r) { r.update(); });
             });
           }
-          safeSetItem('local', 'de_app_ver', APP_VER);
+          safeSetItem('local', 'de_parent_app_ver', APP_VER);
         }
       } catch (eVer) {}
 
