@@ -677,51 +677,16 @@
       S.me = me.id;
       var q = function (p) { return C.rest('GET', p); };
 
+      // Fail closed: child visibility must come from the authenticated parent-child relation.
       var fetchKidsResilient = async function () {
-        var linkedKids = [];
         try {
-          var k3 = await q('/parent_children?select=child:children(id,membership_no,full_name,dob,disability,center,section,branch_id,section_id,academic_year,basic_info)');
-          if (Array.isArray(k3) && k3.length) {
-            linkedKids = k3.map(function (pc) { return pc.child; }).filter(Boolean);
-          }
-        } catch (e3) {}
-        if (linkedKids.length) return linkedKids;
-
-        var allKids = [];
-        try {
-          var k1 = await q('/children?select=id,membership_no,full_name,dob,disability,center,section,branch_id,section_id,academic_year,basic_info&order=full_name');
-          if (Array.isArray(k1) && k1.length) allKids = k1;
-        } catch (e1) {
-          try {
-            var k2 = await q('/children?select=id,full_name,center,section,basic_info,active&order=full_name');
-            if (Array.isArray(k2) && k2.length) allKids = k2;
-          } catch (e2) {}
+          var linkedKids = await q('/parent_children?select=child:children(id,membership_no,full_name,dob,disability,center,section,branch_id,section_id,academic_year,basic_info)&parent_id=eq.' + uid(me.id));
+          if (!Array.isArray(linkedKids)) return [];
+          return linkedKids.map(function (pc) { return pc && pc.child; }).filter(Boolean);
+        } catch (e) {
+          console.error('تعذر تحميل الأطفال المرتبطين بحساب الولي؛ تم إيقاف العرض حمايةً للخصوصية.', e);
+          return [];
         }
-        if (allKids.length <= 1) return allKids;
-
-        // مطابقة الطفل المرتبط بحساب الولي المسجل حالياً (من البريد/اسم المستخدم أو رقم القيد)
-        var rawLoginUser = '';
-        try {
-          rawLoginUser = (safeGetItem('session', 'de_parent_user') || safeGetItem('local', 'de_parent_user') || (me && me.email) || '').trim().toLowerCase();
-        } catch (eU) {}
-        var cleanU = rawLoginUser.split('@')[0];
-        if (cleanU) {
-          var tailMatch = /\.(\d{1,4})$/.exec(cleanU) || /^(\d{1,4})$/.exec(cleanU);
-          var tailDigits = tailMatch ? tailMatch[1].replace(/^0+/, '') : '';
-          var matchedByUser = allKids.filter(function (c) {
-            if (typeof window !== 'undefined' && window.DEUser && typeof window.DEUser.username === 'function') {
-              var u = window.DEUser.username(c.full_name, c.membership_no);
-              if (u && u.toLowerCase() === cleanU) return true;
-            }
-            if (tailDigits && c.membership_no) {
-              var cDigits = String(c.membership_no).replace(/\D/g, '').replace(/^0+/, '');
-              if (cDigits && cDigits === tailDigits) return true;
-            }
-            return false;
-          });
-          if (matchedByUser.length) return matchedByUser;
-        }
-        return allKids;
       };
 
       var fetchReportsResilient = async function () {
@@ -805,69 +770,8 @@
       mergedReports.sort(function (a, b) {
         return String(b.report_date || '').localeCompare(String(a.report_date || ''));
       });
-      if (kids.length && (!mergedReports || mergedReports.length === 0)) {
-        var k0 = kids[0];
-        mergedReports = [
-          {
-            id: 'rep-init-' + (k0.membership_no || '170'),
-            child_id: k0.id,
-            title: 'تقرير المتابعة التربوية والنفسية الدورية',
-            report_date: '2026-10-15',
-            period_start: '2026-09-15',
-            period_end: '2026-10-15',
-            achievements: 'اندماج وتفاعل طيب وإيجابي داخل ' + (k0.section || 'القسم البيداغوجي') + '، مع تحسن ملحوظ في التواصل والاستجابة للتوجيهات.',
-            activities: 'أنشطة حركية دقيقة، تنمية الاستقلالية الذاتية، التفاعل الاجتماعي، وورشات التعلم المكيف.',
-            notes: 'يوصى بمواصلة التحفيز والأنشطة الداعمة في المنزل بالتنسيق مع المربي النفسي والبيداغوجي.',
-            attachment_path: ''
-          }
-        ];
-      }
+      // لا تُنشأ تقارير أو تقييمات افتراضية؛ تُعرض الوثائق المحفوظة فعلياً فقط.
 
-            // ضمان توفر استمارة التقييم البيداغوجي المعتمدة للطفل دائماً
-      if (!mergedReports.some(isEvalReport)) {
-        var k0 = (kids && kids[0]) || { id: 'kid-1', full_name: 'تلميذ دار الإحسان', membership_no: '170', section: 'قسم الشبه مدرسي مكيف' };
-        var defaultOfficialEval = {
-          id: 'eval-official-' + (k0.membership_no || '170'),
-          child_id: k0.id,
-          title: 'تقرير اللجنة البيداغوجية والتربوية — تقييم الثلاثي الأخير',
-          report_date: '2026-10-15',
-          status: 'published',
-          activities: EVAL_MARKER + JSON.stringify({
-            v: 2,
-            term: 'الثلاثي الأخير',
-            school_year: '2024/2025',
-            degree_of_disability: 'متوسطة',
-            qualification_level: k0.section || 'قسم الشبه مدرسي مكيف',
-            supervisors: [
-              { name: 'إدارة المركز', role: 'مدير المركز' },
-              { name: 'أخصائية نفسانية', role: 'أخصائية نفسانية' }
-            ],
-            general_report: 'تم تسجيل تقدم ملحوظ في الأداء العام للطفل مع تحسن في الاستجابة والتفاعل الإيجابي مع الأنشطة الموجهة.',
-            abilities: {
-              current_potentials: 'استجابة جيدة للتعليمات البسيطة والمشاركة في الأنشطة الجماعية.',
-              cognitive_intellectual: 'تحسن في مهارات التمييز والمطابقة والتركيز البصري.',
-              language_receptive_expressive: 'فهم جيد للتوجيهات الشفهية مع نطق كلمات وظيفية واضحة.',
-              communication_behavioral: 'سلوك اجتماعي هادئ وتواصل إيجابي مع المربية والزملاء.',
-              academic_preacademic: 'إتقان مسك القلم والفرز والتصنيف وفق المعايير البيداغوجية.',
-              motor_independence: 'استقلالية طيبة في تناول الوجبات والنظافة والعناية الذاتية.'
-            },
-            strengths: ['استجابة وتفاعل إيجابي مع الأنشطة الموجهة.', 'تطور ملحوظ في المهارات الحركية الدقيقة.', 'انتظام الحضور والانضباط داخل القسم.'],
-            weaknesses: ['الحاجة لتعزيز مهارات الاستقلالية في بعض المهام.', 'تنمية الثروة اللغوية والتعبير الشفهي.'],
-            recommendations: ['مواصلة المتابعة البيداغوجية والتنسيق المستمر مع الأسرة.', 'تكثيف الأنشطة المنزلية الداعمة للاستقلالية.'],
-            domains: [
-              { domain: 'مجال الاستقلالية (الحياة اليومية والعناية بالذات)', ratings: new Array(25).fill(0).map(function(_, i) { return { score: i < 10 ? 5 : 2, obs: i < 10 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال المهارات الحركية الدقيقة', ratings: new Array(26).fill(0).map(function(_, i) { return { score: i < 13 ? 4 : 2, obs: i < 13 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال المهارات الحركية الكبرى', ratings: new Array(19).fill(0).map(function(_, i) { return { score: i < 9 ? 5 : 3, obs: i < 9 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال ما قبل الأكاديمي', ratings: new Array(19).fill(0).map(function(_, i) { return { score: i < 8 ? 4 : 2, obs: i < 8 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'المجال الأكاديمي', ratings: new Array(51).fill(0).map(function(_, i) { return { score: i < 15 ? 4 : 2, obs: i < 15 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال التقليد', ratings: new Array(20).fill(0).map(function(_, i) { return { score: i < 12 ? 5 : 3, obs: i < 12 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال مهارات الحضور والانتباه', ratings: new Array(11).fill(0).map(function(_, i) { return { score: i < 6 ? 5 : 2, obs: i < 6 ? 'مكتسبة' : 'قيد الاكتساب' }; }) },
-              { domain: 'مجال التواصل', ratings: new Array(24).fill(0).map(function(_, i) { return { score: i < 10 ? 4 : 2, obs: i < 10 ? 'مكتسبة' : 'قيد الاكتساب' }; }) }
-            ]
-          })
-        };
-        mergedReports.unshift(defaultOfficialEval);
-      }
 
       S.name = (r[0][0] && r[0][0].full_name) || '';
       S.d = {
@@ -1613,9 +1517,9 @@
   ];
 
   var OFFICIAL_LOAD_SUMMARY_PARENT = [
-    { code: 'ATM*', name: 'الأنشطة التعليمية', count: '01', duration: '15min', color: '#F3E8FF' },
-    { code: 'MT*', name: 'الحركية الدقيقة', count: '05', duration: '30-45min', color: '#DBEAFE' },
-    { code: 'P*A', name: 'الاستقلالية', count: '08', duration: '45min', color: '#BFDBFE' },
+    { code: 'ATM', name: 'الأنشطة التعليمية', count: '01', duration: '15min', color: '#F3E8FF' },
+    { code: 'MT', name: 'الحركية الدقيقة', count: '05', duration: '30-45min', color: '#DBEAFE' },
+    { code: 'PA', name: 'الاستقلالية', count: '08', duration: '45min', color: '#BFDBFE' },
     { code: 'Intg', name: 'التكامل الحسي', count: '01', duration: '45min', color: '#CFFAFE' },
     { code: 'L99 (E)', name: 'اللغة والتواصل', count: '02', duration: '45min', color: '#E0E7FF' },
     { code: 'Pst G', name: 'المعرفي الأكاديمي', count: '01', duration: '45min', color: '#D1FAE5' },
@@ -3212,59 +3116,10 @@ function renderParentOfficialEvaluationSheet(r, childFullName, secName, kd, init
     var evals = (S.d && S.d.reports || []).filter(function (rep) {
       return isEvalReport(rep) && extractParentEvalMeta(rep).status !== 'draft';
     });
-    // إذا وُجدت تقييمات حقيقية مرسلة من الإدارة، نستبعد التقييم الافتراضي التجريبي
-    var realSentEvals = evals.filter(function (rep) {
-      return String(rep.id || '').indexOf('eval-official-') !== 0;
-    });
-    if (realSentEvals.length > 0) {
-      evals = realSentEvals;
-    }
-
+    // لا نعرض قيماً تجريبية على أنها تقييمات حقيقية؛ تبقى القائمة فارغة عند عدم وجود تقييم منشور.
     if (!evals.length) {
-      // إدراج الاستمارة الرسمية مباشرة لمنع أي شاشة بيضاء
-      var k0 = kid || { id: 'kid-1', full_name: 'التلميذ', membership_no: '170', section: 'قسم الشبه مدرسي مكيف' };
-      var defEv = {
-        id: 'eval-official-' + (k0.membership_no || '170'),
-        child_id: k0.id,
-        title: 'تقرير اللجنة البيداغوجية والتربوية — تقييم الثلاثي الأخير',
-        report_date: '2026-10-15',
-        status: 'published',
-        activities: EVAL_MARKER + JSON.stringify({
-          v: 2,
-          term: 'الثلاثي الأخير',
-          school_year: '2024/2025',
-          degree_of_disability: 'متوسطة',
-          qualification_level: k0.section || 'قسم الشبه مدرسي مكيف',
-          supervisors: [
-            { name: 'إدارة المركز', role: 'مدير المركز' },
-            { name: 'أخصائية نفسانية', role: 'أخصائية نفسانية' }
-          ],
-          general_report: 'تم تسجيل تقدم ملحوظ في الأداء العام للطفل مع تحسن في الاستجابة والتفاعل الإيجابي مع الأنشطة الموجهة.',
-          abilities: {
-            current_potentials: 'استجابة جيدة للتعليمات البسيطة والمشاركة في الأنشطة الجماعية.',
-            cognitive_intellectual: 'تحسن في مهارات التمييز والمطابقة والتركيز البصري.',
-            language_receptive_expressive: 'فهم جيد للتوجيهات الشفهية مع نطق كلمات وظيفية واضحة.',
-            communication_behavioral: 'سلوك اجتماعي هادئ وتواصل إيجابي مع المربية والزملاء.',
-            academic_preacademic: 'إتقان مسك القلم والفرز والتصنيف وفق المعايير البيداغوجية.',
-            motor_independence: 'استقلالية طيبة في تناول الوجبات والنظافة والعناية الذاتية.'
-          },
-          strengths: ['استجابة وتفاعل إيجابي مع الأنشطة الموجهة.', 'تطور ملحوظ في المهارات الحركية الدقيقة.', 'انتظام الحضور والانضباط داخل القسم.'],
-          weaknesses: ['الحاجة لتعزيز مهارات الاستقلالية في بعض المهام.', 'تنمية الثروة اللغوية والتعبير الشفهي.'],
-          recommendations: ['مواصلة المتابعة البيداغوجية والتنسيق المستمر مع الأسرة.', 'تكثيف الأنشطة المنزلية الداعمة للاستقلالية.'],
-          domains: [
-            { domain: 'الرعاية الذاتية (الحياة اليومية والعناية بالذات)', ratings: new Array(25).fill({ score: 5, obs: 'متقنة' }) },
-            { domain: 'التربية الحركية الدقيقة', ratings: new Array(26).fill({ score: 5, obs: 'متقنة' }) },
-            { domain: 'التربية الحركية الكبرى', ratings: new Array(19).fill({ score: 4, obs: 'متقنة' }) },
-            { domain: 'ما قبل الأكاديمي', ratings: new Array(19).fill({ score: 5, obs: 'متقنة' }) },
-            { domain: 'الأكاديمي', ratings: new Array(51).fill({ score: 4, obs: 'مكتسبة' }) },
-            { domain: 'الإدراك الحسي', ratings: new Array(20).fill({ score: 5, obs: 'متقنة' }) },
-            { domain: 'التفاعل الاجتماعي', ratings: new Array(11).fill({ score: 5, obs: 'متقنة' }) },
-            { domain: 'النطق والتواصل وحضور والانتباه', ratings: new Array(24).fill({ score: 5, obs: 'متقنة' }) }
-          ]
-        })
-      };
-      evals = [defEv];
-      if (S.d && S.d.reports) S.d.reports.unshift(defEv);
+      v.appendChild(h('div', { class: 'card empty-state', text: 'لا توجد تقييمات منشورة لهذا الطفل حالياً.' }));
+      return;
     }
 
     evals.forEach(function (e) {
