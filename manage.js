@@ -11,6 +11,12 @@
    لا innerHTML: حماية تامة من XSS باستخدام DE.h و textContent حصراً. */
 (function () {
   'use strict';
+
+  function getCurrentAcademicYear() {
+    var now = new Date();
+    var year = now.getFullYear();
+    return now.getMonth() >= 8 ? (year + '/' + (year + 1)) : ((year - 1) + '/' + year);
+  }
   function fmtDate(v, withTime) {
     if (!v) return '—';
     try {
@@ -32,8 +38,8 @@
   if (typeof window !== 'undefined') { window.fmtDate = fmtDate; }
 
   try {
-    if (typeof window !== 'undefined' && localStorage.getItem('de_manage_app_ver') !== 'v71') {
-      localStorage.setItem('de_manage_app_ver', 'v71');
+    if (typeof window !== 'undefined' && localStorage.getItem('de_manage_app_ver') !== 'v72') {
+      localStorage.setItem('de_manage_app_ver', 'v72');
       if (window.caches && caches.keys) {
         caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
       }
@@ -1947,7 +1953,7 @@
             h('div', { class: 'csh-badges-row' },
               badge(cm.name, 'gold'),
               selectedSecName ? badge('القسم المحدد: ' + selectedSecName, 'ok') : badge('كافة الأقسام التربوية (' + (centerSections.length || 1) + ')', 'light'),
-              badge('الموسم 2026/2027', 'gray')
+              badge('الموسم ' + getCurrentAcademicYear(), 'gray')
             ),
             h('h1', { class: 'csh-title', text: 'الأقسام والأطفال' }),
             h('p', { class: 'csh-sub', text: selectedSecName ? ('عرض ملفات وتفاصيل الأطفال المسجلين في «' + selectedSecName + '» (' + curFilteredKids + ' طالب).') : ('إدارة ملفات وبطاقات جميع الأطفال والتلاميذ وتوزيعهم على الأقسام التربوية المعتمدة (' + totalKidsAll + ' طالب).') })
@@ -2362,7 +2368,6 @@
                     toast('تعذر التحميل: ' + (err.message || err), 'bad');
                   }
                 }, 'gold'),
-                rbtn('أرشفة', function () { setChildRecordArchived(rep, true, false); }, 'light'),
                 rep.attachment_path ? rbtn('المرفق', function () {
                   C.signedUrl('private-docs', rep.attachment_path, 60).then(function (url) {
                     window.open(url, '_blank');
@@ -2477,7 +2482,6 @@
                     toast('تعذر التحميل: ' + (e.message || e), 'bad');
                   }
                 }, 'gold'),
-                rbtn('أرشفة', function () { setChildRecordArchived(evRep, true, true); }, 'light')
               )
             );
             evalsHost.appendChild(evCard);
@@ -3327,7 +3331,7 @@
       id: null,
       section_id: secId || '',
       section_name: sName,
-      academic_year: '2026/2027',
+      academic_year: getCurrentAcademicYear(),
       status: 'draft',
       published_at: null,
       updated_at: nowIso,
@@ -3446,7 +3450,7 @@
       id: p ? p.id : null,
       section_id: secId,
       section_name: sName,
-      academic_year: (p && p.academic_year) || (meta && meta.academic_year) || '2026/2027',
+      academic_year: (p && p.academic_year) || (meta && meta.academic_year) || getCurrentAcademicYear(),
       status: (meta && meta.program_status) || (p && p.status) || 'draft',
       published_at: (p && p.published_at) || (meta && meta.published_at) || null,
       updated_at: (meta && meta.updated_at) || (p && p.published_at) || new Date().toISOString(),
@@ -3530,7 +3534,7 @@
         style: 'font-weight:700; font-size:13px; padding:7px 10px; border-radius:8px; border:1.5px solid #CBD5E1; width:120px; text-align:center;'
       });
       var inlineYearInp = h('input', {
-        type: 'text', value: '2026/2027',
+        type: 'text', value: getCurrentAcademicYear(),
         style: 'font-weight:700; font-size:13px; padding:7px 10px; border-radius:8px; border:1.5px solid #CBD5E1; width:95px; text-align:center;'
       });
 
@@ -3542,7 +3546,7 @@
           var chosenSecId = inlineSecSelect.value;
           var chosenSecName = getSectionName(chosenSecId);
           var semVal = inlineSemInp.value.trim() || 'السداسي الأول';
-          var yearVal = inlineYearInp.value.trim() || '2026/2027';
+          var yearVal = inlineYearInp.value.trim() || getCurrentAcademicYear();
 
           var existing = findProgramForSection(chosenSecId);
           if (existing) {
@@ -3649,7 +3653,7 @@
                 ) : h('span', { style: 'background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; font-size:11.5px; padding:2px 10px; border-radius:12px;', text: '⚪ لا يوجد برنامج بعد' })
               ),
               h('div', { class: 'small muted', style: 'font-size:12px; color:#64748B;' },
-                'الموسم: ' + ((prog && prog.academic_year) || '2026/2027') + ' | التوقيت: 08:00 إلى 14:00 | الحجم: 25 حصة أسبوعياً' + (prog && prog.updated_at ? (' | آخر تحديث: ' + fmtDate(prog.updated_at)) : '')
+                'الموسم: ' + ((prog && prog.academic_year) || getCurrentAcademicYear()) + ' | التوقيت: 08:00 إلى 14:00 | الحجم: 25 حصة أسبوعياً' + (prog && prog.updated_at ? (' | آخر تحديث: ' + fmtDate(prog.updated_at)) : '')
               )
             )
           ),
@@ -3827,7 +3831,7 @@
       var yearInp = h('input', {
         class: 'input',
         type: 'text',
-        value: '2026/2027',
+        value: getCurrentAcademicYear(),
         style: 'font-weight:700; width:100%; font-size:14px; padding:10px; text-align:center; border-radius:8px; border:1.5px solid #CBD5E1;'
       });
 
@@ -3857,7 +3861,7 @@
             var chosenSecId = secSelect.value;
             var chosenSecName = getSectionName(chosenSecId);
             var semVal = semesterInp.value.trim() || 'السداسي الأول';
-            var yearVal = yearInp.value.trim() || '2026/2027';
+            var yearVal = yearInp.value.trim() || getCurrentAcademicYear();
 
             var existing = findProgramForSection(chosenSecId);
             if (existing) {
@@ -4091,7 +4095,7 @@
           })
         ),
         h('div', { style: 'text-align:left;' },
-          h('div', { style: 'font-weight:700; color:#163B65; font-size:12px;', text: 'الموسم الدراسي: ' + (currentWeekState.academic_year || '2026/2027') }),
+          h('div', { style: 'font-weight:700; color:#163B65; font-size:12px;', text: 'الموسم الدراسي: ' + (currentWeekState.academic_year || getCurrentAcademicYear()) }),
           h('div', { class: 'small muted', style: 'font-size:10.5px;', text: 'التوقيت: ' + (currentWeekState.day_start || '08:00') + ' إلى ' + (currentWeekState.day_end || '14:00') })
         )
       );
@@ -4623,7 +4627,7 @@
       var mHdr = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:10px; margin-bottom:14px; gap:10px; flex-wrap:wrap;' },
         h('div', null,
           h('h3', { style: 'margin:0; color:#163B65; font-size:1.35rem; font-weight:900;', text: 'معاينة وثيقة البرنامج المؤقت الأسبوعي الرسمية (A4 أفقي)' }),
-          h('span', { class: 'small muted', text: 'الفوج: ' + secName + ' | الموسم: ' + (activeWeekState.academic_year || '2026/2027') })
+          h('span', { class: 'small muted', text: 'الفوج: ' + secName + ' | الموسم: ' + (activeWeekState.academic_year || getCurrentAcademicYear()) })
         ),
         h('div', { style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' },
           h('button', { type: 'button', class: 'btn light', title: 'تصغير المعاينة', text: '−', onclick: function () { previewZoom = Math.max(50, previewZoom - 10); applyWeeklyPreviewZoom(); } }),
@@ -4695,7 +4699,7 @@
           day: dy.day,
           label: dy.label,
           section_name: secName,
-          academic_year: activeWeekState.academic_year || '2026/2027',
+          academic_year: activeWeekState.academic_year || getCurrentAcademicYear(),
           program_status: nextStatus,
           day_start: activeWeekState.day_start || '08:00',
           day_end: activeWeekState.day_end || '14:00',
@@ -4727,7 +4731,7 @@
       var body = {
         section_id: activeWeekState.section_id,
         title: DE.clean('البرنامج المؤقت الأسبوعي — ' + secName, 155),
-        academic_year: activeWeekState.academic_year || '2026/2027',
+        academic_year: activeWeekState.academic_year || getCurrentAcademicYear(),
         description: DE.clean('البرنامج المؤقت الأسبوعي لفوج ' + secName, 1000),
         goals: DE.clean('الأنصبة والحصص التعليمية الأسبوعية لفوج ' + secName, 1000),
         schedule: schedulePayload,
@@ -6192,7 +6196,7 @@
       syncAnnualFinalParentName();
     };
     if (kidSelect.value) syncAnnualFinalParentName();
-    var schoolYearInp = h('input', { type: 'text', style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1; font-weight:700; text-align:center;', placeholder: 'الموسم الدراسي', value: af.school_year || '2025/2026' });
+    var schoolYearInp = h('input', { type: 'text', style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1; font-weight:700; text-align:center;', placeholder: 'الموسم الدراسي', value: af.school_year || getCurrentAcademicYear() });
     var reportDateInp = h('input', { type: 'date', style: 'width:100%; padding:10px; border-radius:8px; border:1.5px solid #CBD5E1;', value: ev.report_date || new Date().toISOString().slice(0, 10) });
 
     var metaGrid = h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px; background:#F8FAFC; padding:18px; border-radius:12px; border:1.5px solid #E2E8F0;' },
@@ -6398,7 +6402,7 @@
     // التعهد وتوقيع المدير فقط
     card.appendChild(h('div', { style: 'border-top:1px solid #CBD5E1; padding-top:14px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:18px;' },
       h('div', null,
-        h('strong', { text: 'ألتزم بما اطلعت عليه للموسم الدراسي المقبل ' + (schoolYearInp.value || '2025/2026') }),
+        h('strong', { text: 'ألتزم بما اطلعت عليه للموسم الدراسي المقبل ' + (schoolYearInp.value || getCurrentAcademicYear()) }),
         h('div', { style: 'margin-top:6px; color:#64748B; font-size:12px;', text: 'الاسم واللقب: ....................................................' })
       ),
       h('div', { style: 'text-align:left; min-width:240px; min-height:96px; padding:8px 0 0;', dir: 'rtl' },
@@ -6778,7 +6782,7 @@
     wrap.appendChild(h('div', { style: 'text-align:center; margin-bottom:12px; font-size:15px; font-weight:900;', text: 'السلام عليكم ورحمة الله وبركاته' }));
     wrap.appendChild(h('div', { style: 'text-align:justify; font-size:13.5px; margin-bottom:16px;' },
       'في إطار متابعة المسار التربوي لأبنائكم، نحيطكم علما بأنه تم حصر مختلف المهارات التي تم تدريب ابنكم عليها خلال الموسم الدراسي ' +
-      h('strong', null, af.school_year || '2025/2026').outerHTML +
+      h('strong', null, af.school_year || getCurrentAcademicYear()).outerHTML +
       '، وذلك لتمكينكم من الاطلاع عليها وتعزيز متابعتها خلال العطلة الصيفية. ويأتي هذا في سياق التعاون المستمر بين الأسرة والمركز، وحرصا على المحافظة على المكتسبات وضمان استمرارية البرنامج التربوي، بما يساهم في تحقيق الأهداف المسطرة ودعم تطور الطفل بشكل أفضل.'
     ));
 
@@ -6852,7 +6856,7 @@
 
     // التعهد
     wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; font-size:13px; font-weight:800; margin-bottom:16px;' },
-      h('span', { text: 'ألتزم بما اطلعت عليه للموسم الدراسي المقبل ' + (af.school_year || '2025/2026') }),
+      h('span', { text: 'ألتزم بما اطلعت عليه للموسم الدراسي المقبل ' + (af.school_year || getCurrentAcademicYear()) }),
       h('span', { text: 'الاسم اللقب: ....................................................' })
     ));
 
@@ -6885,7 +6889,7 @@
       status: extractEvalStatus(r),
       general_notes: (r && r.notes) || '',
       term: 'الثلاثي الأخير',
-      school_year: '2024/2025',
+      school_year: getCurrentAcademicYear(),
       degree_of_disability: 'متوسطة',
       qualification_level: '',
       supervisors: [
@@ -7199,18 +7203,18 @@
 
     // 1. ترويسة الوثيقة الرسمية بالاسم المعتمد: تقرير نوعي تحليلي (Rapport d'analyse qualitatif)
     var header = h('div', { class: 'oep-header' },
+      logoImg,
       h('div', { class: 'oep-title-block' },
         h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
         h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
         h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
         h('div', { class: 'oep-fr-title', text: "RAPPORT D'ANALYSE QUALITATIF" }),
         h('h2', { class: 'oep-report-heading', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
-      ),
-      logoImg
+      )
     );
 
     // 2. البانر الأصفر/الذهبي للثلاثي والموسم
-    var termBanner = h('div', { class: 'oep-term-banner', text: 'تقييم ' + (ev.term || 'الثلاثي الأخير') + ' للموسم الدراسي: ' + (ev.school_year || '2024/2025') });
+    var termBanner = h('div', { class: 'oep-term-banner', text: 'تقييم ' + (ev.term || 'الثلاثي الأخير') + ' للموسم الدراسي: ' + (ev.school_year || getCurrentAcademicYear()) });
 
     // 3. شبكة معلومات الحالة الخاصة بالطفل
     var infoTable = h('table', { class: 'oep-info-table' },
@@ -7718,49 +7722,6 @@
         h('h2', { style: 'margin:0; color:#163B65; font-size:1.35rem; font-weight:900;', text: existingRep ? 'تعديل استمارة ملاحظة سلوك' : 'استمارة ملاحظة سلوك جديدة' })
       ),
       h('div', { class: 'row-actions', style: 'display:flex; gap:8px; align-items:center; flex-wrap:wrap;' },
-        h('button', {
-          class: 'btn light',
-          type: 'button',
-          style: 'font-weight:700;',
-          onclick: function () {
-            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للمعاينة.', 'bad');
-            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
-            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
-            var packed = packCurrentObsData();
-            var prevModal = h('div', { class: 'modal card', style: 'max-width:1040px; width:95%; max-height:92vh; overflow-y:auto; padding:20px;' });
-            prevModal.appendChild(renderBehaviorObservationSheetView({
-              child_id: kidSelect.value,
-              report_date: reportDateInp.value,
-              behavior_observation: packed
-            }, chosenKid ? chosenKid.full_name : '', sName, chosenKid));
-            openModal(prevModal);
-          }
-        }, makeSvgIcon('s-eye'), h('span', { text: 'معاينة الاستمارة' })),
-
-        h('button', {
-          class: 'btn light',
-          type: 'button',
-          style: 'font-weight:700;',
-          onclick: async function () {
-            if (!kidSelect.value) return toast('يرجى اختيار الطالب أولاً للتحميل.', 'bad');
-            var chosenKid = kids.filter(function (k) { return k.id === kidSelect.value; })[0];
-            var sName = chosenKid ? (nameOf(sections, chosenKid.section_id, 'name') || chosenKid.section || '') : '';
-            var packed = packCurrentObsData();
-            try {
-              toast('جارٍ تجهيز ملف PDF...', 'ok');
-              var pdfBytes = await DE_PDF.renderBehaviorObservationToPdf({
-                child_id: kidSelect.value,
-                report_date: reportDateInp.value,
-                behavior_observation: packed
-              }, chosenKid ? chosenKid.full_name : '', sName, chosenKid);
-              DE_PDF.downloadPdf(pdfBytes, 'استمارة_ملاحظة_سلوك_' + (chosenKid ? chosenKid.full_name : 'طالب').replace(/\s+/g, '_') + '.pdf');
-              toast('تم تحميل الاستمارة بصيغة PDF بنجاح!', 'ok');
-            } catch (err) {
-              toast('تعذر التحميل: ' + err.message, 'bad');
-            }
-          }
-        }, makeSvgIcon('s-download'), h('span', { text: 'تحميل PDF (A4)' })),
-
         h('button', { class: 'btn light', type: 'button', style: 'font-weight:700;', text: 'رجوع لقائمة التقييم', onclick: function () { go('evaluations'); } })
       )
     );
@@ -8073,7 +8034,8 @@
     // ترويسة الوثيقة: الشعار في أعلى اليسار!
     var logoImg = h('img', { src: 'logo-sq.png', alt: 'شعار المركز', style: 'width:80px; height:80px; border-radius:8px;' });
 
-    var header = h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:12px; margin-bottom:16px;' },
+    var header = h('div', { style: 'display:flex; direction:rtl; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:12px; margin-bottom:16px;' },
+      logoImg,
       h('div', { style: 'text-align:right;' },
         h('h3', { style: 'margin:0 0 2px; color:#163B65; font-size:15px; font-weight:800;', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
         h('h4', { style: 'margin:0 0 2px; color:#2563EB; font-size:14px; font-weight:700;', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
@@ -8082,9 +8044,7 @@
       h('div', { style: 'text-align:center;' },
         h('h2', { style: 'margin:0; color:#163B65; font-size:1.6rem; font-weight:900; letter-spacing:0.5px;', text: 'استمارة ملاحظة سلوك' })
       ),
-      h('div', { style: 'text-align:left;' },
-        logoImg
-      )
+      h('div', { style: 'text-align:left;' })
     );
     wrap.appendChild(header);
 
@@ -11243,18 +11203,16 @@
     function renderEpisodesDynamicTable() {
       crisisHost.textContent = '';
       var eps = mfState.episodes;
-      var tbl = h('table', { style: 'width:100%; border-collapse:collapse; font-size:13px;' },
+      var tbl = h('table', { class: 'epilepsy-episodes-table', style: 'width:100%; min-width:620px; border-collapse:collapse; font-size:13px; background:#FFFFFF;' },
         h('thead', null,
-          h('tr', { style: 'background:#FEF2F2; color:#0F172A;' },
-            h('th', { style: 'border:1px solid #334155; padding:7px; min-width:165px;', text: 'Informations' }),
+          h('tr', { style: 'background:#E7EFFF; color:#243652;' },
             eps.map(function (_, epIdx) {
-              return h('th', { style: 'border:1px solid #334155; padding:7px; min-width:155px;' },
+              return h('th', { colspan: 2, style: 'border:1px solid #AAB9D2; padding:7px; min-width:230px;' },
                 h('div', { style: 'display:flex; align-items:center; justify-content:space-between; gap:6px;' },
-                  h('span', { text: 'Épisode ' + (epIdx + 1) }),
-                  eps.length > 2 ? h('button', {
-                    type: 'button',
-                    class: 'btn small light danger',
-                    style: 'padding:2px 6px; font-size:11px;',
+                  h('strong', { text: 'Épisode ' + (epIdx + 1) }),
+                  eps.length > 1 ? h('button', {
+                    type: 'button', class: 'btn small light danger',
+                    style: 'padding:2px 7px; font-size:11px;',
                     title: 'Supprimer cet épisode',
                     onclick: function () {
                       mfState.episodes.splice(epIdx, 1);
@@ -11264,13 +11222,23 @@
                 )
               );
             })
+          ),
+          h('tr', { style: 'background:#F5F7FC; color:#32445F;' },
+            eps.map(function () {
+              return [
+                h('th', { style: 'border:1px solid #AAB9D2; padding:6px; min-width:112px; text-align:right;', text: 'Informations' }),
+                h('th', { style: 'border:1px solid #AAB9D2; padding:6px; min-width:145px; text-align:right;', text: 'Observations' })
+              ];
+            })
           )
         ),
         h('tbody', null, epFields.map(function (f) {
           return h('tr', null,
-            h('td', { style: 'border:1px solid #334155; padding:6px; font-weight:800; color:#0F172A;', text: f.label }),
             eps.map(function (epObj) {
-              return h('td', { style: 'border:1px solid #334155; padding:4px;' }, makeEpInput(epObj, f));
+              return [
+                h('td', { style: 'border:1px solid #C6CEDB; padding:6px 8px; font-weight:800; color:#34445D; background:#FAFBFE;', text: f.label }),
+                h('td', { style: 'border:1px solid #C6CEDB; padding:4px 6px; min-width:145px;' }, makeEpInput(epObj, f))
+              ];
             })
           );
         }))
@@ -11278,8 +11246,7 @@
       crisisHost.appendChild(tbl);
       crisisHost.appendChild(h('div', { style: 'display:flex; justify-content:flex-end; margin-top:8px; gap:8px;' },
         h('button', {
-          type: 'button',
-          class: 'btn small light',
+          type: 'button', class: 'btn small light',
           text: '+ Ajouter un épisode (' + mfState.episodes.length + ')',
           onclick: function () {
             mfState.episodes.push({});
@@ -11618,7 +11585,7 @@
     );
     termSelect.value = ev.term || 'الثلاثي الأخير';
 
-    var schoolYearInput = h('input', { type: 'text', maxlength: 20, value: ev.school_year || '2024/2025' });
+    var schoolYearInput = h('input', { type: 'text', maxlength: 20, value: ev.school_year || getCurrentAcademicYear() });
     var disabilityDegInput = h('input', { type: 'text', maxlength: 50, value: ev.degree_of_disability || 'متوسطة' });
     var qualLevelInput = h('input', { type: 'text', maxlength: 80, value: ev.qualification_level || (selKid ? (nameOf(sections, selKid.section_id, 'name') || selKid.section || '') : '') });
 
@@ -11731,7 +11698,7 @@
     var MAX_GR_CHARS = 700;
     var MAX_GR_LINES = 10;
     var grCounterBadge = h('span', { class: 'muted small', style: 'display:block; margin-top:4px; font-weight:700;' });
-    var generalReportArea = h('textarea', { rows: 8, maxlength: MAX_GR_CHARS, placeholder: 'اكتب التقرير العام الشامل لأداء وسلوك الحالة (مضبوط بحد أقصى لا يتجاوز صفحة A4)...' });
+    var generalReportArea = h('textarea', { rows: 12, style: 'min-height:260px; resize:vertical; line-height:1.8;', maxlength: MAX_GR_CHARS, placeholder: 'اكتب التقرير العام الشامل لأداء وسلوك الحالة (مضبوط بحد أقصى لا يتجاوز صفحة A4)...' });
     generalReportArea.value = String(ev.general_report || '').slice(0, MAX_GR_CHARS);
 
     function updateGrLimitUI() {
@@ -12039,7 +12006,7 @@
     termSelect.value = ev.term || 'الثلاثي الأخير';
     termSelect.addEventListener('change', function () { ev.term = termSelect.value; });
 
-    var schoolYearInput = h('input', { type: 'text', maxlength: 20, value: ev.school_year || '2024/2025' });
+    var schoolYearInput = h('input', { type: 'text', maxlength: 20, value: ev.school_year || getCurrentAcademicYear() });
     schoolYearInput.addEventListener('input', function () { ev.school_year = schoolYearInput.value; });
 
     var disabilityDegInput = h('input', { type: 'text', maxlength: 50, value: ev.degree_of_disability || 'متوسطة' });
@@ -12498,7 +12465,7 @@
         membership_no: chosenKid && chosenKid.membership_no ? String(chosenKid.membership_no) : '',
         section_name: chosenSecName,
         term: ev.term || 'الثلاثي الأخير',
-        school_year: ev.school_year || '2024/2025',
+        school_year: ev.school_year || getCurrentAcademicYear(),
         degree_of_disability: DE.clean(ev.degree_of_disability || '', 50),
         qualification_level: DE.clean(ev.qualification_level || chosenSecName || '', 80),
         supervisors: (ev.supervisors || []).map(function (s) {
@@ -12619,10 +12586,16 @@
 
     function editReport(r) {
       var uploaded = null;
+      var defaultReportKid = r
+        ? kids.filter(function (kid) { return String(kid.id) === String(r.child_id); })[0]
+        : kids.filter(function (kid) { return String(kid.id) === String(S.preselectChildId || ''); })[0] || (kids.length === 1 ? kids[0] : null);
       return openForm({
         title: r ? 'تعديل التقرير الدوري' : 'إضافة تقرير تربوي دوري جديد',
-        values: r ? Object.assign({}, r) : {
-          child_id: S.preselectChildId || (kids.length === 1 ? kids[0].id : ''),
+        values: r ? Object.assign({}, r, {
+          section_id: (kids.filter(function (k) { return String(k.id) === String(r.child_id); })[0] || {}).section_id || ''
+        }) : {
+          section_id: defaultReportKid ? defaultReportKid.section_id || '' : '',
+          child_id: defaultReportKid ? defaultReportKid.id : '',
           report_date: new Date().toISOString().slice(0, 10),
           title: 'التقرير الدوري لمتابعة الطفل',
           achievements: '',
@@ -12630,9 +12603,8 @@
           notes: ''
         },
         fields: [
-          { k: 'branch_id', label: 'الفرع', type: 'select', opts: branchOpts, req: !S.isEducator, showIf: function () { return !S.isEducator; } },
-          { k: 'section_id', label: 'القسم / الفوج', type: 'select', opts: secAllOpts, req: true, showIf: function () { return !S.isEducator; } },
-          { k: 'child_id', label: 'الطفل المعني', type: 'select', opts: kidOpts, req: true, searchable: true },
+          { k: 'section_id', label: 'القسم / الفوج', type: 'select', opts: secAllOpts, req: !S.isEducator, showIf: function () { return !S.isEducator; } },
+          { k: 'child_id', label: 'الطفل المعني', type: 'select', opts: S.isEducator ? kidOpts : (defaultReportKid ? kids.filter(function (kid) { return childMatchesSection(kid, defaultReportKid.section_id, nameOf(sections, defaultReportKid.section_id, 'name'), sections); }).map(function (kid) { return [kid.id, (kid.membership_no ? ('[' + kid.membership_no + '] ') : '') + kid.full_name]; }) : []), req: true, searchable: true },
           { k: 'title', label: 'عنوان التقرير (مثال: التقرير الفصلي الأول)', req: true, max: 150 },
           { k: 'report_date', label: 'تاريخ التقرير', type: 'date', req: true },
           { k: 'achievements', label: 'المكتسبات والمهارات المحققة', type: 'textarea', max: 5000 },
@@ -12640,8 +12612,21 @@
           { k: 'notes', label: 'ملاحظات وتوجيهات للأولياء', type: 'textarea', max: 5000 },
           { k: 'file', label: 'رفع ملف مرفق للتقرير (PDF/JPG/PNG/WebP — حتى 5MB)', type: 'file', accept: '.pdf,.jpg,.jpeg,.png,.webp', hint: r && r.attachment_path ? 'يوجد مرفق محفوظ؛ يمكنك رفع ملف جديد لاستبداله.' : 'يمكنك رفع ملف PDF أو صورة مصورة للتقرير ليتمكن الولي من تحميلها مباشرة.' }
         ],
+        onChange: function (changed, current, api) {
+          if (!S.isEducator && (changed === null || changed === 'section_id')) {
+            var sectionKids = current.section_id ? kids.filter(function (kid) {
+              return childMatchesSection(kid, current.section_id, nameOf(sections, current.section_id, 'name'), sections);
+            }) : [];
+            api.setOpts('child_id', sectionKids.map(function (kid) {
+              return [kid.id, (kid.membership_no ? ('[' + kid.membership_no + '] ') : '') + kid.full_name];
+            }));
+          }
+        },
         onSubmit: async function (x, key) {
           if (!x.child_id) throw new Error('اختر طفلاً من القائمة.');
+          if (!S.isEducator && (!x.section_id || !childMatchesSection(kids.filter(function (kid) { return String(kid.id) === String(x.child_id); })[0] || {}, x.section_id, nameOf(sections, x.section_id, 'name'), sections))) {
+            throw new Error('اختر القسم أولاً ثم اختر طفلاً تابعاً له.');
+          }
           if (key === 'publish' && !x.achievements && !x.activities && !x.notes && !x.file && !(r && r.attachment_path)) {
             throw new Error('لا يمكن نشر تقرير فارغ تماماً.');
           }
@@ -12872,14 +12857,6 @@
               await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'published', activities: upd }), null);
               bust(); toast('تم نشر التقرير للولي.', 'ok'); go('reports');
             }, 'gold'),
-          rbtn(r.is_archived ? 'استعادة من الأرشيف' : 'أرشفة', async function () {
-            var nextArch = !r.is_archived;
-            if (r.id && DE.isUuid(String(r.id))) {
-              try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { is_archived: nextArch, archived_at: nextArch ? new Date().toISOString() : null }); } catch (e) {}
-            }
-            r.is_archived = nextArch;
-            bust(); toast(nextArch ? 'تم نقل التقرير إلى الأرشيف.' : 'تمت استعادة التقرير من الأرشيف.', 'ok'); go('reports');
-          }, 'light'),
           rbtn('نسخ النص', function () {
             var txt = [r.title || '', r.achievements || '', r.notes || ''].filter(Boolean).join('\n\n');
             if (window.DE && DE.copyText) DE.copyText(txt).then(function (ok) { toast(ok ? 'تم نسخ محتوى التقرير.' : 'تعذر النسخ.', ok ? 'ok' : 'bad'); });
@@ -13100,14 +13077,6 @@
       ],
       actions: function (r) {
         return [
-          rbtn(r.is_archived ? 'استعادة' : 'أرشفة', async function () {
-            var nextArch = !r.is_archived;
-            if (r.id && DE.isUuid(String(r.id))) {
-              try { await saveProgressReportResilient('PATCH', '/progress_reports?id=eq.' + uid(r.id), { is_archived: nextArch, archived_at: nextArch ? new Date().toISOString() : null }); } catch (e) {}
-            }
-            r.is_archived = nextArch;
-            bust(); toast(nextArch ? 'تمت أرشفة التقييم.' : 'تمت استعادة التقييم.', 'ok'); go('evaluations');
-          }, 'light'),
           rbtn('نسخ النص', function () {
             var txt = [r.title || '', r.achievements || '', r.notes || ''].filter(Boolean).join('\n\n');
             if (window.DE && DE.copyText) DE.copyText(txt).then(function (ok) { toast(ok ? 'تم نسخ نص التقييم.' : 'تعذر النسخ.', ok ? 'ok' : 'bad'); });
@@ -16047,7 +16016,9 @@
     var n = ++S.nav, v = $('#view');
     var appEl = $('#app');
     if (appEl) {
-      appEl.classList.toggle('is-hub-mode', !S.isEducator && (sec === 'hub' || sec === 'hub_accounts'));
+      var hubMode = !S.isEducator && (sec === 'hub' || sec === 'hub_accounts');
+      appEl.classList.toggle('is-hub-mode', hubMode);
+      if (!hubMode && window.innerWidth > 860) appEl.classList.add('side-collapsed');
     }
 
     applyRoleSidebarUI(); initHeaderWidgets();
