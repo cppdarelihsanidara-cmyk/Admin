@@ -765,8 +765,8 @@
     var isSpec = !!S.isSpecialist;
     var isFull = isFullPowerAdmin();
     // الشؤون البيداغوجية دون فضاء الأولياء في المركز الرئيسي
-    var allowedForEdu = { children: true, attendance: true, reports: true, evaluations: true, programs: true, docs: true };
-    var allowedForSpec = { children: true, reports: true, evaluations: true, programs: true, docs: true, appts: true, msgs: true };
+    var allowedForEdu = { children: true, attendance: true, reports: true, evaluations: true, programs: true, docs: true, msgs: true };
+    var allowedForSpec = { children: true, reports: true, evaluations: true, programs: true, docs: true, msgs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, attendance: true, educators: true, programs: true, reports: true, evaluations: true, accounts: true, archive: true, requests: true, inquiries: true };
 
@@ -1016,6 +1016,23 @@
           h('button', { class: 'btn light', type: 'button', text: 'تراجع', onclick: function () { done(false); } }),
           h('button', { class: 'btn' + (o.danger ? ' danger' : ''), type: 'button', text: o.ok || 'تأكيد', onclick: function () { done(true); } }))));
     });
+    // إخفاء عناوين المجموعات الفارغة في القائمة الجانبية
+    try {
+      var navEl = document.getElementById('nav');
+      if (navEl) {
+        var curLbl = null, hasVis = false;
+        [].forEach.call(navEl.children, function (ch) {
+          if (ch.classList && ch.classList.contains('nav-group-label')) {
+            if (curLbl) curLbl.hidden = !hasVis;
+            curLbl = ch;
+            hasVis = false;
+          } else if (ch.matches && ch.matches('[data-sec]')) {
+            if (!ch.hidden) hasVis = true;
+          }
+        });
+        if (curLbl) curLbl.hidden = !hasVis;
+      }
+    } catch (eGrp) {}
   }
   function info(title, node) {
     openModal(h('div', { class: 'modal-body' }, h('h2', { text: title }), node, h('div', { class: 'modal-actions' }, h('button', { class: 'btn light', type: 'button', text: 'إغلاق', onclick: closeModal }))));
@@ -1974,12 +1991,12 @@
             h('p', { class: 'csh-sub', text: selectedSecName ? ('عرض ملفات وتفاصيل الأطفال المسجلين في «' + selectedSecName + '» (' + curFilteredKids + ' طالب).') : ('إدارة ملفات وبطاقات جميع الأطفال والتلاميذ وتوزيعهم على الأقسام التربوية المعتمدة (' + totalKidsAll + ' طالب).') })
           ),
           h('div', { class: 'csh-actions' },
-            (!S.isEducator && !S.isSpecialist) ? h('button', {
+            (!S.isEducator && !S.isSpecialist && !S.isReadOnlyAdmin) ? h('button', {
               type: 'button',
               class: 'btn gold',
               onclick: function () { editChild(null); }
             }, makeSvgIcon('s-plus'), h('span', { text: 'إضافة طالب جديد' })) : null,
-            (!S.isEducator && !S.isSpecialist) ? h('button', {
+            (!S.isEducator && !S.isSpecialist && !S.isReadOnlyAdmin) ? h('button', {
               type: 'button',
               class: 'btn light',
               onclick: function () { openAddSectionForCenterModal(S.activeCenter, branches, function () { go('children'); }); }
@@ -2198,8 +2215,8 @@
 
     listView(v, {
       title: listTitle,
-      addLabel: S.isEducator ? '' : 'إضافة طالب جديد',
-      onAdd: (S.isEducator || S.isSpecialist) ? null : function () { editChild(null); },
+      addLabel: (S.isEducator || S.isSpecialist || S.isReadOnlyAdmin) ? '' : 'إضافة طالب جديد',
+      onAdd: (S.isEducator || S.isSpecialist || S.isReadOnlyAdmin) ? null : function () { editChild(null); },
       extra: [],
       rows: rows,
       sheet: true,
@@ -2234,7 +2251,7 @@
         var actionsBarItems = [
           rbtn('بطاقة التلميذ الرسمية', function () { openStudentCard(r); }, 'gold')
         ];
-        if (!S.isEducator && !S.isSpecialist) {
+        if (!S.isEducator && !S.isSpecialist && !S.isReadOnlyAdmin) {
           actionsBarItems.push(
             rbtn('تعديل البيانات', function () { editChild(r); }, 'light'),
             rbtn('حذف نهائي', async function () {
@@ -13190,7 +13207,6 @@
      8. الرسائل والإعلانات (Messages)
      ===================================================================== */
   async function secMsgs(v) {
-    if (S.isEducator) return go('children');
     var d = await getMany('msgs', 'reads', 'parents', 'children', 'branches', 'sections');
     var rows = d[0], reads = d[1], pars = d[2], kids = d[3], branches = d[4], sections = d[5];
     var branchOpts = branches.map(function (b) { return [b.id, b.name]; });
@@ -13273,7 +13289,6 @@
      9. الوثائق الخاصة (Documents)
      ===================================================================== */
   async function secDocs(v) {
-    if (S.isEducator) return go('children');
     var d = await getMany('docs', 'children', 'sections', 'branches'), rows = d[0], kids = d[1], allDocsSections = d[2] || [], docsBranches = d[3] || [];
     var targetDocsCenter = S.center || 'main';
     var docsSections = allDocsSections.filter(function (s) { return sectionCenterKey(s, docsBranches) === targetDocsCenter; });
@@ -16462,10 +16477,10 @@
       sec = 'children';
     }
     if (!isFullPowerAdmin() && sec === 'parents' && S.activeCenter === 'main') { sec = 'children'; }
-    if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && (sec !== 'reports' || isFarmSession()) && (sec !== 'evaluations' || isFarmSession()) && sec !== 'programs' && sec !== 'docs')) {
+    if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && (sec !== 'reports' || isFarmSession()) && (sec !== 'evaluations' || isFarmSession()) && sec !== 'programs' && sec !== 'docs' && sec !== 'msgs')) {
       sec = 'children';
     }
-    if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp' || sec === 'attendance')) {
+    if (S.isSpecialist && (sec !== 'children' && sec !== 'reports' && sec !== 'evaluations' && sec !== 'programs' && sec !== 'docs' && sec !== 'msgs')) {
       toast('غير مخوّلة: هذه الصلاحية محصورة بإدارة المركز فقط.', 'bad');
       return go('children');
     }
@@ -16647,16 +16662,19 @@
         return e.email && e.email.toLowerCase() === myEmail;
       })[0];
 
+      var um = (meUser && meUser.user_metadata) || {};
+      var metaJob = String((adminRecord && adminRecord.job_title) || (accMeta && accMeta.job_title) || um.job_title || '').trim();
+      var isExemptFull = (myEmail === 'amir.zakaria06000@gmail.com' || myEmail === 'cppdarelihsan.idara@gmail.com');
       var userRole = (adminRecord && adminRecord.role) || (accMeta && accMeta.role) || (eduMatch ? 'educator' : 'admin');
-      var isKnownSpec = (userRole === 'specialist' || (adminRecord && adminRecord.job_title === 'أخصائية نفسانية'));
-      var isKnownEdu = !isKnownSpec && (userRole === 'educator');
+      var isKnownSpec = !isExemptFull && (userRole === 'specialist' || metaJob.indexOf('أخصائية') >= 0 || metaJob.indexOf('اخصائية') >= 0);
+      var isKnownEdu = !isExemptFull && !isKnownSpec && (userRole === 'educator' || !!eduMatch || metaJob.indexOf('مربية') >= 0 || metaJob.indexOf('مربي') >= 0);
 
       S.me = meUser;
       S.adminRecord = adminRecord;
       bust();
 
       if (isKnownEdu) {
-        var prof = Object.assign({}, eduMatch || {}, accMeta || {});
+        var prof = Object.assign({}, um || {}, eduMatch || {}, accMeta || {});
         S.isEducator = true;
         S.isSpecialist = false;
         S.isReadOnlyAdmin = false;
