@@ -16978,14 +16978,31 @@
   async function fetchNotifications() {
     var dbList = [];
     try {
-      var q = S.me
-        ? (S.isEducator
-            ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&order=created_at.desc&limit=50')
-            : ('/notifications?or=(recipient_user_id.eq.' + uid(S.me) + ',recipient_user_id.is.null)&order=created_at.desc&limit=50'))
-        : '/notifications?order=created_at.desc&limit=50';
-      var rows = await C.rest('GET', q);
-      if (Array.isArray(rows)) dbList = rows;
-    } catch (e) {}
+      var orderLimit = '&order=created_at.desc&limit=100';
+      if (S.me) {
+        // الإشعارات الخاصة بالمستخدم الحالي
+        var ownRows = await C.rest(
+          'GET',
+          '/notifications?recipient_user_id=eq.' + uid(S.me) + orderLimit
+        );
+        if (Array.isArray(ownRows)) dbList = dbList.concat(ownRows);
+
+        // الإشعارات العامة (recipient_user_id IS NULL) للإدارة فقط.
+        // لا نجلبها للمربين/المختصين؛ وتبقى سياسات RLS هي الحاجز الأمني النهائي.
+        if (!S.isEducator && !(S.isSpecialist)) {
+          var adminRows = await C.rest(
+            'GET',
+            '/notifications?recipient_user_id=is.null' + orderLimit
+          );
+          if (Array.isArray(adminRows)) dbList = dbList.concat(adminRows);
+        }
+      } else {
+        var rows = await C.rest('GET', '/notifications?order=created_at.desc&limit=100');
+        if (Array.isArray(rows)) dbList = rows;
+      }
+    } catch (e) {
+      console.warn('تعذر تحميل بعض إشعارات الإدارة:', e);
+    }
 
     var byId = {};
     var waMsgIds = [];

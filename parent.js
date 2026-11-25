@@ -2492,16 +2492,8 @@ function saveAttendanceReply(reply) {
 
   try { safeSetItem('local', 'de_attendance_replies_v2', JSON.stringify(replies)); } catch (e) {}
 
-  // محاولة المزامنة مع خادم قاعدة البيانات إن توفرت نقطة النهاية
-  if (typeof C !== 'undefined' && C.rest) {
-    C.rest('POST', '/whatsapp_messages', {
-      to_phone: reply.phone || '213000000000',
-      direction: 'inbound',
-      body: 'تبرير غياب الطفل [' + (reply.child_name || '') + ']: ' + (reply.reply_text || ''),
-      status: 'delivered',
-      child_id: reply.child_id || null
-    }).catch(function () {});
-  }
+  // تبرير الغياب المرسل من فضاء الأولياء يُحفظ في نظام التبريرات المحلي فقط.
+  // لا يُسجّل كرسالة WhatsApp واردة؛ الرسائل الواردة الحقيقية مصدرها Meta Webhook حصراً.
   return reply;
 }
 
