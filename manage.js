@@ -16868,9 +16868,10 @@
     n.is_read = true;
     setLocalNotifications(NOTIF_STATE.items);
     updateNotificationBadges();
-    if (n.id && DE.isUuid(String(n.id)) && S.me) {
+    renderNotificationDropdown();
+    if (n.id && DE.isUuid(String(n.id))) {
       try {
-        await C.rest('PATCH', '/notifications?id=eq.' + uid(n.id) + '&recipient_user_id=eq.' + uid(S.me), { is_read: true });
+        await C.rest('PATCH', '/notifications?id=eq.' + uid(n.id), { is_read: true });
       } catch (e) {}
     }
   }
@@ -16882,26 +16883,168 @@
     renderNotificationDropdown();
     if (S.me) {
       try {
-        await C.rest('PATCH', '/notifications?recipient_user_id=eq.' + uid(S.me) + '&is_read=eq.false', { is_read: true });
+        var q = S.isEducator
+          ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&is_read=eq.false')
+          : ('/notifications?or=(recipient_user_id.eq.' + uid(S.me) + ',recipient_user_id.is.null)&is_read=eq.false');
+        await C.rest('PATCH', q, { is_read: true });
       } catch (e) {}
     }
+  }
+
+  async function resolveChildNameById(childId) {
+    if (!childId) return '';
+    var cid = String(childId);
+    var cached = (S.cache && Array.isArray(S.cache.children)) ? S.cache.children : [];
+    for (var i = 0; i < cached.length; i++) {
+      if (String(cached[i].id) === cid && cached[i].full_name) return cached[i].full_name;
+    }
+    try {
+      var rows = await C.rest('GET', '/children?id=eq.' + uid(cid) + '&select=id,full_name&limit=1');
+      if (Array.isArray(rows) && rows[0] && rows[0].full_name) return rows[0].full_name;
+    } catch (e) {}
+    return '';
+  }
+
+  async function openWhatsappInboundModal(n) {
+    if (!n || !n.related_record_id) {
+      toast('تعذر فتح الرسالة: معرّف رسالة WhatsApp غير متوفر في هذا الإشعار.', 'bad');
+      return;
+    }
+    var msg = null;
+    try {
+      var rows = await C.rest('GET', '/whatsapp_messages?id=eq.' + uid(n.related_record_id) + '&limit=1');
+      if (Array.isArray(rows) && rows[0]) msg = rows[0];
+    } catch (e) {
+      toast('تعذر جلب رسالة WhatsApp من قاعدة البيانات: ' + (e && e.message ? e.message : 'خطأ في الاتصال'), 'bad');
+      return;
+    }
+    if (!msg) {
+      toast('لم يتم العثور على رسالة WhatsApp الأصلية في قاعدة البيانات.', 'bad');
+      return;
+    }
+
+    var childName = n._wa_child_name || await resolveChildNameById(msg.child_id || n.child_id);
+    var senderPhone = msg.to_phone || n._wa_phone || '';
+    var msgBody = msg.body || n._wa_body || n.body || '';
+    var receivedAt = fmt(msg.created_at || n.created_at, true);
+
+    var infoRows = [];
+    if (childName) {
+      infoRows.push(h('div', { style: 'display:flex;justify-content:space-between;gap:10px;padding:8px 12px;background:#F8F5EF;border-radius:10px;border:1px solid rgba(36,75,120,0.12);' },
+        h('strong', { style: 'color:#244B78;', text: 'اسم الطفل:' }),
+        h('span', { style: 'font-weight:800;color:#172F50;', text: childName })
+      ));
+    }
+    infoRows.push(h('div', { style: 'display:flex;justify-content:space-between;gap:10px;padding:8px 12px;background:#F8F5EF;border-radius:10px;border:1px solid rgba(36,75,120,0.12);' },
+      h('strong', { style: 'color:#244B78;', text: 'رقم هاتف المرسل:' }),
+      h('span', { dir: 'ltr', style: 'font-weight:800;color:#172F50;', text: senderPhone || '—' })
+    ));
+    infoRows.push(h('div', { style: 'display:flex;justify-content:space-between;gap:10px;padding:8px 12px;background:#F8F5EF;border-radius:10px;border:1px solid rgba(36,75,120,0.12);' },
+      h('strong', { style: 'color:#244B78;', text: 'تاريخ ووقت الاستقبال:' }),
+      h('span', { style: 'font-weight:700;color:#172F50;', text: receivedAt })
+    ));
+
+    openModal(h('div', { class: 'modal-body', style: 'max-width:620px;margin:0 auto;' },
+      h('div', { style: 'display:flex;align-items:center;gap:10px;margin-bottom:14px;' },
+        h('div', { class: 'npc-icon', style: 'flex-shrink:0;' }, makeSvgIcon('s-mail')),
+        h('div', null,
+          h('h2', { style: 'margin:0;font-size:1.15rem;color:#172F50;', text: 'تفاصيل رسالة WhatsApp الواردة' }),
+          h('p', { class: 'muted small', style: 'margin:2px 0 0;', text: 'رسالة مستلمة عبر خط المركز الرسمي' })
+        )
+      ),
+      h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-bottom:14px;' }, infoRows),
+      h('div', { style: 'background:#FFFFFF;border:1.5px solid rgba(36,75,120,0.16);border-radius:14px;padding:14px 16px;margin-bottom:16px;' },
+        h('strong', { style: 'display:block;color:#244B78;margin-bottom:8px;font-size:0.9rem;', text: 'محتوى الرسالة:' }),
+        h('p', { style: 'margin:0;white-space:pre-wrap;line-height:1.75;color:#172F50;font-size:0.98rem;user-select:text;', text: msgBody })
+      ),
+      h('div', { class: 'modal-actions' },
+        h('button', { type: 'button', class: 'btn gold', text: 'إغلاق', onclick: closeModal })
+      )
+    ));
+  }
+
+  async function openAdminNotification(n, onAfterRead) {
+    if (!n) return;
+    markAdminNotificationReadDb(n).catch(function () {});
+    if (typeof onAfterRead === 'function') onAfterRead();
+    var isWaInbound = (n.notification_type === 'whatsapp_inbound') || (n.category === 'messages' && n.related_record_id && !n.related_url);
+    if (isWaInbound) {
+      await openWhatsappInboundModal(n);
+      return;
+    }
+    if (n.related_url) go(n.related_url);
   }
 
   async function fetchNotifications() {
     var dbList = [];
     try {
       var q = S.me
-        ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&order=created_at.desc&limit=50')
+        ? (S.isEducator
+            ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&order=created_at.desc&limit=50')
+            : ('/notifications?or=(recipient_user_id.eq.' + uid(S.me) + ',recipient_user_id.is.null)&order=created_at.desc&limit=50'))
         : '/notifications?order=created_at.desc&limit=50';
       var rows = await C.rest('GET', q);
       if (Array.isArray(rows)) dbList = rows;
     } catch (e) {}
 
     var byId = {};
+    var waMsgIds = [];
+    var childIds = [];
     dbList.forEach(function (dItem) {
-      dItem.category = dItem.category || dItem.notification_type || 'general';
+      var rawType = String(dItem.category || dItem.notification_type || 'general').trim();
+      dItem.category = (rawType === 'whatsapp_inbound') ? 'messages' : rawType;
+      if (dItem.notification_type === 'whatsapp_inbound' && dItem.related_record_id) {
+        waMsgIds.push(String(dItem.related_record_id));
+      }
+      if (dItem.child_id) childIds.push(String(dItem.child_id));
       byId[dItem.id] = dItem;
     });
+
+    if (waMsgIds.length) {
+      try {
+        var uniqWa = Array.from(new Set(waMsgIds)).slice(0, 50);
+        var waRows = await C.rest('GET', '/whatsapp_messages?id=in.(' + uniqWa.map(uid).join(',') + ')&select=id,to_phone,body,child_id,created_at');
+        if (Array.isArray(waRows)) {
+          var waMap = {};
+          waRows.forEach(function (w) {
+            waMap[String(w.id)] = w;
+            if (w.child_id) childIds.push(String(w.child_id));
+          });
+          dbList.forEach(function (dItem) {
+            if (dItem.notification_type === 'whatsapp_inbound' && dItem.related_record_id) {
+              var w = waMap[String(dItem.related_record_id)];
+              if (w) {
+                dItem._wa_phone = w.to_phone || '';
+                dItem._wa_body = w.body || '';
+                dItem._wa_created_at = w.created_at || dItem.created_at;
+                if (!dItem.child_id && w.child_id) dItem.child_id = w.child_id;
+              }
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (childIds.length) {
+      var childMap = {};
+      var cachedKids = (S.cache && Array.isArray(S.cache.children)) ? S.cache.children : [];
+      cachedKids.forEach(function (k) { if (k && k.id) childMap[String(k.id)] = k.full_name || ''; });
+      var missingKids = Array.from(new Set(childIds)).filter(function (id) { return !childMap[id]; }).slice(0, 50);
+      if (missingKids.length) {
+        try {
+          var kRows = await C.rest('GET', '/children?id=in.(' + missingKids.map(uid).join(',') + ')&select=id,full_name');
+          if (Array.isArray(kRows)) {
+            kRows.forEach(function (k) { if (k && k.id) childMap[String(k.id)] = k.full_name || ''; });
+          }
+        } catch (e) {}
+      }
+      dbList.forEach(function (dItem) {
+        if (dItem.child_id && childMap[String(dItem.child_id)]) {
+          dItem._wa_child_name = childMap[String(dItem.child_id)];
+        }
+      });
+    }
+
     var localList = getLocalNotifications();
     localList.forEach(function (m) {
       if (!byId[m.id] && !DE.isUuid(String(m.id || ''))) {
@@ -16954,20 +17097,26 @@
       else if (n.category === 'docs') iconName = 's-file';
       else if (n.category === 'system') iconName = 's-shield';
 
+      var dropTitle = n.title || (n.notification_type === 'whatsapp_inbound' ? 'رسالة WhatsApp واردة' : 'إشعار');
+      if (n.notification_type === 'whatsapp_inbound' && (n._wa_child_name || n._wa_phone)) {
+        dropTitle = n._wa_child_name ? ('رسالة WhatsApp — ' + n._wa_child_name) : ('رسالة WhatsApp — ' + n._wa_phone);
+      }
+      var dropBody = (n.notification_type === 'whatsapp_inbound' && n._wa_body)
+        ? ((n._wa_phone && n._wa_child_name ? (n._wa_phone + ' • ') : '') + n._wa_body)
+        : (n.body || '');
       var item = h('div', {
         class: 'notif-drop-item' + (!n.is_read ? ' is-unread' : ''),
         onclick: function () {
-          markAdminNotificationReadDb(n);
           var drop = document.getElementById('notifDropdown');
           if (drop) drop.hidden = true;
-          if (n.related_url) go(n.related_url);
+          openAdminNotification(n);
         }
       },
         h('div', { class: 'ndi-icon' }, makeSvgIcon(iconName)),
         h('div', { class: 'ndi-info' },
-          h('strong', { class: 'ndi-title', text: n.title }),
-          h('p', { class: 'ndi-body', text: n.body }),
-          h('span', { class: 'ndi-time', text: fmt(n.created_at, true) })
+          h('strong', { class: 'ndi-title', text: dropTitle }),
+          h('p', { class: 'ndi-body', text: dropBody }),
+          h('span', { class: 'ndi-time', text: fmt(n._wa_created_at || n.created_at, true) + (n.is_read ? ' • مقروء' : ' • جديد') })
         )
       );
       host.appendChild(item);
@@ -17193,19 +17342,31 @@
         else if (n.category === 'docs') iconName = 's-file';
         else if (n.category === 'system') iconName = 's-shield';
 
-        var card = h('div', { class: 'notif-page-card' + (!n.is_read ? ' is-unread' : '') },
+        var cardTitle = n.title || (n.notification_type === 'whatsapp_inbound' ? 'رسالة WhatsApp واردة' : 'إشعار');
+        if (n.notification_type === 'whatsapp_inbound' && n._wa_child_name) {
+          cardTitle = 'رسالة WhatsApp — ' + n._wa_child_name;
+        }
+        var cardBody = (n.notification_type === 'whatsapp_inbound' && n._wa_body) ? n._wa_body : (n.body || '');
+        var card = h('div', {
+          class: 'notif-page-card' + (!n.is_read ? ' is-unread' : ''),
+          style: 'cursor:pointer;',
+          onclick: function () {
+            openAdminNotification(n, renderList);
+          }
+        },
           h('div', { class: 'npc-left' },
             h('div', { class: 'npc-icon' }, makeSvgIcon(iconName)),
             h('div', { class: 'npc-body' },
-              h('div', { style: 'display:flex;align-items:center;gap:10px;' },
-                h('strong', { text: n.title }),
-                !n.is_read ? badge('جديد', 'gold') : null
+              h('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' },
+                h('strong', { text: cardTitle }),
+                n._wa_phone ? h('span', { class: 'badge', dir: 'ltr', text: n._wa_phone }) : null,
+                !n.is_read ? badge('جديد', 'gold') : badge('مقروء', 'ok')
               ),
-              h('p', { text: n.body }),
+              h('p', { text: cardBody }),
               h('div', { class: 'npc-meta' },
-                h('span', { text: fmt(n.created_at, true) }),
+                h('span', { text: fmt(n._wa_created_at || n.created_at, true) }),
                 h('span', { text: '•' }),
-                h('span', { text: 'النوع: ' + (n.category || 'عام') })
+                h('span', { text: n.category === 'messages' ? 'النوع: الرسائل' : ('النوع: ' + (n.category || 'عام')) })
               )
             )
           ),
@@ -17213,18 +17374,17 @@
             h('button', {
               type: 'button',
               class: 'btn small light',
-              onclick: function () {
-                n.is_read = true;
-                setLocalNotifications(NOTIF_STATE.items);
-                updateNotificationBadges();
-                if (n.related_url) go(n.related_url);
+              onclick: function (ev) {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
+                openAdminNotification(n, renderList);
               }
             }, makeSvgIcon('s-eye'), h('span', { text: 'عرض التفاصيل' })),
             h('button', {
               type: 'button',
               class: 'btn small ghost',
               title: 'حذف الإشعار',
-              onclick: function () {
+              onclick: function (ev) {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
                 NOTIF_STATE.items = (NOTIF_STATE.items || []).filter(function (x) { return x.id !== n.id; });
                 setLocalNotifications(NOTIF_STATE.items);
                 updateNotificationBadges();
