@@ -16881,11 +16881,12 @@
     setLocalNotifications(NOTIF_STATE.items);
     updateNotificationBadges();
     renderNotificationDropdown();
-    if (S.me) {
+    var myId = S.me && (typeof S.me === 'string' ? S.me : S.me.id);
+    if (myId) {
       try {
         var q = S.isEducator
-          ? ('/notifications?recipient_user_id=eq.' + uid(S.me) + '&is_read=eq.false')
-          : ('/notifications?or=(recipient_user_id.eq.' + uid(S.me) + ',recipient_user_id.is.null)&is_read=eq.false');
+          ? ('/notifications?recipient_user_id=eq.' + uid(myId) + '&is_read=eq.false')
+          : ('/notifications?or=(recipient_user_id.eq.' + uid(myId) + ',recipient_user_id.is.null)&is_read=eq.false');
         await C.rest('PATCH', q, { is_read: true });
       } catch (e) {}
     }
@@ -16978,31 +16979,15 @@
   async function fetchNotifications() {
     var dbList = [];
     try {
-      var orderLimit = '&order=created_at.desc&limit=100';
-      if (S.me) {
-        // الإشعارات الخاصة بالمستخدم الحالي
-        var ownRows = await C.rest(
-          'GET',
-          '/notifications?recipient_user_id=eq.' + uid(S.me) + orderLimit
-        );
-        if (Array.isArray(ownRows)) dbList = dbList.concat(ownRows);
-
-        // الإشعارات العامة (recipient_user_id IS NULL) للإدارة فقط.
-        // لا نجلبها للمربين/المختصين؛ وتبقى سياسات RLS هي الحاجز الأمني النهائي.
-        if (!S.isEducator && !(S.isSpecialist)) {
-          var adminRows = await C.rest(
-            'GET',
-            '/notifications?recipient_user_id=is.null' + orderLimit
-          );
-          if (Array.isArray(adminRows)) dbList = dbList.concat(adminRows);
-        }
-      } else {
-        var rows = await C.rest('GET', '/notifications?order=created_at.desc&limit=100');
-        if (Array.isArray(rows)) dbList = rows;
-      }
-    } catch (e) {
-      console.warn('تعذر تحميل بعض إشعارات الإدارة:', e);
-    }
+      var myId = S.me && (typeof S.me === 'string' ? S.me : S.me.id);
+      var q = myId
+        ? (S.isEducator
+            ? ('/notifications?recipient_user_id=eq.' + uid(myId) + '&order=created_at.desc&limit=50')
+            : ('/notifications?or=(recipient_user_id.eq.' + uid(myId) + ',recipient_user_id.is.null)&order=created_at.desc&limit=50'))
+        : '/notifications?order=created_at.desc&limit=50';
+      var rows = await C.rest('GET', q);
+      if (Array.isArray(rows)) dbList = rows;
+    } catch (e) {}
 
     var byId = {};
     var waMsgIds = [];
