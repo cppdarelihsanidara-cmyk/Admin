@@ -15627,6 +15627,12 @@
           var tplApproved = tc.found && tc.status === 'APPROVED';
           body.appendChild(dRow(tplApproved, 'قالب الغياب (' + tc.name + ')', tc.found ? (tplApproved ? 'معتمد وجاهز (APPROVED)' : 'قيد المراجعة / غير معتمد (' + tc.status + ')') : 'غير موجود في Meta'));
         }
+        if (Array.isArray(r.templates)) {
+          var tplNames = r.templates.map(function (t) {
+            return (t.name || '—') + ' [' + (t.language || '?') + ' · ' + (t.status || '?') + ']';
+          });
+          body.appendChild(dRow(r.templates.length > 0, 'القوالب الموجودة في حساب Meta (' + r.templates.length + ')', tplNames.length ? tplNames.join(' ، ') : 'لا توجد أي قوالب في هذا الحساب'));
+        }
         if (r.hints && r.hints.length) {
           r.hints.forEach(function (x) { body.appendChild(h('div', { class: 'att-diag warn', text: '→ ' + x })); });
         }
