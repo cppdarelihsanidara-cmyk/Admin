@@ -962,38 +962,12 @@
     touch-action: pan-x pan-y pinch-zoom !important;
   }
 
-/* ── إبقاء أيقونات الأقسام ظاهرة بعد الدخول إلى أي قسم ── */
-@media (min-width: 861px) {
-  #app.shell.side-collapsed .side {
-    display: flex !important;
-    flex: 0 0 74px !important;
-    width: 74px !important;
-    min-width: 74px !important;
-    max-width: 74px !important;
-    transform: none !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    overflow-x: hidden !important;
+  /* ── وضع القراءة فقط لحسابات الإدارة غير المستثناة ── */
+  body.de-readonly-admin #view .btn.primary,
+  body.de-readonly-admin #view .btn.gold,
+  body.de-readonly-admin #view .btn.danger,
+  body.de-readonly-admin #view [data-action="add"],
+  body.de-readonly-admin #view [data-action="edit"],
+  body.de-readonly-admin #view [data-action="delete"] {
+    display: none !important;
   }
-  #app.shell.side-collapsed .main {
-    min-width: 0 !important;
-    width: calc(100% - 74px) !important;
-    flex: 1 1 calc(100% - 74px) !important;
-  }
-  #app.shell.side-collapsed .side #nav button {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 42px !important;
-    padding: 10px 6px !important;
-    margin: 3px 4px !important;
-  }
-  #app.shell.side-collapsed .side #nav button .i,
-  #app.shell.side-collapsed .side #nav button svg {
-    display: inline-flex !important;
-    width: 20px !important;
-    height: 20px !important;
-    flex: 0 0 20px !important;
-    margin: 0 !important;
-  }
-}

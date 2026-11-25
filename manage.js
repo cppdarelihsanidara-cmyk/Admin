@@ -754,14 +754,25 @@
     return S.isOwner || (S.centerAccess === 'all') || (typeof canAccessGeneralAdmin === 'function' && canAccessGeneralAdmin());
   }
 
+  function isFullPowerAdmin() {
+    var em = String((S.me && S.me.email) || '').toLowerCase().trim();
+    return em === 'amir.zakaria06000@gmail.com' || em === 'cppdarelihsan.idara@gmail.com';
+  }
+
   function applyRoleSidebarUI() {
     var isEdu = !!S.isEducator;
     var isFarm = isFarmSession();
     var isSpec = !!S.isSpecialist;
-    var allowedForEdu = { children: true, attendance: true, reports: true, evaluations: true };
-    var allowedForSpec = { dash: true, children: true, attendance: true, programs: true, reports: true, evaluations: true, appts: true, msgs: true, docs: true };
+    var isFull = isFullPowerAdmin();
+    // الشؤون البيداغوجية دون فضاء الأولياء في المركز الرئيسي
+    var allowedForEdu = { children: true, attendance: true, reports: true, evaluations: true, programs: true, docs: true };
+    var allowedForSpec = { children: true, reports: true, evaluations: true, programs: true, docs: true, appts: true, msgs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, attendance: true, educators: true, programs: true, reports: true, evaluations: true, accounts: true, archive: true, requests: true, inquiries: true };
+
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.toggle('de-readonly-admin', !!S.isReadOnlyAdmin);
+    }
 
     [].forEach.call(document.querySelectorAll('#nav [data-sec]'), function (btn) {
       var secKey = btn.dataset.sec;
@@ -769,8 +780,12 @@
         btn.hidden = true;
         return;
       }
+      if (!isFull && secKey === 'parents' && S.activeCenter === 'main') {
+        btn.hidden = true;
+        return;
+      }
       if (secKey === 'attendance') {
-        btn.hidden = false;
+        btn.hidden = isSpec ? true : false;
         setNavBtnLabel(btn, 'الغيابات والحضور');
         return;
       }
@@ -791,7 +806,7 @@
         if (secKey === 'accounts') setNavBtnLabel(btn, S.activeCenter === 'work' ? 'الحسابات الخاصة بمركز المساعدة على العمل' : 'الحسابات الخاصة بالمزرعة البيداغوجية');
         if (secKey === 'archive') setNavBtnLabel(btn, 'الأرشيف والنسخ الاحتياطية');
       } else {
-        btn.hidden = false;
+        btn.hidden = (!isFull && secKey === 'parents' && S.activeCenter === 'main');
         if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
@@ -1772,7 +1787,7 @@
     }
 
     function editChild(c) {
-      if (S.isEducator || S.isSpecialist) return toast('صلاحية تعديل ملفات الطلبة محصورة بالإدارة.', 'bad');
+      if (S.isEducator || S.isSpecialist || S.isReadOnlyAdmin) return toast('صلاحية تعديل ملفات الطلبة محصورة بالإدارة المخوّلة.', 'bad');
       return openForm({
         title: c ? 'تعديل بيانات تلميذ' : 'إضافة تلميذ جديد إلى المركز',
         values: c ? Object.assign({}, c, { created_at: c.created_at ? String(c.created_at).slice(0, 10) : '' }) : (function () {
@@ -16446,7 +16461,8 @@
     if (isFarmSession() && sec === 'reports') {
       sec = 'children';
     }
-    if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && (sec !== 'reports' || isFarmSession()) && (sec !== 'evaluations' || isFarmSession()))) {
+    if (!isFullPowerAdmin() && sec === 'parents' && S.activeCenter === 'main') { sec = 'children'; }
+    if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && (sec !== 'reports' || isFarmSession()) && (sec !== 'evaluations' || isFarmSession()) && sec !== 'programs' && sec !== 'docs')) {
       sec = 'children';
     }
     if (S.isSpecialist && (sec === 'accounts' || sec === 'hub' || sec === 'hub_accounts' || sec === 'audit' || sec === 'settings' || sec === 'educators' || sec === 'archive' || sec === 'whatsapp' || sec === 'attendance')) {
@@ -16643,6 +16659,7 @@
         var prof = Object.assign({}, eduMatch || {}, accMeta || {});
         S.isEducator = true;
         S.isSpecialist = false;
+        S.isReadOnlyAdmin = false;
         S.eduProfile = prof;
         S.eduSectionId = (prof && prof.section_id) || '';
         S.eduSectionName = (prof && prof.section_name) || '';
@@ -16663,6 +16680,7 @@
       } else if (isKnownSpec) {
         S.isEducator = false;
         S.isSpecialist = true;
+        S.isReadOnlyAdmin = false;
         S.eduProfile = null;
         S.eduSectionId = '';
         S.eduSectionName = '';
@@ -16671,6 +16689,7 @@
       } else {
         S.isEducator = false;
         S.isSpecialist = false;
+        S.isReadOnlyAdmin = !isFullPowerAdmin();
         S.eduProfile = null;
         S.eduSectionId = '';
         S.eduSectionName = '';
@@ -17300,6 +17319,11 @@
   }
 
   function initHeaderWidgets() {
+    var topLogoutBtn = document.getElementById('topLogoutBtn');
+    if (topLogoutBtn && !topLogoutBtn._bound) {
+      topLogoutBtn._bound = true;
+      topLogoutBtn.addEventListener('click', function () { logout(); });
+    }
     initThemeEngine();
 
     // ربط جرس الإشعارات
