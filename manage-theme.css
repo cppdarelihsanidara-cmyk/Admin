@@ -4290,26 +4290,91 @@ body {
 }
 
 /* ضبط حدود صندوق الملاحظات والتقرير الكتابي لعدم تجاوز صفحة A4 أبداً */
+/* تقليص منطقة المعلومات العلوية إلى النصف وتوسيع مربعات الكتابة السفلية لتظهر الكتابة كاملة */
+.oep-written-page-box .oep-header,
+.official-eval-paper .oep-header {
+  padding-bottom: 4px !important;
+  margin-bottom: 4px !important;
+  gap: 6px !important;
+}
+.oep-written-page-box .oep-logo-side,
+.official-eval-paper .oep-logo-side {
+  width: 46px !important;
+  height: 46px !important;
+}
+.oep-written-page-box .oep-org-name,
+.oep-written-page-box .oep-center-name,
+.oep-written-page-box .oep-report-heading {
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+.oep-written-page-box .oep-term-banner,
+.official-eval-paper .oep-term-banner {
+  padding: 3px 8px !important;
+  margin-bottom: 5px !important;
+  font-size: 0.84rem !important;
+  line-height: 1.25 !important;
+}
+.oep-written-page-box .oep-info-table,
+.oep-written-page-box .oep-supervisors-table,
+.official-eval-paper .oep-info-table,
+.official-eval-paper .oep-supervisors-table {
+  margin-bottom: 5px !important;
+}
+.oep-written-page-box .oep-info-table td,
+.oep-written-page-box .oep-supervisors-table th,
+.oep-written-page-box .oep-supervisors-table td,
+.official-eval-paper .oep-info-table td,
+.official-eval-paper .oep-supervisors-table th,
+.official-eval-paper .oep-supervisors-table td {
+  padding: 2px 6px !important;
+  font-size: 0.76rem !important;
+  line-height: 1.22 !important;
+  height: auto !important;
+}
+.oep-written-page-box .oep-section-banner,
+.oep-written-page-box .oep-summary-banner {
+  padding: 4px 8px !important;
+  margin: 6px 0 !important;
+}
+.oep-written-page-box .oep-performance-grid,
+.official-eval-paper .oep-performance-grid {
+  grid-template-columns: 1fr 1.25fr !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+.oep-written-page-box .oep-ability-box,
+.official-eval-paper .oep-ability-box {
+  min-height: 82px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
 .oep-a4-clamped-body {
-  max-height: 250px !important;
-  overflow: hidden !important;
-  display: -webkit-box !important;
-  -webkit-line-clamp: 10 !important;
-  -webkit-box-orient: vertical !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  white-space: pre-wrap !important;
   word-break: break-word !important;
+  line-height: 1.58 !important;
+  padding: 10px 12px !important;
+  font-size: 0.85rem !important;
 }
-
 .oep-a4-clamped-ability {
-  max-height: 44px !important;
-  overflow: hidden !important;
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  line-height: 1.48 !important;
+  padding: 8px 9px !important;
+  font-size: 0.8rem !important;
+  flex: 1 1 auto !important;
 }
-
 .oep-a4-clamped-list {
-  max-height: 115px !important;
-  overflow: hidden !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .oep-written-page-box {

@@ -7343,7 +7343,7 @@
     ].map(function (item) {
       return h('div', { class: 'oep-ability-box' },
         h('div', { class: 'oep-ab-hdr ' + item.cls, text: item.title }),
-        h('div', { class: 'oep-ab-content oep-a4-clamped-ability', text: String(item.val || '—').slice(0, 140) })
+        h('div', { class: 'oep-ab-content oep-a4-clamped-ability', text: String(item.val || '—') })
       );
     });
 
@@ -12942,10 +12942,7 @@
               await syncSharedEvaluationRecord(Object.assign({}, r, { status: 'published', activities: upd }), null);
               bust(); toast('تم نشر التقرير للولي.', 'ok'); go('reports');
             }, 'gold'),
-          rbtn('نسخ النص', function () {
-            var txt = [r.title || '', r.achievements || '', r.notes || ''].filter(Boolean).join('\n\n');
-            if (window.DE && DE.copyText) DE.copyText(txt).then(function (ok) { toast(ok ? 'تم نسخ محتوى التقرير.' : 'تعذر النسخ.', ok ? 'ok' : 'bad'); });
-          }, 'light'),
+
           rbtn('حذف التقرير', function () { return deleteReportRecord(r); }, 'danger')
         ];
       }
@@ -13165,10 +13162,7 @@
       ],
       actions: function (r) {
         return [
-          rbtn('نسخ النص', function () {
-            var txt = [r.title || '', r.achievements || '', r.notes || ''].filter(Boolean).join('\n\n');
-            if (window.DE && DE.copyText) DE.copyText(txt).then(function (ok) { toast(ok ? 'تم نسخ نص التقييم.' : 'تعذر النسخ.', ok ? 'ok' : 'bad'); });
-          }, 'light')
+null
         ];
       }
     });
