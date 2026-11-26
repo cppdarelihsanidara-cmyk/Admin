@@ -1167,21 +1167,46 @@
   }
 
   @media (max-width: 860px) {
-    /* استغلال كامل عرض الشاشة على الهاتف وإخفاء الشريط الجانبي عند الطي */
+    /* استغلال كامل عرض الشاشة على الهاتف وإظهار القائمة الجانبية عند تفعيل nav-toggled */
+    #app.shell .side,
     #app.shell.side-collapsed .side {
-      transform: translateX(100%) !important;
-      pointer-events: none !important;
-      visibility: hidden !important;
-    }
-    #app.shell:not(.side-collapsed) .side {
-      transform: translateX(0) !important;
+      position: fixed !important;
+      inset-block: 0 !important;
+      inset-inline-start: 0 !important;
       width: 272px !important;
       max-width: 84vw !important;
-      visibility: visible !important;
-      pointer-events: auto !important;
+      transform: translateX(110%) !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
       z-index: 9500 !important;
       background: #FFFFFF !important;
+      transition: transform 0.25s ease, visibility 0.25s ease !important;
+    }
+    #app.shell.nav-toggled .side,
+    #app.shell.side-collapsed.nav-toggled .side {
+      transform: translateX(0) !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
       box-shadow: -8px 0 32px rgba(23, 47, 80, 0.22) !important;
+    }
+    #app.shell.nav-toggled .side .brand-txt,
+    #app.shell.nav-toggled .side .side-close-btn,
+    #app.shell.nav-toggled .side .nav-group-label,
+    #app.shell.nav-toggled .side #nav button span:not(.nav-badge),
+    #app.shell.nav-toggled .side .side-foot span {
+      display: inline-block !important;
+    }
+    #app.shell.nav-toggled .side #nav button {
+      justify-content: flex-start !important;
+      padding: 11px 14px !important;
+    }
+    #app.shell.nav-toggled #scrim {
+      display: block !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      z-index: 9400 !important;
     }
     #app.shell .main,
     #app.shell.side-collapsed .main {

@@ -2,20 +2,20 @@
 'use strict';
 
 var CACHE_PREFIX = 'de-parents-';
-var CACHE = CACHE_PREFIX + 'prod-20261126-di6';
+var CACHE = CACHE_PREFIX + 'prod-20261126-clean1';
 var APP_SCOPE = new URL(self.registration.scope);
 var SHELL = [
-  './', 'index.html', 'parent.html', 'manage.html', 'navback.js', 'icons.js', 'icons.css',
-  'portal.css', 'crystal-blue-glass.css', 'pastel-glass.css', 'manage-theme.css', 'parent-modern.css',
-  'pdf-writer.js', 'zip-builder.js', 'pwa.css', 'pwa.js', 'cms-config.js', 'parent.js',
-  'parent-guard.js', 'de-core.js', 'username.js', 'manage.js', 'card.js', 'centers.js',
+  './', 'index.html', 'manage.html', 'manage.html', 'navback.js', 'icons.js', 'icons.css',
+  'portal.css',   'manage-theme.css', 
+  'pdf-writer.js', 'zip-builder.js', 'pwa.css', 'pwa.js', 'cms-config.js', 
+   'de-core.js', 'username.js', 'manage.js', 'card.js', 'centers.js',
   'fr-names.js', 'qr-encoder.js', 'qr-gen.js', 'qr.js', 'logo.png', 'logo-sq.png',
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
-  'manage.webmanifest', 'parent.webmanifest', 'manifest.webmanifest'
+  'manage.webmanifest',  'manifest.webmanifest'
 ];
 
 function resolveScopedUrl(rawUrl, fallbackFile) {
-  var fallback = new URL(fallbackFile || 'parent.html', APP_SCOPE);
+  var fallback = new URL(fallbackFile || 'manage.html', APP_SCOPE);
   if (!rawUrl) return fallback;
   try {
     var resolved = new URL(String(rawUrl), APP_SCOPE);
@@ -84,7 +84,7 @@ self.addEventListener('fetch', function (event) {
       return caches.match(request, { ignoreSearch: true }).then(function (cached) {
         if (cached) return cached;
         if (request.mode === 'navigate') {
-          return caches.match(new URL('parent.html', APP_SCOPE).href)
+          return caches.match(new URL('manage.html', APP_SCOPE).href)
             .then(function (parentPage) {
               return parentPage || caches.match(new URL('index.html', APP_SCOPE).href);
             })
@@ -99,7 +99,7 @@ self.addEventListener('fetch', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var rawTarget = (event.notification.data && event.notification.data.url) || event.notification.url;
-  var target = resolveScopedUrl(rawTarget, 'parent.html');
+  var target = resolveScopedUrl(rawTarget, 'manage.html');
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clients) {
@@ -134,8 +134,8 @@ self.addEventListener('push', function (event) {
 
   var title = String(payload.title || 'دار الإحسان').trim() || 'دار الإحسان';
   var body = String(payload.body || 'لديك إشعار جديد في فضاء الأولياء').trim() || 'لديك إشعار جديد في فضاء الأولياء';
-  var rawUrl = (payload.data && payload.data.url) || payload.url || 'parent.html';
-  var targetUrl = resolveScopedUrl(rawUrl, 'parent.html').href;
+  var rawUrl = (payload.data && payload.data.url) || payload.url || 'manage.html';
+  var targetUrl = resolveScopedUrl(rawUrl, 'manage.html').href;
 
   var options = {
     body: body,

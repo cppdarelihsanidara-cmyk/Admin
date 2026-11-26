@@ -17378,7 +17378,10 @@
       b.onclick = function () {
         if (it.sec === '_more') {
           var appEl = document.getElementById('app');
-          if (appEl) appEl.classList.remove('side-collapsed');
+          if (appEl) {
+            if (window.innerWidth <= 860) appEl.classList.toggle('nav-toggled');
+            else appEl.classList.remove('side-collapsed');
+          }
           return;
         }
         go(it.sec);
@@ -17769,7 +17772,7 @@
         });
       }
       if ($('#scrim')) $('#scrim').addEventListener('click', function () { $('#app').classList.remove('nav-toggled'); });
-      if ($('#nav')) $('#nav').addEventListener('click', function (e) { var b = e.target.closest('button[data-sec]'); if (b) go(b.dataset.sec); });
+      if ($('#nav')) $('#nav').addEventListener('click', function (e) { var b = e.target.closest('button[data-sec]'); if (b) { if ($('#app')) $('#app').classList.remove('nav-toggled'); go(b.dataset.sec); } });
       if ($('#modal')) $('#modal').addEventListener('click', function (e) { if (e.target === $('#modal')) closeModal(); });
       document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
 
