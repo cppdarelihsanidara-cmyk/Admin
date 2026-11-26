@@ -21,12 +21,12 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&family=Readex+Pro:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="portal.css?v=20261126_clean1">
 <link rel="stylesheet" href="manage-theme.css?v=20261126_clean1">
-<link rel="stylesheet" href="mobile-admin.css?v=20261126_clean1">
 <link rel="stylesheet" href="pwa.css?v=20261126_clean1">
 <script src="pwa.js?v=20261126_clean1" defer></script>
   <link rel="stylesheet" href="icons.css?v=20261126_clean1">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dar-ihsan-glass.css?v=20261126_clean1">
+    <link rel="stylesheet" href="mobile-admin.css?v=20261126_mfirst2">
 </head>
 <body>
 <svg width="0" height="0" class="sprite" aria-hidden="true">
@@ -149,31 +149,31 @@
 
     <nav id="nav">
       <div class="nav-group-label" data-nav-group="overview">نظرة عامة والعمليات</div>
-      <button type="button" data-sec="dash" aria-label="لوحة التحكم"><svg class="i"><use href="#s-home"/></svg><span>لوحة التحكم</span></button>
-      <button type="button" data-sec="notifications" aria-label="مركز الإشعارات 0"><svg class="i"><use href="#s-bell"/></svg><span>مركز الإشعارات</span><span id="notifNavBadge" class="nav-badge" hidden>0</span></button>
-      <button type="button" data-sec="attendance" aria-label="الحضور والغياب"><svg class="i"><use href="#s-cal"/></svg><span>الحضور والغياب</span></button>
-      <button type="button" data-sec="msgs" aria-label="الرسائل والتواصل"><svg class="i"><use href="#s-mail"/></svg><span>الرسائل والتواصل</span></button>
+      <button type="button" data-sec="dash" title="لوحة التحكم" aria-label="لوحة التحكم"><svg class="i"><use href="#s-home"/></svg><span>لوحة التحكم</span></button>
+      <button type="button" data-sec="notifications" title="مركز الإشعارات" aria-label="مركز الإشعارات 0"><svg class="i"><use href="#s-bell"/></svg><span>مركز الإشعارات</span><span id="notifNavBadge" class="nav-badge" hidden>0</span></button>
+      <button type="button" data-sec="attendance" title="الحضور والغياب" aria-label="الحضور والغياب"><svg class="i"><use href="#s-cal"/></svg><span>الحضور والغياب</span></button>
+      <button type="button" data-sec="msgs" title="الرسائل والتواصل" aria-label="الرسائل والتواصل"><svg class="i"><use href="#s-mail"/></svg><span>الرسائل والتواصل</span></button>
 
       <div class="nav-group-label" data-nav-group="academics">الشؤون البيداغوجية</div>
-      <button type="button" data-sec="children" aria-label="الأقسام والأطفال"><svg class="i"><use href="#s-child"/></svg><span>الأقسام والأطفال</span></button>
-      <button type="button" data-sec="reports" aria-label="التقارير"><svg class="i"><use href="#s-report"/></svg><span>التقارير</span></button>
-      <button type="button" data-sec="evaluations" aria-label="التقييم"><svg class="i"><use href="#s-card"/></svg><span>التقييم</span></button>
-      <button type="button" data-sec="programs" aria-label="البرامج الأسبوعية"><svg class="i"><use href="#s-book"/></svg><span>البرامج الأسبوعية</span></button>
-      <button type="button" data-sec="docs" aria-label="الوثائق"><svg class="i"><use href="#s-file"/></svg><span>الوثائق</span></button>
-      <button type="button" data-sec="parents" aria-label="فضاء الأولياء"><svg class="i"><use href="#s-users"/></svg><span>فضاء الأولياء</span></button>
+      <button type="button" data-sec="children" title="الأقسام والأطفال" aria-label="الأقسام والأطفال"><svg class="i"><use href="#s-child"/></svg><span>الأقسام والأطفال</span></button>
+      <button type="button" data-sec="reports" title="التقارير" aria-label="التقارير"><svg class="i"><use href="#s-report"/></svg><span>التقارير</span></button>
+      <button type="button" data-sec="evaluations" title="التقييم" aria-label="التقييم"><svg class="i"><use href="#s-card"/></svg><span>التقييم</span></button>
+      <button type="button" data-sec="programs" title="البرامج الأسبوعية" aria-label="البرامج الأسبوعية"><svg class="i"><use href="#s-book"/></svg><span>البرامج الأسبوعية</span></button>
+      <button type="button" data-sec="docs" title="الوثائق" aria-label="الوثائق"><svg class="i"><use href="#s-file"/></svg><span>الوثائق</span></button>
+      <button type="button" data-sec="parents" title="فضاء الأولياء" aria-label="فضاء الأولياء"><svg class="i"><use href="#s-users"/></svg><span>فضاء الأولياء</span></button>
 
       <div class="sep" id="navSep"></div>
       <div class="nav-group-label" data-nav-group="operations">الإدارة والأمان</div>
-      <button type="button" data-sec="requests" aria-label="طلبات التسجيل الأولية 0"><svg class="i"><use href="#s-clipboard-list"/></svg><span>طلبات التسجيل الأولية</span><span id="requestsBadge" class="nav-badge" hidden>0</span></button>
-      <button type="button" data-sec="inquiries" aria-label="الاستفسارات العامة 0"><svg class="i"><use href="#s-message-square"/></svg><span>الاستفسارات العامة</span><span id="inquiriesBadge" class="nav-badge" hidden>0</span></button>
-      <button type="button" data-sec="archive" aria-label="الأرشيف والنسخ الاحتياطية"><svg class="i"><use href="#s-archive"/></svg><span>الأرشيف والنسخ الاحتياطية</span></button>
-      <button type="button" data-sec="accounts" aria-label="إدارة المستخدمين"><svg class="i"><use href="#s-shield"/></svg><span>إدارة المستخدمين</span></button>
-      <button type="button" data-sec="audit" aria-label="سجل النشاطات"><svg class="i"><use href="#s-log"/></svg><span>سجل النشاطات</span></button>
-      <button type="button" data-sec="settings" aria-label="الإعدادات"><svg class="i"><use href="#s-gear"/></svg><span>الإعدادات</span></button>
+      <button type="button" data-sec="requests" title="طلبات التسجيل الأولية" aria-label="طلبات التسجيل الأولية 0"><svg class="i"><use href="#s-clipboard-list"/></svg><span>طلبات التسجيل الأولية</span><span id="requestsBadge" class="nav-badge" hidden>0</span></button>
+      <button type="button" data-sec="inquiries" title="الاستفسارات العامة" aria-label="الاستفسارات العامة 0"><svg class="i"><use href="#s-message-square"/></svg><span>الاستفسارات العامة</span><span id="inquiriesBadge" class="nav-badge" hidden>0</span></button>
+      <button type="button" data-sec="archive" title="الأرشيف والنسخ الاحتياطية" aria-label="الأرشيف والنسخ الاحتياطية"><svg class="i"><use href="#s-archive"/></svg><span>الأرشيف والنسخ الاحتياطية</span></button>
+      <button type="button" data-sec="accounts" title="إدارة المستخدمين" aria-label="إدارة المستخدمين"><svg class="i"><use href="#s-shield"/></svg><span>إدارة المستخدمين</span></button>
+      <button type="button" data-sec="audit" title="سجل النشاطات" aria-label="سجل النشاطات"><svg class="i"><use href="#s-log"/></svg><span>سجل النشاطات</span></button>
+      <button type="button" data-sec="settings" title="الإعدادات" aria-label="الإعدادات"><svg class="i"><use href="#s-gear"/></svg><span>الإعدادات</span></button>
     </nav>
 
     <div class="side-foot">
-      <button id="sideLogoutBtn" class="side-signout-btn" type="button" aria-label="تسجيل الخروج">
+      <button id="sideLogoutBtn" class="side-signout-btn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج">
         <svg class="i"><use href="#s-out"/></svg>
         <span>تسجيل الخروج</span>
       </button>
@@ -200,7 +200,7 @@
           <span id="hubSwitchTxt">لوحة الإدارة</span>
         </button>
 
-        <button id="topLogoutBtn" class="btn small light" type="button" aria-label="تسجيل الخروج" title="تسجيل الخروج" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-weight:800;color:#B91C1C;border-color:rgba(185,28,28,0.22);"><svg class="i" style="width:16px;height:16px;"><use href="#s-logout"/></svg><span>تسجيل الخروج</span></button>
+        <button id="topLogoutBtn" class="btn small light" type="button" aria-label="تسجيل الخروج" title="تسجيل الخروج" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-weight:800;color:#B91C1C;border-color:rgba(185,28,28,0.22);"><svg class="i" style="width:16px;height:16px;"><use href="#s-out"/></svg><span>تسجيل الخروج</span></button>
         <div class="hdr-notif-box">
           <button id="notifBellBtn" class="icon-btn notif-bell-btn" type="button" aria-label="مركز الإشعارات والتنبيهات" title="الإشعارات والتنبيهات">
             <svg class="i"><use href="#s-bell"/></svg>
@@ -233,7 +233,7 @@
 
 <script src="cms-config.js?v=20261126_clean1"></script>
 <script src="centers.js?v=20261126_clean1"></script>
-<script src="de-core.js?v=20261126_clean1"></script>
+<script src="de-core.js?v=20261126_mfirst2"></script>
 <script src="fr-names.js?v=20261126_clean1"></script>
 <script src="username.js?v=20261126_clean1"></script>
 
@@ -244,6 +244,6 @@
 <script src="pdf-writer.js?v=20261126_clean1"></script>
 <script src="zip-builder.js?v=20261126_clean1"></script>
 <script src="icons.js?v=20261126_clean1"></script>
-<script src="manage.js?v=20261126_clean1"></script>
+<script src="manage.js?v=20261126_mfirst2"></script>
 </body>
 </html>

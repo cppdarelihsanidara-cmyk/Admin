@@ -86,7 +86,8 @@
       else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'hidden' || k === 'selected') el[k] = v;
       else if (k === 'style') { el.style.cssText = String(v); }
       else if (/^on/i.test(k) || k === 'innerHTML' || k === 'outerHTML' || k === 'srcdoc') return;   // مرفوضة عمدًا
-      else if ((k === 'href' || k === 'src') && !/^(https:|blob:|#)/i.test(String(v))) return;
+      else if (k === 'href' && !/^(https:|blob:|#)/i.test(String(v))) return;
+      else if (k === 'src' && !/^(https:|blob:|data:image\/(?:png|jpe?g|webp|gif);base64,|(?![./]*\.\.)(?:\.\/)?[a-zA-Z0-9._\/-]+\.(?:png|jpe?g|webp|svg|gif)(?:\?[a-zA-Z0-9_=&.-]*)?$)/i.test(String(v))) return;
       else el.setAttribute(k, v === true ? '' : String(v));
     });
     for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);

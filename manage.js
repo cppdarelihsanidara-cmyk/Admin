@@ -110,7 +110,8 @@
           else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'hidden' || k === 'selected') el[k] = v;
           else if (k === 'style') { el.style.cssText = String(v); }
           else if (/^on/i.test(k) || k === 'innerHTML' || k === 'outerHTML' || k === 'srcdoc') return;
-          else if ((k === 'href' || k === 'src') && !/^(https:|blob:|#)/i.test(String(v))) return;
+          else if (k === 'href' && !/^(https:|blob:|#)/i.test(String(v))) return;
+          else if (k === 'src' && !/^(https:|blob:|data:image\/(?:png|jpe?g|webp|gif);base64,|(?![./]*\.\.)(?:\.\/)?[a-zA-Z0-9._\/-]+\.(?:png|jpe?g|webp|svg|gif)(?:\?[a-zA-Z0-9_=&.-]*)?$)/i.test(String(v))) return;
           else el.setAttribute(k, v === true ? '' : String(v));
         });
         for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);
@@ -293,6 +294,8 @@
     accounts: 'إدارة المستخدمين والصلاحيات',
     notifications: 'مركز الإشعارات والتنبيهات',
     parents: 'فضاء الأولياء',
+    requests: 'طلبات التسجيل الأولية',
+    inquiries: 'الاستفسارات العامة',
     audit: 'سجل العمليات والتدقيق',
     attendance: 'الغيابات والحضور',
     settings: 'الأمان والإعدادات'
@@ -4943,34 +4946,48 @@
 
   function openFullDocumentPreviewModal(titleText, contentEl, onDownloadPdf, previewOpts) {
     var hideZoom = !!(previewOpts && previewOpts.hideZoom);
+    var naturalWidth = (previewOpts && previewOpts.landscape) ? 1020 : 794;
     var zoomPct = 100;
-    var zoomLabel = h('span', { style: 'font-weight:900; font-size:12.5px; color:#163B65; min-width:46px; text-align:center;', text: '100%' });
-    var stageInner = h('div', {
-      style: 'transform-origin:top center; transition:transform 0.15s ease; width:100%;'
-    }, contentEl);
-    var stageScroll = h('div', {
-      class: 'de-a4-preview-stack', style: 'flex:1; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; background:#E8EEF5; padding:18px 12px; border-radius:10px; max-height:78vh;'
-    }, stageInner);
+    var zoomLabel = h('span', { style: 'font-weight:900; font-size:12.5px; color:#163B65; min-width:44px; text-align:center;', text: '100%' });
 
-    function applyZoom(pct) {
-      zoomPct = Math.max(50, Math.min(200, pct));
-      zoomLabel.textContent = zoomPct + '%';
-      stageInner.style.transform = 'scale(' + (zoomPct / 100) + ')';
-      stageInner.style.width = zoomPct > 100 ? (10000 / zoomPct) + '%' : '100%';
+    var stageInner = h('div', {
+      class: 'de-a4-fit-inner',
+      style: 'width:' + naturalWidth + 'px; max-width:none; padding:16px; box-sizing:border-box; direction:rtl;'
+    }, contentEl);
+    var stageOuter = h('div', { class: 'de-a4-fit-outer' }, stageInner);
+    var stageScroll = h('div', {
+      class: 'de-a4-preview-stack'
+    }, stageOuter);
+
+    function syncOuterMetrics(scale) {
+      var hgt = Math.max(stageInner.scrollHeight || stageInner.offsetHeight || 600, 320);
+      stageOuter.style.width = Math.ceil(naturalWidth * scale) + 'px';
+      stageOuter.style.height = Math.ceil(hgt * scale) + 'px';
+      stageInner.style.transform = 'scale(' + scale + ')';
+      stageInner.style.transformOrigin = 'top right';
     }
 
-    var toolbar = h('div', {
-      class: 'no-print',
-      style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-bottom:10px; margin-bottom:10px; border-bottom:1.5px solid #CBD5E1;'
-    },
-      h('div', { style: 'display:flex; align-items:center; gap:8px;' },
-        h('img', { src: 'logo.png', style: 'width:32px; height:32px; border-radius:6px; object-fit:contain;' }),
-        h('strong', { style: 'color:#163B65; font-size:14.5px;', text: titleText || 'معاينة الوثيقة الكاملة' })
+    function computeFitPct() {
+      var avail = Math.max(260, (stageScroll.clientWidth || (window.innerWidth - 40)) - 20);
+      return Math.max(35, Math.min(100, Math.floor((avail / naturalWidth) * 100)));
+    }
+
+    function applyZoom(pct) {
+      zoomPct = Math.max(35, Math.min(200, Math.round(pct)));
+      zoomLabel.textContent = zoomPct + '%';
+      syncOuterMetrics(zoomPct / 100);
+    }
+
+    var toolbar = h('div', { class: 'no-print de-a4-preview-toolbar' },
+      h('div', { style: 'display:flex; align-items:center; gap:8px; min-width:0;' },
+        h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:30px; height:30px; border-radius:6px; object-fit:contain; flex-shrink:0;' }),
+        h('strong', { style: 'color:#163B65; font-size:14px; overflow:hidden; text-overflow:ellipsis;', text: titleText || 'معاينة الوثيقة الكاملة' })
       ),
       h('div', { style: 'display:flex; align-items:center; gap:6px; flex-wrap:wrap;' },
-        !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: '− تصغير', onclick: function () { applyZoom(zoomPct - 15); } }) : null,
+        !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: '−', title: 'تصغير', onclick: function () { applyZoom(zoomPct - 12); } }) : null,
         !hideZoom ? zoomLabel : null,
-        !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: '+ تكبير', onclick: function () { applyZoom(zoomPct + 15); } }) : null,
+        !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: '+', title: 'تكبير', onclick: function () { applyZoom(zoomPct + 12); } }) : null,
+        !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: 'ملاءمة', title: 'ملاءمة عرض الشاشة', onclick: function () { applyZoom(computeFitPct()); } }) : null,
         !hideZoom ? h('button', { type: 'button', class: 'btn small light', text: '100%', onclick: function () { applyZoom(100); } }) : null,
         typeof onDownloadPdf === 'function' ? h('button', { type: 'button', class: 'btn small gold', text: '📄 تحميل PDF', onclick: onDownloadPdf }) : null,
         h('button', { type: 'button', class: 'btn small light', text: '🖨 طباعة', onclick: function () { window.print(); } }),
@@ -4979,16 +4996,16 @@
     );
 
     var modalWrap = h('div', {
-      class: 'modal card wk-modal-print',
-      style: 'max-width:1080px; width:96%; max-height:94vh; display:flex; flex-direction:column; padding:14px 16px; background:#FFFFFF; border-radius:14px;'
+      class: 'modal card wk-modal-print de-a4-preview-modal'
     }, toolbar, stageScroll);
 
     openModal(modalWrap);
     setTimeout(function () {
+      applyZoom(window.innerWidth <= 860 ? computeFitPct() : Math.min(100, computeFitPct()));
       stageScroll.scrollTop = 0;
       var modalBackdrop = modalWrap.parentElement;
       if (modalBackdrop) modalBackdrop.scrollTop = 0;
-    }, 30);
+    }, 45);
   }
 
   var EVAL_MARKER = '/*DE_EVAL_V1*/';
@@ -6827,8 +6844,8 @@
     // السلام عليكم والنص التمهيدي
     wrap.appendChild(h('div', { style: 'text-align:center; margin-bottom:12px; font-size:15px; font-weight:900;', text: 'السلام عليكم ورحمة الله وبركاته' }));
     wrap.appendChild(h('div', { style: 'text-align:justify; font-size:13.5px; margin-bottom:16px;' },
-      'في إطار متابعة المسار التربوي لأبنائكم، نحيطكم علما بأنه تم حصر مختلف المهارات التي تم تدريب ابنكم عليها خلال الموسم الدراسي ' +
-      h('strong', null, af.school_year || getCurrentAcademicYear()).outerHTML +
+      'في إطار متابعة المسار التربوي لأبنائكم، نحيطكم علما بأنه تم حصر مختلف المهارات التي تم تدريب ابنكم عليها خلال الموسم الدراسي ',
+      h('strong', { text: af.school_year || getCurrentAcademicYear() }),
       '، وذلك لتمكينكم من الاطلاع عليها وتعزيز متابعتها خلال العطلة الصيفية. ويأتي هذا في سياق التعاون المستمر بين الأسرة والمركز، وحرصا على المحافظة على المكتسبات وضمان استمرارية البرنامج التربوي، بما يساهم في تحقيق الأهداف المسطرة ودعم تطور الطفل بشكل أفضل.'
     ));
 
@@ -13294,6 +13311,15 @@
         ];
       }
     });
+    if (!S.isEducator) {
+      v.insertBefore(h('div', { class: 'card', style: 'margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;' },
+        h('div', null,
+          h('strong', { style: 'display:block;color:#172F50;', text: 'المراسلة الحرة عبر WhatsApp للإدارة' }),
+          h('span', { class: 'muted small', text: 'إرسال رسائل نصية حرة للأولياء داخل نافذة Meta (24 ساعة) مع معاينة ومراقبة الحالة.' })
+        ),
+        h('button', { type: 'button', class: 'btn gold', text: '✉️ مراسلة حرة عبر WhatsApp', onclick: function () { openFreeWhatsappComposerModal({}); } })
+      ), v.firstChild);
+    }
   }
 
   /* =====================================================================
@@ -16329,13 +16355,41 @@
       }
       tabHost.appendChild(outCard);
 
+      var realWaInbound = [];
+      var portalJustifications = [];
+      var seenWaIds = {};
+      (dbWaReplies || []).forEach(function (m) {
+        if (!m) return;
+        var dedupKey = m.wa_message_id || m.id;
+        if (dedupKey && seenWaIds[dedupKey]) return;
+        if (dedupKey) seenWaIds[dedupKey] = true;
+        var isPortalJustif = !m.wa_message_id && String(m.body || '').indexOf('تبرير غياب الطفل [') === 0;
+        if (isPortalJustif) portalJustifications.push(m);
+        else realWaInbound.push(m);
+      });
+
+      if (!S.isEducator) {
+        tabHost.appendChild(h('div', { class: 'card', style: 'margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;' },
+          h('div', null,
+            h('strong', { style: 'display:block;color:#172F50;', text: 'مراسلة حرة عبر WhatsApp للإدارة' }),
+            h('span', { class: 'muted small', text: 'إرسال رسالة نصية لولي أمر أو عدة أولياء أو قسم كامل وفق سياسة Meta (نافذة 24 ساعة).' })
+          ),
+          h('button', {
+            type: 'button',
+            class: 'btn primary',
+            text: '✉️ إنشاء رسالة WhatsApp حرة',
+            onclick: function () { openFreeWhatsappComposerModal({}); }
+          })
+        ));
+      }
+
       var repCard = h('div', { class: 'card' },
-        h('h3', { style: 'margin:0 0 10px;', text: 'ردود الأولياء الواردة (' + dbWaReplies.length + ')' })
+        h('h3', { style: 'margin:0 0 10px;', text: 'رسائل WhatsApp الواردة (' + realWaInbound.length + ')' })
       );
-      if (!dbWaReplies.length) {
-        repCard.appendChild(h('div', { class: 'empty', text: 'لا توجد ردود واردة بعد.' }));
+      if (!realWaInbound.length) {
+        repCard.appendChild(h('div', { class: 'empty', text: 'لا توجد رسائل WhatsApp واردة بعد.' }));
       } else {
-        dbWaReplies.forEach(function (m) {
+        realWaInbound.forEach(function (m) {
           var kid = rawKids.filter(function (k) { return k && k.id === m.child_id; })[0];
           repCard.appendChild(h('div', { class: 'att-log att-reply' },
             h('div', { class: 'top' }, h('strong', { text: kid ? kid.full_name : 'مرسل غير مطابق' }), h('span', { dir: 'ltr', class: 'sic-num', text: m.to_phone || '—' })),
@@ -16345,6 +16399,21 @@
         });
       }
       tabHost.appendChild(repCard);
+
+      if (portalJustifications.length) {
+        var justCard = h('div', { class: 'card', style: 'margin-top:14px;border-color:rgba(184,134,11,0.28);' },
+          h('h3', { style: 'margin:0 0 10px;color:#92400E;', text: 'تبريرات الغياب من فضاء الأولياء (منفصلة عن WhatsApp) (' + portalJustifications.length + ')' })
+        );
+        portalJustifications.forEach(function (m) {
+          var kid = rawKids.filter(function (k) { return k && k.id === m.child_id; })[0];
+          justCard.appendChild(h('div', { class: 'att-log' },
+            h('div', { class: 'top' }, h('strong', { text: kid ? kid.full_name : 'ولي أمر' }), h('span', { class: 'badge gold', text: 'فضاء الأولياء' })),
+            h('p', { text: m.body || '—' }),
+            h('div', { class: 'meta' }, h('span', { class: 'sic-num', text: fmt(m.created_at, true) }))
+          ));
+        });
+        tabHost.appendChild(justCard);
+      }
 
       // الأرشيف الأسبوعي لرسائل WhatsApp (الصادرة والواردة مجمعة حسب الأسبوع)
       function getWeekKeyRange(isoStr) {
@@ -17148,7 +17217,7 @@
 
     var childName = n._wa_child_name || await resolveChildNameById(msg.child_id || n.child_id);
     var senderPhone = msg.to_phone || n._wa_phone || '';
-    var msgBody = msg.body || n._wa_body || n.body || '';
+    var msgBody = String(msg.body || n._wa_body || n.body || '').replace(/\\n/g, '\n');
     var receivedAt = fmt(msg.created_at || n.created_at, true);
 
     var infoRows = [];
@@ -17181,6 +17250,19 @@
         h('p', { style: 'margin:0;white-space:pre-wrap;line-height:1.75;color:#172F50;font-size:0.98rem;user-select:text;', text: msgBody })
       ),
       h('div', { class: 'modal-actions' },
+        (!S.isEducator && senderPhone) ? h('button', {
+          type: 'button',
+          class: 'btn primary',
+          text: '✉️ الرد عبر WhatsApp',
+          onclick: function () {
+            closeModal();
+            openFreeWhatsappComposerModal({
+              prefillPhone: senderPhone,
+              prefillChildId: msg.child_id || n.child_id || '',
+              prefillName: childName || senderPhone
+            });
+          }
+        }) : null,
         h('button', { type: 'button', class: 'btn gold', text: 'إغلاق', onclick: closeModal })
       )
     ));
@@ -17200,25 +17282,47 @@
 
   async function fetchNotifications() {
     var dbList = [];
+    NOTIF_STATE.lastError = '';
     try {
-      var myId = S.me && (typeof S.me === 'string' ? S.me : S.me.id);
-      var q = myId
-        ? (S.isEducator
-            ? ('/notifications?recipient_user_id=eq.' + uid(myId) + '&order=created_at.desc&limit=50')
-            : ('/notifications?or=(recipient_user_id.eq.' + uid(myId) + ',recipient_user_id.is.null)&order=created_at.desc&limit=50'))
-        : '/notifications?order=created_at.desc&limit=50';
-      var rows = await C.rest('GET', q);
-      if (Array.isArray(rows)) dbList = rows;
-    } catch (e) {}
+      var rawId = S.me && (typeof S.me === 'string' ? S.me : S.me.id);
+      var myId = (rawId && DE.isUuid(String(rawId))) ? String(rawId) : '';
+      if (S.isEducator) {
+        if (myId) {
+          var eduRows = await C.rest('GET', '/notifications?recipient_user_id=eq.' + uid(myId) + '&order=created_at.desc&limit=60');
+          if (Array.isArray(eduRows)) dbList = eduRows;
+        }
+      } else {
+        var reqs = [
+          C.rest('GET', '/notifications?recipient_user_id=is.null&order=created_at.desc&limit=100')
+        ];
+        if (myId) {
+          reqs.push(C.rest('GET', '/notifications?recipient_user_id=eq.' + uid(myId) + '&order=created_at.desc&limit=60'));
+        }
+        var resArr = await Promise.all(reqs);
+        resArr.forEach(function (arr) {
+          if (Array.isArray(arr)) dbList = dbList.concat(arr);
+        });
+      }
+    } catch (e) {
+      NOTIF_STATE.lastError = (e && e.message) ? e.message : 'تعذر الاتصال بخادم الإشعارات.';
+    }
 
     var byId = {};
+    var seenWaRecord = {};
     var waMsgIds = [];
     var childIds = [];
     dbList.forEach(function (dItem) {
+      if (!dItem || !dItem.id) return;
+      if (dItem.notification_type === 'whatsapp_inbound' && dItem.related_record_id) {
+        var rKey = String(dItem.related_record_id);
+        if (seenWaRecord[rKey]) return;
+        seenWaRecord[rKey] = true;
+        waMsgIds.push(rKey);
+      }
       var rawType = String(dItem.category || dItem.notification_type || 'general').trim();
       dItem.category = (rawType === 'whatsapp_inbound') ? 'messages' : rawType;
-      if (dItem.notification_type === 'whatsapp_inbound' && dItem.related_record_id) {
-        waMsgIds.push(String(dItem.related_record_id));
+      if (typeof dItem.body === 'string' && dItem.body.indexOf('\\n') >= 0) {
+        dItem.body = dItem.body.replace(/\\n/g, '\n');
       }
       if (dItem.child_id) childIds.push(String(dItem.child_id));
       byId[dItem.id] = dItem;
@@ -17437,8 +17541,229 @@
       fetchNotifications();
       if (!NOTIF_STATE.poller) {
         NOTIF_STATE.poller = setInterval(fetchNotifications, 10000);
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden && S.me) fetchNotifications();
+        });
       }
     }
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════════════
+     نظام المراسلة الحرة عبر WhatsApp للإدارة (يحترم نافذة Meta 24 ساعة بدقة)
+     ══════════════════════════════════════════════════════════════════════════════ */
+  async function openFreeWhatsappComposerModal(opts) {
+    if (S.isEducator) {
+      toast('المراسلة الحرة عبر WhatsApp متاحة لحساب الإدارة فقط.', 'bad');
+      return;
+    }
+    var o = opts || {};
+    var d = await getMany('children', 'sections', 'parents');
+    var kids = (d[0] || []).filter(function (k) { return k && k.active !== false; });
+    var sections = d[1] || [];
+    var since24 = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    var inbound24 = [];
+    try {
+      inbound24 = await C.rest('GET', '/whatsapp_messages?direction=eq.inbound&created_at=gte.' + encodeURIComponent(since24) + '&select=id,to_phone,wa_message_id,body,created_at&limit=500');
+    } catch (e) { inbound24 = []; }
+
+    var openPhoneSet = {};
+    (inbound24 || []).forEach(function (m) {
+      if (!m) return;
+      if (!m.wa_message_id && String(m.body || '').indexOf('تبرير غياب الطفل [') === 0) return;
+      var digits = String(m.to_phone || '').replace(/\D/g, '');
+      if (digits.length >= 9) openPhoneSet[digits.slice(-9)] = m.created_at;
+    });
+
+    function normLast9(ph) {
+      var dg = String(ph || '').replace(/\D/g, '');
+      return dg.length >= 9 ? dg.slice(-9) : '';
+    }
+    function formatDZDisplay(ph) {
+      var l9 = normLast9(ph);
+      return l9 ? ('+213' + l9) : 'رقم غير صالح';
+    }
+    function isWindowOpen(ph) {
+      var l9 = normLast9(ph);
+      return !!(l9 && openPhoneSet[l9]);
+    }
+
+    var mode = 'single';
+    var selectedIds = {};
+    if (o.prefillChildId) selectedIds[o.prefillChildId] = true;
+    var isSending = false;
+    var failedItems = [];
+
+    var modeSel = h('select', { class: 'input' },
+      h('option', { value: 'single', text: 'ولي أمر واحد' }),
+      h('option', { value: 'multi', text: 'اختيار عدة أولياء' }),
+      h('option', { value: 'section', text: 'قسم كامل' })
+    );
+    var secSel = h('select', { class: 'input', hidden: true });
+    sections.forEach(function (s) { secSel.appendChild(h('option', { value: s.id, text: s.name })); });
+
+    var searchBox = h('input', { type: 'search', class: 'input', placeholder: 'بحث باسم الطفل أو رقم الهاتف…' });
+    var recListHost = h('div', { class: 'dah-wa-recipient-list' });
+    var msgInput = h('textarea', {
+      class: 'input',
+      rows: 4,
+      placeholder: 'اكتب نص الرسالة التي ترغب في إرسالها إلى أولياء الأمور…',
+      maxlength: 1800
+    });
+    var previewBox = h('div', { class: 'dah-wa-preview-box', text: 'ستظهر معاينة الرسالة هنا قبل الإرسال…' });
+    var summaryLine = h('div', { class: 'small muted' });
+    var resultsHost = h('div', { style: 'display:flex;flex-direction:column;gap:6px;' });
+    var sendBtn = h('button', { type: 'button', class: 'btn primary', text: 'إرسال الرسالة الآن' });
+    var retryBtn = h('button', { type: 'button', class: 'btn gold', text: 'إعادة المحاولة للفاشلة', hidden: true });
+
+    function getTargetRecipients() {
+      var list = [];
+      if (mode === 'section') {
+        list = kids.filter(function (k) { return String(k.section_id || '') === String(secSel.value || ''); });
+      } else {
+        list = kids.filter(function (k) { return !!selectedIds[k.id]; });
+      }
+      if (!list.length && o.prefillPhone) {
+        list = [{ id: o.prefillChildId || 'custom', full_name: o.prefillName || o.prefillPhone, phone: o.prefillPhone }];
+      }
+      return list;
+    }
+
+    function refreshSummary() {
+      var targets = getTargetRecipients();
+      var openCnt = targets.filter(function (k) { return isWindowOpen(k.phone); }).length;
+      var closedCnt = targets.length - openCnt;
+      summaryLine.textContent = 'المستلمون المحددون: ' + targets.length + ' | داخل نافذة 24 ساعة (جاهز للنص الحر): ' + openCnt + ' | خارج النافذة (يلزم قالب معتمد): ' + closedCnt;
+      previewBox.textContent = msgInput.value.trim() || 'ستظهر معاينة الرسالة هنا قبل الإرسال…';
+      sendBtn.disabled = isSending || !openCnt || !msgInput.value.trim();
+    }
+
+    function renderRecipients() {
+      recListHost.textContent = '';
+      var q = normAr(searchBox.value.trim());
+      var pool = mode === 'section'
+        ? kids.filter(function (k) { return String(k.section_id || '') === String(secSel.value || ''); })
+        : kids.filter(function (k) {
+            if (!q) return true;
+            return normAr((k.full_name || '') + ' ' + (k.phone || '')).indexOf(q) >= 0;
+          });
+
+      if (!pool.length) {
+        recListHost.appendChild(h('div', { class: 'muted small', text: 'لا توجد نتائج مطابقة.' }));
+        refreshSummary();
+        return;
+      }
+
+      pool.slice(0, 80).forEach(function (k) {
+        var open = isWindowOpen(k.phone);
+        var checked = mode === 'section' ? true : !!selectedIds[k.id];
+        var chk = h('input', {
+          type: mode === 'single' ? 'radio' : 'checkbox',
+          name: 'dah_wa_target',
+          checked: checked,
+          disabled: mode === 'section',
+          onchange: function () {
+            if (mode === 'single') { selectedIds = {}; selectedIds[k.id] = true; }
+            else { selectedIds[k.id] = !!this.checked; }
+            refreshSummary();
+          }
+        });
+        recListHost.appendChild(h('label', { class: 'dah-wa-recipient-row', style: 'cursor:pointer;' },
+          h('div', { style: 'display:flex;align-items:center;gap:8px;min-width:0;' },
+            chk,
+            h('div', null,
+              h('strong', { style: 'display:block;font-size:0.88rem;', text: k.full_name || '—' }),
+              h('span', { class: 'muted small', dir: 'ltr', text: formatDZDisplay(k.phone) })
+            )
+          ),
+          h('span', {
+            class: 'dah-status-pill ' + (open ? 'is-ok' : 'is-warn'),
+            text: open ? 'داخل 24 ساعة ✓' : 'خارج 24 ساعة (قالب فقط)'
+          })
+        ));
+      });
+      refreshSummary();
+    }
+
+    async function executeSend(targets) {
+      if (isSending) return;
+      var txt = msgInput.value.trim();
+      if (!txt) return toast('يرجى كتابة نص الرسالة أولاً.', 'bad');
+      var eligible = targets.filter(function (k) { return isWindowOpen(k.phone); });
+      if (!eligible.length) {
+        return toast('لا يوجد مستلم داخل نافذة 24 ساعة لإرسال نص حر وفق سياسة Meta.', 'bad');
+      }
+      isSending = true;
+      failedItems = [];
+      sendBtn.disabled = true;
+      retryBtn.hidden = true;
+      resultsHost.textContent = '';
+
+      var okCount = 0;
+      for (var i = 0; i < eligible.length; i++) {
+        var k = eligible[i];
+        var logId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : ('wa-' + Date.now() + '-' + i);
+        sendBtn.textContent = 'جارٍ الإرسال (' + (i + 1) + '/' + eligible.length + ')…';
+        try {
+          var resp = await C.fn('send-whatsapp', {
+            log_id: logId,
+            message_type: 'text',
+            child_id: DE.isUuid(String(k.id || '')) ? k.id : null,
+            child_name: k.full_name || '',
+            phone: k.phone || '',
+            message: txt
+          });
+          if (resp && resp.success) {
+            okCount++;
+            resultsHost.appendChild(h('div', { class: 'dah-status-pill is-ok', text: '✓ ' + (k.full_name || k.phone) + ' — تم القبول في Meta' }));
+          } else {
+            failedItems.push(k);
+            resultsHost.appendChild(h('div', { class: 'dah-status-pill is-err', text: '✗ ' + (k.full_name || k.phone) + ' — ' + ((resp && resp.error) || 'فشل الإرسال') }));
+          }
+        } catch (err) {
+          failedItems.push(k);
+          resultsHost.appendChild(h('div', { class: 'dah-status-pill is-err', text: '✗ ' + (k.full_name || k.phone) + ' — ' + ((err && err.message) || 'خطأ في الاتصال') }));
+        }
+      }
+      isSending = false;
+      sendBtn.textContent = 'إرسال الرسالة الآن';
+      retryBtn.hidden = failedItems.length === 0;
+      refreshSummary();
+      if (okCount && !failedItems.length) toast('تم قبول ' + okCount + ' رسالة في Meta WhatsApp بنجاح.', 'ok');
+      else if (okCount) toast('نجح ' + okCount + ' وفشل ' + failedItems.length + '. يمكنك إعادة المحاولة للفاشلة.', 'gold');
+      else toast('لم يُقبل أي إرسال؛ راجع تفاصيل الخطأ أدناه.', 'bad');
+    }
+
+    modeSel.onchange = function () {
+      mode = modeSel.value;
+      secSel.hidden = mode !== 'section';
+      searchBox.hidden = mode === 'section';
+      renderRecipients();
+    };
+    secSel.onchange = renderRecipients;
+    searchBox.oninput = renderRecipients;
+    msgInput.oninput = refreshSummary;
+    sendBtn.onclick = function () { executeSend(getTargetRecipients()); };
+    retryBtn.onclick = function () { executeSend(failedItems.slice()); };
+
+    renderRecipients();
+
+    openModal(h('div', { class: 'modal-body dah-wa-composer', style: 'max-width:680px;margin:0 auto;' },
+      h('h2', { style: 'margin:0;color:#172F50;', text: 'مراسلة حرة عبر WhatsApp للإدارة' }),
+      h('p', { class: 'muted small', style: 'margin:0;', text: 'وفق سياسة Meta: يُسمح بالنص الحر فقط خلال 24 ساعة من آخر رسالة واردة من ولي الأمر؛ خارجها يلزم قالب معتمد.' }),
+      h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;' }, modeSel, secSel),
+      searchBox,
+      recListHost,
+      summaryLine,
+      h('label', { class: 'fld' }, h('span', { text: 'نص الرسالة' }), msgInput),
+      h('div', null, h('strong', { class: 'small', text: 'معاينة الرسالة قبل الإرسال:' }), previewBox),
+      resultsHost,
+      h('div', { class: 'modal-actions' },
+        sendBtn,
+        retryBtn,
+        h('button', { type: 'button', class: 'btn light', text: 'إغلاق', onclick: closeModal })
+      )
+    ));
   }
 
   /* ══════════════════════════════════════════════════════════════════════════════
@@ -17578,11 +17903,39 @@
       if (d.last_success_at) {
         pushDiagBar.appendChild(h('span', { style: 'opacity:0.8;', text: 'آخر إرسال ناجح: ' + new Date(d.last_success_at).toLocaleString('ar-DZ') }));
       }
+      pushDiagBar.appendChild(h('span', {
+        class: 'dah-status-pill is-ok',
+        text: 'مركز الإشعارات الداخلي: يعمل بشكل مستقل عن Push'
+      }));
+      if (Number(d.expired_subscriptions || 0) > 0 && !S.isEducator) {
+        pushDiagBar.appendChild(h('button', {
+          type: 'button',
+          class: 'btn small light',
+          text: 'تنظيف الاشتراكات المنتهية (' + d.expired_subscriptions + ')',
+          onclick: async function () {
+            var b = this;
+            b.disabled = true;
+            try {
+              await C.rest('DELETE', '/push_subscriptions?is_active=eq.false');
+              toast('تم تنظيف اشتراكات Push المنتهية بنجاح.', 'ok');
+              go('notifications');
+            } catch (err) {
+              toast('تعذر تنظيف الاشتراكات المنتهية: ' + (err && err.message ? err.message : 'تحقق من الصلاحيات'), 'bad');
+              b.disabled = false;
+            }
+          }
+        }));
+      }
       if (d.last_error) {
-        pushDiagBar.appendChild(h('span', { style: 'color:#b45309;width:100%;font-size:0.8rem;', text: 'آخر ملاحظة: ' + String(d.last_error).slice(0, 140) }));
+        var rawErr = String(d.last_error);
+        var friendlyErr = rawErr.indexOf('No active push subscriptions for target') >= 0
+          ? 'لا يوجد اشتراك Push نشط لولي أمر المستلم المستهدف حالياً (يحتاج الولي لتفعيل إشعارات الهاتف من فضاء الأولياء؛ إشعارات المركز الداخلية تعمل بشكل طبيعي).'
+          : rawErr.slice(0, 160);
+        pushDiagBar.appendChild(h('span', { style: 'color:#b45309;width:100%;font-size:0.82rem;line-height:1.5;', text: 'ملاحظة Push: ' + friendlyErr }));
       }
     }).catch(function () {
-      pushDiagBar.remove();
+      pushDiagBar.textContent = '';
+      pushDiagBar.appendChild(h('span', { class: 'dah-status-pill is-warn', text: 'تعذر جلب إحصائيات Push — إشعارات المركز الداخلية لا تزال متاحة.' }));
     });
 
     var listHost = h('div', { class: 'notif-items-list' });
@@ -17593,11 +17946,17 @@
       listHost.textContent = '';
       var items = NOTIF_STATE.items || [];
 
+      if (NOTIF_STATE.lastError) {
+        listHost.appendChild(h('div', { class: 'card', style: 'border-color:#FCA5A5;background:#FEF2F2;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;' },
+          h('span', { style: 'color:#991B1B;font-weight:700;font-size:0.88rem;', text: 'تعذر تحديث الإشعارات: ' + NOTIF_STATE.lastError }),
+          h('button', { type: 'button', class: 'btn small light', text: 'إعادة المحاولة', onclick: function () { fetchNotifications(); } })
+        ));
+      }
       var filtered = items.filter(function (n) {
         if (activeCat === 'unread' && n.is_read) return false;
         if (activeCat !== 'all' && activeCat !== 'unread' && n.category !== activeCat) return false;
         if (searchTxt) {
-          var hay = normAr((n.title || '') + ' ' + (n.body || ''));
+          var hay = normAr((n.title || '') + ' ' + (n.body || '') + ' ' + (n._wa_phone || '') + ' ' + (n._wa_child_name || '') + ' ' + (n._wa_body || ''));
           if (hay.indexOf(searchTxt) === -1) return false;
         }
         return true;

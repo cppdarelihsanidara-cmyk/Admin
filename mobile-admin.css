@@ -1,129 +1,29 @@
-/* ═══════════════════════════════════════════════════════════════════
-   لوحة الإدارة على الهاتف (mobile-admin.css)
-   يُحمَّل بعد manage-theme.css. يؤثر فقط في الشاشات الضيقة (≤ 640px)،
-   فلا يغيّر شكل الحاسوب إطلاقًا.
-   ═══════════════════════════════════════════════════════════════════ */
-
-@media (max-width: 640px) {
-
-  /* ─── الرأس: سطر واحد للعنوان، وبريد المستخدم يُقتطع بدل أن يدفع الأزرار ─── */
-  .bar .ttl { gap: 8px; min-width: 0; }
-  .bar .ttl strong {
-    font-size: 1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-  /* بريد المستخدم يُخفى على الهاتف حتى يتسع العنوان؛ يظهر في الحاسوب */
-  .bar .ttl #who { display: none; }
-
-  /* أزرار لمس بحجم مناسب للإصبع */
-  .btn, button.btn { min-height: 44px; }
-  .linkbtn { min-height: 44px; }
-
-  /* ─── عناوين الصفحات ─── */
-  .bar-sub h2 { font-size: 1.1rem; line-height: 1.5; }
-  .bar-sub { gap: 10px; }
-  .row-actions { width: 100%; }
-  .row-actions .btn { flex: 1 1 auto; }
-
-  /* ─── بطاقات الإحصاء: عمودان بدل عمود واحد طويل ─── */
-  .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat { padding: 14px 12px; }
-
-  /* ─── الجداول تتحول إلى بطاقات، كل سجل بطاقة، وكل عمود سطر باسمه ─── */
-  .sheet-wrap, .tbl-wrap, .table-wrap {
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-  }
-  table.tbl, table.tbl tbody, table.tbl tr, table.tbl td {
-    display: block;
-    width: 100%;
-  }
-  table.tbl thead { display: none; }
-  table.tbl tbody tr {
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-card);
-    margin-bottom: 12px;
-    padding: 6px 14px;
-  }
-  table.tbl tbody tr:hover { background: #FFFFFF; }
-  table.tbl td {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 9px 0;
-    border: 0;
-    border-bottom: 1px dashed var(--line);
-    text-align: start;
-    overflow-wrap: anywhere;
-  }
-  table.tbl td:last-child { border-bottom: 0; }
-  table.tbl td::before {
-    content: attr(data-label);
-    flex: 0 0 auto;
-    max-width: 42%;
-    color: var(--muted);
-    font-size: .82rem;
-    font-weight: 700;
-  }
-  table.tbl td.actions-cell {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    padding-top: 12px;
-  }
-  table.tbl td.actions-cell::before { display: none; }
-  table.tbl td.actions-cell .btn { min-height: 44px; flex: 1 1 calc(50% - 8px); }
-
-  /* صف التفاصيل المفتوح: بلا بطاقة إضافية */
-  table.tbl tbody tr.detail-row {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    padding: 0;
-    margin-bottom: 12px;
-  }
-  table.tbl tr.detail-row td { display: block; padding: 0; }
-  table.tbl tr.detail-row td::before { display: none; }
-
-  /* ─── الفلاتر ─── */
-  .filter-bar { gap: 8px; }
-  .filter-bar > * { min-width: 100%; }
-
-  /* ─── النوافذ المنبثقة: تأخذ عرض الشاشة وتبقى قابلة للتمرير ─── */
-  .modal-card {
-    width: calc(100vw - 20px);
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .modal-card .row-actions,
-  .modal-card .form-actions { flex-direction: column; }
-  .modal-card .row-actions .btn,
-  .modal-card .form-actions .btn { width: 100%; }
-}
-
-/* الشاشات الصغيرة جدًا (أجهزة قديمة بعرض أقل من 360px) */
-@media (max-width: 360px) {
-  .stats { grid-template-columns: 1fr; }
-  .bar .ttl .chip { display: none; }
-}
-
-/* أزرار التثبيت تُخفى بالسمة hidden حتى لو تعارضت معها قواعد الأزرار الأخرى */
-[data-install][hidden] { display: none !important; }
-
 /* ══════════════════════════════════════════════════════════════════════════════
-   الملاءمة التلقائية الكاملة للتقارير والموقع على الهاتف والكمبيوتر (دون إزاحة أو اقتصاص)
+   نظام التصميم Mobile-First للوحة إدارة دار الإحسان (mobile-admin.css)
+   يُحمَّل بعد manage-theme.css و dar-ihsan-glass.css لضمان أولوية نظيفة ومنظمة.
+   يدعم شاشات: 320px، 360px، 375px، 390px، 412px، 430px، اللوحي، والحاسوب.
    ══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --dah-rail-w: 54px;
+  --dah-rail-w-sm: 48px;
+  --dah-side-expanded: 272px;
+  --dah-navy: #172F50;
+  --dah-navy-soft: #244B78;
+  --dah-gold: #B8860B;
+  --dah-surface: #FFFFFF;
+  --dah-bg: #F4F6F9;
+  --dah-border: rgba(23, 47, 80, 0.12);
+  --dah-radius: 14px;
+  --dah-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --dah-touch: 44px;
+}
+
+/* ─── منع التمرير الأفقي على مستوى الصفحة بالكامل مع احترام RTL ─── */
 html, body {
   max-width: 100vw !important;
-  overflow-x: hidden !important;
+  overflow-x: clip !important;
+  direction: rtl;
 }
 
 #app, .shell, .main, .content, .wrap, #view {
@@ -132,75 +32,714 @@ html, body {
   box-sizing: border-box !important;
 }
 
+[data-install][hidden],
 .oep-report-preview-mount[hidden] {
   display: none !important;
 }
 
-/* ملاءمة تلقائية للتقارير على شاشة الكمبيوتر والهاتف بدون الحاجة لأي زر */
-.official-eval-paper,
-.official-eval-paper.oep-fit-computer-screen {
-  width: 100% !important;
-  max-width: min(720px, 100%) !important;
-  margin: 0 auto !important;
-  padding: 12px 14px !important;
-  box-sizing: border-box !important;
-  overflow-x: hidden !important;
+/* ══════════════════════════════════════════════════════════════════════════════
+   1. القائمة الجانبية والتنقل — Mobile Icon Rail دائم + Desktop Collapsible
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* إخفاء شريط التنقل السفلي المكرر لأن الشريط الجانبي بالأيقونات دائم وموحد */
+#mobileBottomNav {
+  display: none !important;
 }
 
-.official-eval-paper.is-collapsed-preview {
-  max-width: 100% !important;
-  padding: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
+/* الحاسوب والشاشات العريضة (> 860px): قائمة قابلة للتوسيع والطي مع تلميحات */
+@media (min-width: 861px) {
+  #app.shell .side {
+    transition: width 0.22s ease, padding 0.22s ease;
+  }
+  #app.shell.side-collapsed .side {
+    width: 68px !important;
+  }
+  #app.shell.side-collapsed .side #nav button {
+    position: relative;
+  }
+  #app.shell.side-collapsed .side #nav button:hover::after {
+    content: attr(title);
+    position: absolute;
+    inset-inline-start: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--dah-navy);
+    color: #FFFFFF;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    z-index: 9999;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.24);
+    pointer-events: none;
+  }
 }
 
-.official-eval-paper .oep-written-page-box,
-.official-eval-paper .oep-quantitative-page-box {
-  width: 100% !important;
-  max-width: min(660px, 100%) !important;
-  margin: 0 auto !important;
-  box-sizing: border-box !important;
-  border: 1.5px solid #0F172A !important;
+/* الهاتف والأجهزة اللوحية الضيقة (≤ 860px): شريط أيقونات ضيق ظاهر دائماً */
+@media (max-width: 860px) {
+  #app.shell:not(.is-hub-mode) .side,
+  #app.shell.side-collapsed:not(.is-hub-mode) .side {
+    position: fixed !important;
+    inset-block: 0 !important;
+    inset-inline-start: 0 !important;
+    width: var(--dah-rail-w) !important;
+    max-width: var(--dah-rail-w) !important;
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 8px 4px !important;
+    z-index: 9500 !important;
+    background: #FFFFFF !important;
+    border-inline-end: 1px solid var(--dah-border) !important;
+    box-shadow: -2px 0 12px rgba(15, 23, 42, 0.06) !important;
+    transition: width 0.24s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.24s ease, box-shadow 0.24s ease !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* في وضع الشريط الضيق (المطوي افتراضياً): الأيقونات فقط ظاهرة */
+  #app.shell:not(.nav-toggled) .side .brand {
+    justify-content: center !important;
+    padding: 6px 2px 10px !important;
+    margin-bottom: 4px !important;
+    gap: 0 !important;
+  }
+  #app.shell:not(.nav-toggled) .side .brand-icon-box {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  #app.shell:not(.nav-toggled) .side .brand-txt,
+  #app.shell:not(.nav-toggled) .side .side-close-btn,
+  #app.shell:not(.nav-toggled) .side .spp-info,
+  #app.shell:not(.nav-toggled) .side .side-profile-pill,
+  #app.shell:not(.nav-toggled) .side .nav-group-label,
+  #app.shell:not(.nav-toggled) .side #nav button span:not(.nav-badge),
+  #app.shell:not(.nav-toggled) .side .side-foot span {
+    display: none !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side #nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 4px 0 !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side #nav button {
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    border-radius: 12px !important;
+    position: relative !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side #nav button svg {
+    width: 21px !important;
+    height: 21px !important;
+    margin: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side #nav button .nav-badge {
+    position: absolute !important;
+    top: 2px !important;
+    inset-inline-end: 2px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    padding: 0 4px !important;
+    font-size: 0.65rem !important;
+    line-height: 16px !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side .side-foot {
+    padding: 8px 0 4px !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  #app.shell:not(.nav-toggled) .side .side-signout-btn {
+    width: 42px !important;
+    height: 42px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+  }
+
+  /* تمييز القسم النشط بوضوح في شريط الأيقونات */
+  #app.shell .side #nav button.active,
+  #app.shell .side #nav button[aria-current="page"] {
+    background: var(--dah-navy) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 12px rgba(23, 47, 80, 0.25) !important;
+  }
+  #app.shell .side #nav button.active svg,
+  #app.shell .side #nav button[aria-current="page"] svg {
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+  }
+
+  /* عند الضغط على زر القائمة (nav-toggled): تتوسع القائمة لإظهار التسميات فوق المحتوى */
+  #app.shell.nav-toggled .side,
+  #app.shell.side-collapsed.nav-toggled .side {
+    width: min(var(--dah-side-expanded), 84vw) !important;
+    max-width: min(var(--dah-side-expanded), 84vw) !important;
+    padding: 12px 10px !important;
+    box-shadow: -8px 0 32px rgba(23, 47, 80, 0.24) !important;
+  }
+
+  #app.shell.nav-toggled .side .brand {
+    justify-content: space-between !important;
+    padding: 6px 6px 12px !important;
+  }
+  #app.shell.nav-toggled .side .brand-txt,
+  #app.shell.nav-toggled .side .side-close-btn,
+  #app.shell.nav-toggled .side .nav-group-label,
+  #app.shell.nav-toggled .side #nav button span:not(.nav-badge),
+  #app.shell.nav-toggled .side .side-foot span {
+    display: inline-block !important;
+  }
+  #app.shell.nav-toggled .side .side-profile-pill {
+    display: flex !important;
+  }
+  #app.shell.nav-toggled .side .spp-info {
+    display: flex !important;
+  }
+  #app.shell.nav-toggled .side #nav {
+    align-items: stretch !important;
+  }
+  #app.shell.nav-toggled .side #nav button {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 44px !important;
+    justify-content: flex-start !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+  #app.shell.nav-toggled .side .side-signout-btn {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  #app.shell.nav-toggled #scrim {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 9400 !important;
+  }
+
+  /* المحتوى الرئيسي يترك مسافة الشريط الضيق دائماً حتى لا يغطيه أبداً */
+  #app.shell:not(.is-hub-mode) .main,
+  #app.shell.side-collapsed:not(.is-hub-mode) .main {
+    margin-inline-start: var(--dah-rail-w) !important;
+    width: calc(100% - var(--dah-rail-w)) !important;
+    max-width: calc(100vw - var(--dah-rail-w)) !important;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+    background: var(--dah-bg) !important;
+  }
+
+  #app.shell.is-hub-mode .side {
+    display: none !important;
+  }
+  #app.shell.is-hub-mode .main {
+    margin-inline-start: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  /* الشاشات الصغيرة جداً 320px–360px */
+  @media (max-width: 360px) {
+    #app.shell:not(.is-hub-mode):not(.nav-toggled) .side {
+      width: var(--dah-rail-w-sm) !important;
+      max-width: var(--dah-rail-w-sm) !important;
+    }
+    #app.shell:not(.is-hub-mode) .main,
+    #app.shell.side-collapsed:not(.is-hub-mode) .main {
+      margin-inline-start: var(--dah-rail-w-sm) !important;
+      width: calc(100% - var(--dah-rail-w-sm)) !important;
+      max-width: calc(100vw - var(--dah-rail-w-sm)) !important;
+    }
+    #app.shell:not(.nav-toggled) .side #nav button {
+      width: 38px !important;
+      height: 38px !important;
+      min-height: 38px !important;
+    }
+  }
+
+  /* ─── الشريط العلوي للهاتف ─── */
+  .bar.glass-header {
+    height: auto !important;
+    min-height: 54px !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: #FFFFFF !important;
+    border-bottom: 1px solid var(--dah-border) !important;
+  }
+  .bar.glass-header .hdr-search-wrap,
+  .user-profile-chip,
+  .top-date-txt,
+  #topLogoutBtn {
+    display: none !important;
+  }
+  .hdr-left-group {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 6px !important;
+  }
+  .hdr-left-group .ttl {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .hdr-left-group #secTitle {
+    font-size: 0.94rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+  }
+  .hdr-mobile-logo {
+    width: 28px !important;
+    height: 28px !important;
+    flex-shrink: 0 !important;
+  }
+  .hdr-actions-group {
+    flex: 0 0 auto !important;
+    gap: 6px !important;
+  }
+  .top-center-pill {
+    padding: 6px 8px !important;
+    font-size: 0.76rem !important;
+    max-width: 112px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .content, main.content, #view {
+    padding: 10px 8px !important;
+    overflow-x: clip !important;
+  }
+
+  /* أزرار وعناصر لمس مريحة */
+  .btn, button.btn, .linkbtn {
+    min-height: var(--dah-touch);
+  }
+  .btn.small, button.btn.small {
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+
+  /* البطاقات والعناوين الرئيسية */
+  .children-saas-hero,
+  .dash-light-hero,
+  .dash-hero-banner,
+  .notif-hub-hero {
+    padding: 14px 12px !important;
+    border-radius: var(--dah-radius) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .csh-top {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .csh-title, .nhh-title {
+    font-size: 1.15rem !important;
+    line-height: 1.4 !important;
+  }
+  .csh-sub, .nhh-sub {
+    font-size: 0.84rem !important;
+    line-height: 1.55 !important;
+  }
+  .csh-actions {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .csh-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .stats,
+  .dash-hero-stats,
+  .dash-light-stats-grid,
+  .att-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .stat,
+  .dash-hero-stat,
+  .dash-stat-light-card {
+    min-width: 0 !important;
+    padding: 10px 8px !important;
+    box-sizing: border-box !important;
+  }
+  .dash-hero-stat b, .dsl-num { font-size: 1.25rem !important; }
+  .dash-hero-stat span, .dsl-label { font-size: 0.78rem !important; }
+
+  .class-sections-hub-bar {
+    padding: 12px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .cshb-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  .filter-bar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .filter-bar > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   2. إصلاح الجداول على الهاتف (إلغاء min-width:640px عن بطاقات table.tbl)
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .sheet-wrap, .tbl-wrap, .table-wrap {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+  }
+
+  /* إصلاح جذري: إلغاء min-width:640px الذي كان يسبب تمرير أفقي داخل بطاقات الأطفال والحسابات */
+  .table-wrap table.tbl,
+  .tbl-wrap table.tbl,
+  .sheet-wrap table.tbl,
+  table.tbl {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+  }
+  table.tbl tbody,
+  table.tbl tr,
+  table.tbl td {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  table.tbl thead { display: none !important; }
+
+  table.tbl tbody tr {
+    background: #FFFFFF !important;
+    border: 1px solid var(--dah-border) !important;
+    border-radius: var(--dah-radius) !important;
+    box-shadow: var(--dah-shadow) !important;
+    margin-bottom: 12px !important;
+    padding: 8px 12px !important;
+    overflow: hidden !important;
+  }
+  table.tbl tbody tr:hover { background: #FFFFFF !important; }
+
+  table.tbl td {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 6px 10px !important;
+    padding: 8px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px dashed rgba(23, 47, 80, 0.1) !important;
+    text-align: start !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+  }
+  table.tbl td:last-child { border-bottom: 0 !important; }
+  table.tbl td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 46%;
+    color: #526581;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  table.tbl td.actions-cell {
+    justify-content: stretch !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+  }
+  table.tbl td.actions-cell::before { display: none !important; }
+  table.tbl td.actions-cell .btn {
+    min-height: 40px !important;
+    flex: 1 1 calc(50% - 6px) !important;
+    justify-content: center !important;
+  }
+
+  /* صف التفاصيل المفتوح داخل الجداول (الأطفال، الحسابات، إلخ) بلا أي تمرير أفقي */
+  table.tbl tbody tr.detail-row {
+    background: #F8FAFC !important;
+    border: 1px solid rgba(36, 75, 120, 0.18) !important;
+    border-radius: var(--dah-radius) !important;
+    box-shadow: none !important;
+    padding: 10px !important;
+    margin-top: -6px !important;
+    margin-bottom: 14px !important;
+    overflow: hidden !important;
+  }
+  table.tbl tr.detail-row td {
+    display: block !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  table.tbl tr.detail-row td::before { display: none !important; }
+  table.tbl tr.detail-row .detail-grid,
+  table.tbl tr.detail-row [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  table.tbl tr.detail-row .row-actions,
+  table.tbl tr.detail-row .actions,
+  table.tbl tr.detail-row [style*="display:flex"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  /* الجداول المتخصصة التي تبقى جدولية (استمارة ملاحظة السلوك، MAS، جدول المهارات، جدول القياس) */
+  .bo-table-wrap,
+  .mas-table-wrap,
+  .eval-table-scroll,
+  .wk-table-scroll,
+  .table-wrap:has(table:not(.tbl)) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+    border: 1px solid var(--dah-border) !important;
+    border-radius: 12px !important;
+    background: #FFFFFF !important;
+  }
+  .behavior-observation-paper table,
+  .bo-table-wrap table {
+    min-width: 580px !important;
+    width: 100% !important;
+  }
+  .behavior-observation-paper textarea,
+  .bo-table-wrap textarea,
+  .bo-table-wrap input[type="text"] {
+    min-width: 145px !important;
+    font-size: 0.88rem !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   3. تحسين النماذج والاستمارات وحقول الإدخال والتواريخ على الهاتف
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* حقول التاريخ كاملة بدون قص */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 14.5px !important;
+    padding: 10px 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* مربعات الاختيار بحجم متوازن (إصلاح خانة استثناء الجمعة والسبت الضخمة) */
+  input[type="checkbox"]:not(.sc-switch),
+  input[type="radio"] {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 22px !important;
+    max-height: 22px !important;
+    flex-shrink: 0 !important;
+    accent-color: var(--dah-navy);
+    cursor: pointer;
+  }
+
+  /* توسيع خانات الكتابة الطويلة في التقارير والتقييمات */
+  textarea,
+  textarea.input,
+  .card textarea {
+    min-height: 112px !important;
+    line-height: 1.65 !important;
+    font-size: 15px !important;
+    padding: 10px 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    resize: vertical !important;
+  }
+
+  /* منع قص أزرار الإضافة وعناوين المجموعات وخانات الاختيار الأفقية */
+  .card [style*="display:flex"],
+  .card [style*="display: flex"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  /* شبكات الحقول تتحول لعمود واحد على الشاشات الصغيرة جداً حتى لا تُقص التواريخ */
+  @media (max-width: 480px) {
+    .grid2, .form-grid, .eval-meta-grid {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+  }
+
+  /* بطاقات الحصص اليومية في البرامج الأسبوعية على الهاتف */
+  .wk-mobile-session-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding: 12px 14px !important;
+    background: #FFFFFF !important;
+    border: 1px solid var(--dah-border) !important;
+    border-radius: 12px !important;
+    text-align: right !important;
+    margin-bottom: 8px !important;
+    box-sizing: border-box !important;
+  }
+  .wk-mobile-session-time {
+    display: inline-block !important;
+    background: #E8F0FE !important;
+    color: var(--dah-navy) !important;
+    font-weight: 800 !important;
+    font-size: 0.82rem !important;
+    padding: 3px 9px !important;
+    border-radius: 6px !important;
+  }
+  .wk-mobile-session-kind {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    color: var(--dah-gold) !important;
+  }
+  .wk-mobile-session-detail {
+    font-size: 0.94rem !important;
+    color: #0F172A !important;
+    font-weight: 700 !important;
+  }
+
+  /* النوافذ المنبثقة */
+  .modal-card {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    padding: 14px 12px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+  .modal-card .row-actions,
+  .modal-card .form-actions,
+  .modal-card .modal-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .modal-card .row-actions .btn,
+  .modal-card .form-actions .btn,
+  .modal-card .modal-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   4. معاينة PDF وورقة A4 — متمركزة وبأبعاد A4 صحيحة مع دعم التكبير والتصغير
+   ══════════════════════════════════════════════════════════════════════════════ */
+.de-a4-preview-modal {
+  max-width: 1080px !important;
+  width: min(96vw, 1080px) !important;
+  max-height: 94dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
   padding: 12px 14px !important;
   background: #FFFFFF !important;
-  border-radius: 6px !important;
+  border-radius: 14px !important;
+  box-sizing: border-box !important;
 }
 
-.official-eval-paper .oep-quantitative-page-box {
-  padding: 6px !important;
+.de-a4-preview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1.5px solid #CBD5E1;
 }
 
-.official-eval-paper .oep-quant-canvas-host {
-  min-height: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
+.de-a4-preview-stack {
+  flex: 1;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: #E2E8F0 !important;
+  padding: 14px 8px !important;
+  border-radius: 10px;
+  max-height: 76dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.official-eval-paper .oep-quant-canvas-host canvas {
-  width: 100% !important;
-  max-width: 100% !important;
-  max-height: 82vh !important;
-  height: auto !important;
-  object-fit: contain !important;
-  margin: 0 auto !important;
-  display: block !important;
+.de-a4-fit-outer {
+  position: relative;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 
-/* حماية جداول التقرير الرسمي من التحول إلى بطاقات على الهاتف */
-.official-eval-paper table {
+.de-a4-fit-inner {
+  transform-origin: top center;
+  transition: transform 0.14s ease;
+  background: #FFFFFF;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+}
+
+/* حماية جداول أوراق التقرير الرسمية داخل المعاينة دون سحقها عمودياً */
+.official-eval-paper table,
+.de-a4-fit-inner table {
   display: table !important;
   width: 100% !important;
-  table-layout: fixed !important;
+  table-layout: auto !important;
   border-collapse: collapse !important;
 }
-.official-eval-paper thead {
-  display: table-header-group !important;
-}
-.official-eval-paper tbody {
-  display: table-row-group !important;
-}
-.official-eval-paper tr {
+.official-eval-paper thead,
+.de-a4-fit-inner thead { display: table-header-group !important; }
+.official-eval-paper tbody,
+.de-a4-fit-inner tbody { display: table-row-group !important; }
+.official-eval-paper tr,
+.de-a4-fit-inner tr {
   display: table-row !important;
   background: transparent !important;
   border: none !important;
@@ -209,263 +748,96 @@ html, body {
   margin: 0 !important;
 }
 .official-eval-paper th,
-.official-eval-paper td {
+.official-eval-paper td,
+.de-a4-fit-inner th,
+.de-a4-fit-inner td {
   display: table-cell !important;
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
 }
-.official-eval-paper td::before {
+.official-eval-paper td::before,
+.de-a4-fit-inner td::before {
   display: none !important;
   content: none !important;
 }
 
-/* ─── توافق كامل للموقع والتقارير على شاشات الهاتف (يمنع الاقتصاص والإزاحة كما في 57160.jpg) ─── */
-@media (max-width: 860px) {
-  .content {
-    padding: 12px 10px !important;
-    overflow-x: hidden !important;
-  }
+.official-eval-paper .oep-quant-canvas-host canvas {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  margin: 0 auto !important;
+  display: block !important;
+}
 
-  .bar.glass-header {
-    padding: 8px 10px !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
+/* الطباعة على A4 */
+@media print {
+  .no-print, .side, .bar, #scrim, .de-a4-preview-toolbar { display: none !important; }
+  .de-a4-fit-outer { width: 100% !important; height: auto !important; }
+  .de-a4-fit-inner {
+    transform: none !important;
     width: 100% !important;
-    box-sizing: border-box !important;
+    box-shadow: none !important;
   }
-
-  .hdr-left-group {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    gap: 8px !important;
-  }
-
-  .hdr-left-group .ttl {
-    min-width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  .hdr-left-group #secTitle {
-    font-size: 0.95rem !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    display: block !important;
-  }
-
-  .hdr-actions-group {
-    flex: 0 0 auto !important;
-    gap: 6px !important;
-  }
-
-  .top-center-pill {
-    padding: 6px 10px !important;
-    font-size: 0.8rem !important;
-    max-width: 145px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  .user-profile-chip,
-  .top-date-txt {
-    display: none !important;
-  }
-
-  .hdr-search-wrap {
-    order: 3 !important;
-    flex: 1 1 100% !important;
-    max-width: 100% !important;
-    margin-top: 2px !important;
-  }
-
-  /* إصلاح بطاقة الأقسام والأطفال والإحصاءات الـ 4 على الهاتف (57160.jpg) */
-  .children-saas-hero,
-  .dash-light-hero,
-  .dash-hero-banner,
-  .notif-hub-hero {
-    padding: 16px 14px !important;
-    border-radius: 14px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-  }
-
-  .csh-top {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 12px !important;
-  }
-
-  .csh-title {
-    font-size: 1.3rem !important;
-  }
-
-  .csh-sub {
-    font-size: 0.85rem !important;
-    line-height: 1.5 !important;
-  }
-
-  .csh-actions {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-  }
-
-  .csh-actions .btn {
-    width: 100% !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-  }
-
-  .dash-hero-stats,
-  .dash-light-stats-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .dash-hero-stat,
-  .dash-stat-light-card {
-    min-width: 0 !important;
-    padding: 12px 8px !important;
-    box-sizing: border-box !important;
-  }
-
-  .dash-hero-stat b,
-  .dsl-num {
-    font-size: 1.35rem !important;
-  }
-
-  .dash-hero-stat span,
-  .dsl-label {
-    font-size: 0.8rem !important;
-  }
-
-  .class-sections-hub-bar {
-    padding: 14px 12px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-  }
-
-  .cshb-header {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
-  }
-
-  .cshb-title-group {
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    width: 100% !important;
-  }
-
-  .cshb-title-group h3 {
-    font-size: 0.96rem !important;
-    line-height: 1.4 !important;
-  }
-
-  /* ضبط التقرير على شاشة الهاتف ليظهر بالكامل دون إزاحة */
-  .official-eval-paper,
-  .official-eval-paper.oep-fit-computer-screen {
-    padding: 6px !important;
-    max-width: 100% !important;
-  }
-
-  .official-eval-paper .oep-written-page-box {
-    padding: 8px 6px !important;
-    font-size: 0.8rem !important;
-  }
-
-  .official-eval-paper .oep-org-name { font-size: 0.85rem !important; }
-  .official-eval-paper .oep-center-name { font-size: 0.8rem !important; }
-  .official-eval-paper .oep-report-heading { font-size: 0.9rem !important; }
-  .official-eval-paper .oep-logo-side { width: 52px !important; height: 52px !important; }
-  .official-eval-paper .oep-term-banner,
-  .official-eval-paper .oep-section-banner,
-  .official-eval-paper .oep-summary-banner {
-    font-size: 0.82rem !important;
-    padding: 4px 6px !important;
-    margin-bottom: 6px !important;
-  }
-  .official-eval-paper .oep-info-table td,
-  .official-eval-paper .oep-supervisors-table th,
-  .official-eval-paper .oep-supervisors-table td {
-    padding: 4px 5px !important;
-    font-size: 0.8rem !important;
-  }
-  .official-eval-paper .oep-performance-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px !important;
-  }
-  .official-eval-paper .oep-gr-header,
-  .official-eval-paper .oep-ab-hdr {
-    font-size: 0.8rem !important;
-    padding: 3px 5px !important;
-  }
-  .official-eval-paper .oep-gr-body,
-  .official-eval-paper .oep-ab-content {
-    font-size: 0.8rem !important;
-    padding: 5px !important;
-  }
-  .official-eval-paper .oep-recommendations-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 6px !important;
-    padding: 6px !important;
-  }
-  .official-eval-paper .oep-rec-title { font-size: 0.8rem !important; }
-  .official-eval-paper .oep-rec-list { font-size: 0.68rem !important; padding-right: 12px !important; }
-
-  .oep-details-control-panel {
-    padding: 12px 10px !important;
-  }
-  .oep-report-selector-row {
-    padding: 10px !important;
-  }
-  .oep-report-row-right {
-    flex: 1 1 100% !important;
-  }
-  .oep-report-main-btn {
-    width: 100% !important;
-  }
-  .oep-report-row-actions {
-    width: 100% !important;
-    justify-content: stretch !important;
-  }
-  .oep-report-row-actions .btn {
-    flex: 1 1 auto !important;
-    justify-content: center !important;
+  .de-a4-preview-stack {
+    overflow: visible !important;
+    max-height: none !important;
+    background: #FFFFFF !important;
+    padding: 0 !important;
   }
 }
 
-.official-eval-paper,
-.official-eval-paper.oep-fit-computer-screen,
-.official-eval-paper.is-collapsed-preview {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 4px 0 !important;
+/* ══════════════════════════════════════════════════════════════════════════════
+   5. مركز الإشعارات، تشخيص Push، ومراسلة WhatsApp الحرة
+   ══════════════════════════════════════════════════════════════════════════════ */
+.dah-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
+.dah-status-pill.is-ok { background: #DCFCE7; color: #166534; }
+.dah-status-pill.is-warn { background: #FEF3C7; color: #92400E; }
+.dah-status-pill.is-err { background: #FEE2E2; color: #991B1B; }
+.dah-status-pill.is-info { background: #E0F2FE; color: #075985; }
 
-
-/* Fix header overlap & ensure full-page auto-fit on mobile & desktop */
-@media (max-width: 860px) {
-  .bar.glass-header {
-    height: auto !important;
-    min-height: 54px !important;
-    padding: 8px 10px !important;
-    row-gap: 6px !important;
-  }
-  .bar.glass-header .hdr-search-wrap {
-    display: none !important;
-  }
-  .content, main.content, #main {
-    padding-top: 10px !important;
-  }
+.dah-wa-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dah-wa-recipient-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--dah-border);
+  border-radius: 10px;
+  padding: 8px;
+  background: #F8FAFC;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dah-wa-recipient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: #FFFFFF;
+  border: 1px solid rgba(23, 47, 80, 0.08);
+  border-radius: 8px;
+}
+.dah-wa-preview-box {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 12px;
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  color: #14532D;
+  font-size: 0.92rem;
 }
