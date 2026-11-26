@@ -2,7 +2,7 @@
 'use strict';
 
 var CACHE_PREFIX = 'de-parents-';
-var CACHE = CACHE_PREFIX + 'prod-20261126-mfirst3';
+var CACHE = CACHE_PREFIX + 'prod-20261126-mfirst4';
 var APP_SCOPE = new URL(self.registration.scope);
 var SHELL = [
   './', 'index.html', 'manage.html', 'manage.html', 'navback.js', 'icons.js', 'icons.css',

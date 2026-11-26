@@ -796,7 +796,7 @@
       }
       if (isEdu) {
         btn.hidden = !allowedForEdu[secKey];
-        if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال (' + (S.eduSectionName || 'فوجي') + ')');
+        if (secKey === 'children') setNavBtnLabel(btn, 'الأطفال');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
       } else if (isSpec) {
@@ -4952,9 +4952,9 @@
 
     var stageInner = h('div', {
       class: 'de-a4-fit-inner',
-      style: 'width:' + naturalWidth + 'px; max-width:none; padding:16px; box-sizing:border-box; direction:rtl;'
+      style: 'position:absolute; top:0; right:0; width:' + naturalWidth + 'px; min-width:' + naturalWidth + 'px; max-width:none; padding:18px; box-sizing:border-box; direction:rtl; text-align:right;'
     }, contentEl);
-    var stageOuter = h('div', { class: 'de-a4-fit-outer' }, stageInner);
+    var stageOuter = h('div', { class: 'de-a4-fit-outer', style: 'position:relative; margin:0 auto; display:block;' }, stageInner);
     var stageScroll = h('div', {
       class: 'de-a4-preview-stack'
     }, stageOuter);
@@ -17463,11 +17463,17 @@
       nav.setAttribute('aria-label', 'التنقل السريع');
       document.body.appendChild(nav);
     }
-    var items = [
-      { sec: 'children', label: 'الأقسام', icon: 's-child' },
+    var items = S.isEducator ? [
+      { sec: 'children', label: 'الأطفال', icon: 's-child' },
+      { sec: 'attendance', label: 'الحضور', icon: 's-cal' },
       { sec: 'reports', label: 'التقارير', icon: 's-report' },
       { sec: 'evaluations', label: 'التقييم', icon: 's-card' },
-      { sec: 'programs', label: 'البرامج', icon: 's-book' },
+      { sec: '_more', label: 'المزيد', icon: 's-menu' }
+    ] : [
+      { sec: 'dash', label: 'الرئيسية', icon: 's-home' },
+      { sec: 'children', label: 'الأطفال', icon: 's-child' },
+      { sec: 'attendance', label: 'الحضور', icon: 's-cal' },
+      { sec: 'reports', label: 'التقارير', icon: 's-report' },
       { sec: '_more', label: 'المزيد', icon: 's-menu' }
     ];
     nav.textContent = '';
