@@ -5385,3 +5385,129 @@ html, body {
 #app.is-week-program-editing .side { display: none !important; }
 #app.is-week-program-editing { grid-template-columns: minmax(0, 1fr) !important; }
 #app.is-week-program-editing .main { min-width: 0; width: 100%; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   تصميم تقرير الخط القاعدي + الترويسة المضغوطة للتقرير النوعي (تقرير_الخط_القاعدي_v2)
+   ══════════════════════════════════════════════════════════════════════════════ */
+.dah-bl-paper {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1.5px solid #123C4B;
+  border-radius: 6px;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  direction: rtl;
+  color: #0F172A;
+}
+.dah-bl-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 2px solid #123C4B;
+}
+.dah-bl-header .oep-logo-side {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 52px !important;
+  height: 52px !important;
+  object-fit: contain;
+}
+.dah-bl-title-block {
+  text-align: center;
+  padding-inline: 58px;
+}
+.dah-bl-org {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #123C4B;
+  line-height: 1.3;
+}
+.dah-bl-loc {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+}
+.dah-bl-main-title {
+  margin: 3px 0 0;
+  font-size: 16px;
+  font-weight: 900;
+  color: #123C4B;
+}
+.dah-bl-info-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 5px 8px;
+  margin-bottom: 6px;
+  border-top: 1px solid #123C4B;
+  border-bottom: 1px solid #123C4B;
+  background: #F8FAFC;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #0F172A;
+}
+.dah-bl-info-strip.is-sub {
+  border-top: 0;
+  margin-top: -6px;
+  margin-bottom: 8px;
+  background: #FFFFFF;
+  font-size: 11px;
+}
+.dah-bl-info-strip strong {
+  color: #123C4B;
+  font-weight: 800;
+}
+.dah-bl-sep {
+  color: #94A3B8;
+}
+.dah-bl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  text-align: center;
+  border: 1.5px solid #123C4B;
+}
+.dah-bl-table thead th {
+  background: #123C4B;
+  color: #FFFFFF;
+  font-weight: 800;
+  padding: 5px 4px;
+  border: 1px solid #335D6B;
+  font-size: 11px;
+}
+.dah-bl-table thead tr.dah-bl-subhead th {
+  background: #E2EEF2;
+  color: #123C4B;
+  font-size: 10.5px;
+  padding: 3px 2px;
+  border: 1px solid #94A3B8;
+}
+.dah-bl-table td {
+  border: 1px solid #94A3B8;
+  padding: 3px 5px;
+  vertical-align: middle;
+}
+.dah-bl-domain-cell {
+  background: #EEF4F7;
+  color: #123C4B;
+  font-weight: 800;
+  font-size: 11.5px;
+}
+.dah-bl-skill-cell {
+  text-align: right;
+  font-weight: 600;
+  color: #0F172A;
+  padding-inline: 8px !important;
+}
+.dah-bl-num-cell {
+  font-weight: 700;
+  color: #123C4B;
+  white-space: nowrap;
+}

@@ -7264,64 +7264,40 @@
     var logoImg = h('img', { class: 'oep-logo-side', alt: 'شعار الجمعية' });
     logoImg.setAttribute('src', 'logo-sq.png');
 
-    // 1. ترويسة الوثيقة الرسمية بالاسم المعتمد: تقرير نوعي تحليلي (Rapport d'analyse qualitatif)
-    var header = h('div', { class: 'oep-header' },
+    // 1. الترويسة الجديدة المعتمدة (بتصميم تقرير الخط القاعدي الأنيق والمضغوط)
+    var header = h('div', { class: 'dah-bl-header' },
       logoImg,
-      h('div', { class: 'oep-title-block' },
-        h('h3', { class: 'oep-org-name', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا' }),
-        h('h4', { class: 'oep-center-name', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
-        h('p', { class: 'oep-location', text: '— العطف - غرداية —' }),
-        h('div', { class: 'oep-fr-title', text: "RAPPORT D'ANALYSE QUALITATIF" }),
-        h('h2', { class: 'oep-report-heading', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
+      h('div', { class: 'dah-bl-title-block' },
+        h('div', { class: 'dah-bl-org', text: 'المركز النفسي البيداغوجي لذوي الإحتياجات الخاصة دار الإحسان' }),
+        h('div', { class: 'dah-bl-loc', text: 'العطف - غرداية' }),
+        h('h2', { class: 'dah-bl-main-title', text: "تقرير نوعي تحليلي (Rapport d'analyse qualitatif)" })
       )
     );
 
-    // 2. البانر الأصفر/الذهبي للثلاثي والموسم
-    var termBanner = h('div', { class: 'oep-term-banner', text: 'تقييم ' + (ev.term || 'الثلاثي الأخير') + ' للموسم الدراسي: ' + (ev.school_year || getCurrentAcademicYear()) });
+    // 2. شريط المعلومات العلوي المضغوط بخط الجدول (يقلّص مساحة المعلومات لأقل من النصف ويترك المساحة السفلية للكتابة)
+    var supNamesText = (ev.supervisors && ev.supervisors.length ? ev.supervisors : [{ name: 'إدارة المركز', role: 'مدير المركز' }])
+      .slice(0, 4)
+      .map(function (sp) { return (sp.name || '—') + (sp.role ? (' (' + sp.role + ')') : ''); })
+      .join(' • ');
 
-    // 3. شبكة معلومات الحالة الخاصة بالطفل
-    var infoTable = h('table', { class: 'oep-info-table' },
-      h('tbody', null,
-        h('tr', null,
-          h('td', { class: 'oep-info-label', text: 'اسم ولقب الحالة:' }),
-          h('td', { class: 'oep-info-val' }, h('strong', { text: resolvedChildName })),
-          h('td', { class: 'oep-info-label', text: 'العمر:' }),
-          h('td', { class: 'oep-info-val', text: ageTxt })
-        ),
-        h('tr', null,
-          h('td', { class: 'oep-info-label', text: 'نوع الاضطراب:' }),
-          h('td', { class: 'oep-info-val', text: resolvedDisability }),
-          h('td', { class: 'oep-info-label', text: 'تاريخ الميلاد:' }),
-          h('td', { class: 'oep-info-val', text: resolvedDob ? fmt(resolvedDob) : '—' })
-        ),
-        h('tr', null,
-          h('td', { class: 'oep-info-label', text: 'درجة الإعاقة / الاضطراب:' }),
-          h('td', { class: 'oep-info-val', text: ev.degree_of_disability || 'متوسطة' }),
-          h('td', { class: 'oep-info-label', text: 'القسم ومستوى التأهيل:' }),
-          h('td', { class: 'oep-info-val', text: resolvedSecName })
-        )
-      )
+    var termBanner = h('div', { class: 'dah-bl-info-strip' },
+      h('span', null, h('strong', { text: 'اسم الطفل: ' }), resolvedChildName),
+      h('span', { class: 'dah-bl-sep', text: '|' }),
+      h('span', null, h('strong', { text: 'تاريخ الميلاد: ' }), (resolvedDob ? fmt(resolvedDob) : '—') + (ageTxt !== '—' ? (' (' + ageTxt + ')') : '')),
+      h('span', { class: 'dah-bl-sep', text: '|' }),
+      h('span', null, h('strong', { text: 'تاريخ التقييم: ' }), fmt(ev.date || (r && r.report_date) || new Date().toISOString().slice(0, 10))),
+      h('span', { class: 'dah-bl-sep', text: '|' }),
+      h('span', null, h('strong', { text: 'القسم: ' }), resolvedSecName)
     );
 
-    // 4. جدول المشرفين
-    var supRows = (ev.supervisors && ev.supervisors.length ? ev.supervisors : [{ name: 'إدارة المركز', role: 'مدير المركز' }]).slice(0, 4).map(function (sp) {
-      return h('tr', null,
-        h('td', null, h('strong', { text: sp.name || '—' })),
-        h('td', { text: sp.role || '—' }),
-        h('td', null, h('span', { class: 'muted small', text: '........................' }))
-      );
-    });
-
-    var supervisorsTable = h('table', { class: 'oep-supervisors-table' },
-      h('thead', null,
-        h('tr', null,
-          h('th', { text: 'المشرفون: الإسم واللقب' }),
-          h('th', { text: 'الوظيفة / التخصص' }),
-          h('th', { text: 'إمضاء المدير' })
-        )
-      ),
-      h('tbody', null, supRows)
+    var infoTable = h('div', { class: 'dah-bl-info-strip is-sub' },
+      h('span', null, h('strong', { text: 'الاضطراب: ' }), resolvedDisability + ' (' + (ev.degree_of_disability || 'متوسطة') + ')'),
+      h('span', { class: 'dah-bl-sep', text: '|' }),
+      h('span', null, h('strong', { text: 'الموسم: ' }), (ev.term || 'الثلاثي الأخير') + ' — ' + (ev.school_year || getCurrentAcademicYear())),
+      h('span', { class: 'dah-bl-sep', text: '|' }),
+      h('span', null, h('strong', { text: 'المشرفون: ' }), supNamesText)
     );
+    var supervisorsTable = h('div', { style: 'display:none;' });
 
     // 5. البانر الأزرق وقسم "الوصف العام لأداء الحالة"
     var perfBanner = h('div', { class: 'oep-section-banner', text: 'الوصف العام لأداء الحالة' });
@@ -7502,7 +7478,185 @@
 
     var skillsTablesSection = buildDetailedSkillsTablesDom();
 
-    var activeMode = (initialReportMode === 'notes' || initialReportMode === 'statistics' || initialReportMode === 'full' || initialReportMode === 'details') ? initialReportMode : null;
+    // القسم الرابع (المستقل): تقرير الخط القاعدي (يُملأ تلقائياً من المجالات والمهارات والنتائج مع منحنى SVG)
+    function buildBaselineReportDom() {
+      var blLogo = h('img', { class: 'oep-logo-side', alt: 'شعار دار الإحسان' });
+      blLogo.setAttribute('src', 'logo-sq.png');
+
+      var evalDateTxt = fmt(ev.date || (r && r.report_date) || new Date().toISOString().slice(0, 10));
+      var domList = (statsObj && Array.isArray(statsObj.domainStats) && statsObj.domainStats.length)
+        ? statsObj.domainStats
+        : [];
+
+      // تجميع صفوف المجالات والمهارات المقيمة تلقائياً (مع حساب النسبة المئوية من 5 محاولات)
+      var flatRows = [];
+      domList.forEach(function (dm) {
+        var rts = (dm.ratings || []).slice(0, 12);
+        if (!rts.length) return;
+        rts.forEach(function (rt, idx) {
+          var rawScore = (rt.score != null && rt.score !== '' && !isNaN(Number(rt.score))) ? Math.max(0, Math.min(5, Number(rt.score))) : null;
+          var pctVal = rawScore != null ? Math.round((rawScore / 5) * 100) : null;
+          flatRows.push({
+            domain: dm.name,
+            isFirstInDomain: idx === 0,
+            domainSpan: rts.length,
+            skill: rt.skill || '—',
+            score: rawScore,
+            pct: pctVal
+          });
+        });
+      });
+
+      if (!flatRows.length) {
+        var fallbackDomains = [
+          ['المهارات المعرفية', ['المطابقة', 'التصنيف', 'الذاكرة البصرية', 'الانتباه البصري']],
+          ['اللغة والتواصل', ['فهم التعليمات', 'تسمية الأشياء', 'التعبير عن الاحتياجات', 'التواصل البصري']],
+          ['المهارات الأكاديمية ما قبل الأكاديمية', ['التعرف على الألوان', 'التعرف على الأشكال', 'التعرف على الأرقام', 'التعرف على الحروف']],
+          ['المهارات الحركية الدقيقة', ['مسك القلم', 'تتبع الخطوط', 'القص', 'تركيب المكعبات']],
+          ['المهارات الحركية الكبرى', ['القفز', 'التوازن', 'رمي الكرة']],
+          ['مهارات الاستقلالية', ['الأكل', 'ارتداء الملابس', 'النظافة الشخصية']],
+          ['المهارات الاجتماعية والسلوكية', ['انتظار الدور', 'المشاركة في نشاط جماعي', 'اتباع قواعد النشاط']]
+        ];
+        fallbackDomains.forEach(function (pair) {
+          pair[1].forEach(function (sk, idx) {
+            flatRows.push({ domain: pair[0], isFirstInDomain: idx === 0, domainSpan: pair[1].length, skill: sk, score: null, pct: null });
+          });
+        });
+      }
+
+      var rowH = 26;
+      var svgW = 240;
+      var svgH = Math.max(rowH, flatRows.length * rowH);
+      var pctToX = function (p) {
+        // الأعمدة من اليمين إلى اليسار (RTL): 0% يمين (x=220) -> 100% يسار (x=20)
+        var step = svgW / 6;
+        return (svgW - (step / 2)) - ((p / 100) * (svgW - step));
+      };
+
+      var svgNs = 'http://www.w3.org/2000/svg';
+      var svgEl = document.createElementNS(svgNs, 'svg');
+      svgEl.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+      svgEl.setAttribute('preserveAspectRatio', 'none');
+      svgEl.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible;';
+
+      // خطوط الشبكة العمودية والأفقية داخل منحنى الخط القاعدي
+      for (var c = 1; c < 6; c++) {
+        var vl = document.createElementNS(svgNs, 'line');
+        vl.setAttribute('x1', String(c * (svgW / 6)));
+        vl.setAttribute('y1', '0');
+        vl.setAttribute('x2', String(c * (svgW / 6)));
+        vl.setAttribute('y2', String(svgH));
+        vl.setAttribute('stroke', '#94A3B8');
+        vl.setAttribute('stroke-width', '0.8');
+        svgEl.appendChild(vl);
+      }
+      for (var rr = 1; rr < flatRows.length; rr++) {
+        var hl = document.createElementNS(svgNs, 'line');
+        hl.setAttribute('x1', '0');
+        hl.setAttribute('y1', String(rr * rowH));
+        hl.setAttribute('x2', String(svgW));
+        hl.setAttribute('y2', String(rr * rowH));
+        hl.setAttribute('stroke', '#CBD5E1');
+        hl.setAttribute('stroke-width', '0.7');
+        svgEl.appendChild(hl);
+      }
+
+      var pts = [];
+      flatRows.forEach(function (rw, idx) {
+        if (rw.pct == null) return;
+        var cx = pctToX(rw.pct);
+        var cy = idx * rowH + (rowH / 2);
+        pts.push(cx.toFixed(1) + ',' + cy.toFixed(1));
+      });
+      if (pts.length >= 2) {
+        var poly = document.createElementNS(svgNs, 'polyline');
+        poly.setAttribute('points', pts.join(' '));
+        poly.setAttribute('fill', 'none');
+        poly.setAttribute('stroke', '#123C4B');
+        poly.setAttribute('stroke-width', '2.2');
+        svgEl.appendChild(poly);
+      }
+      flatRows.forEach(function (rw, idx) {
+        if (rw.pct == null) return;
+        var dot = document.createElementNS(svgNs, 'circle');
+        dot.setAttribute('cx', pctToX(rw.pct).toFixed(1));
+        dot.setAttribute('cy', String(idx * rowH + (rowH / 2)));
+        dot.setAttribute('r', '4');
+        dot.setAttribute('fill', '#123C4B');
+        svgEl.appendChild(dot);
+      });
+
+      var tbody = h('tbody');
+      flatRows.forEach(function (rw, idx) {
+        var tr = h('tr', { style: 'height:' + rowH + 'px;' });
+        if (rw.isFirstInDomain) {
+          tr.appendChild(h('td', {
+            rowspan: String(rw.domainSpan),
+            class: 'dah-bl-domain-cell',
+            text: rw.domain
+          }));
+        }
+        tr.appendChild(h('td', { class: 'dah-bl-skill-cell', text: rw.skill }));
+        tr.appendChild(h('td', { class: 'dah-bl-num-cell', text: rw.score != null ? (rw.score + ' / 5') : '—' }));
+        tr.appendChild(h('td', { class: 'dah-bl-num-cell', text: rw.pct != null ? (rw.pct + '%') : '—' }));
+        if (idx === 0) {
+          var chartTd = h('td', {
+            rowspan: String(flatRows.length),
+            colspan: '6',
+            style: 'position:relative; padding:0; width:240px; vertical-align:top; background:#FFFFFF;'
+          }, svgEl);
+          tr.appendChild(chartTd);
+        }
+        tbody.appendChild(tr);
+      });
+
+      var tbl = h('table', { class: 'dah-bl-table' },
+        h('thead', null,
+          h('tr', null,
+            h('th', { rowspan: '2', style: 'width:19%;', text: 'المجال' }),
+            h('th', { rowspan: '2', style: 'width:25%;', text: 'المهارة المستهدفة' }),
+            h('th', { rowspan: '2', style: 'width:10%;', text: 'عدد المحاولات (5)' }),
+            h('th', { rowspan: '2', style: 'width:10%;', text: 'نسبة الأداء (%)' }),
+            h('th', { colspan: '6', text: 'منحنى خط القاعدي' })
+          ),
+          h('tr', { class: 'dah-bl-subhead' },
+            h('th', { text: '0%' }),
+            h('th', { text: '20%' }),
+            h('th', { text: '40%' }),
+            h('th', { text: '60%' }),
+            h('th', { text: '80%' }),
+            h('th', { text: '100%' })
+          )
+        ),
+        tbody
+      );
+
+      return h('div', { class: 'dah-bl-paper' },
+        h('div', { class: 'dah-bl-header' },
+          blLogo,
+          h('div', { class: 'dah-bl-title-block' },
+            h('div', { class: 'dah-bl-org', text: 'المركز النفسي البيداغوجي لذوي الإحتياجات الخاصة دار الإحسان' }),
+            h('div', { class: 'dah-bl-loc', text: 'العطف - غرداية' }),
+            h('h2', { class: 'dah-bl-main-title', text: 'تقرير الخط القاعدي' })
+          )
+        ),
+        h('div', { class: 'dah-bl-info-strip' },
+          h('span', null, h('strong', { text: 'اسم الطفل: ' }), resolvedChildName),
+          h('span', { class: 'dah-bl-sep', text: '|' }),
+          h('span', null, h('strong', { text: 'تاريخ الميلاد: ' }), resolvedDob ? fmt(resolvedDob) : '—'),
+          h('span', { class: 'dah-bl-sep', text: '|' }),
+          h('span', null, h('strong', { text: 'تاريخ التقييم: ' }), evalDateTxt)
+        ),
+        tbl,
+        h('div', { style: 'display:flex; justify-content:flex-end; margin-top:14px; font-weight:800; color:#123C4B; font-size:12px;' },
+          h('span', { text: 'مدير المركز: ............................' })
+        )
+      );
+    }
+
+    var baselineReportSection = buildBaselineReportDom();
+
+    var activeMode = (initialReportMode === 'notes' || initialReportMode === 'baseline' || initialReportMode === 'statistics' || initialReportMode === 'full' || initialReportMode === 'details') ? initialReportMode : null;
     var paperEl = h('div', { class: 'official-eval-paper oep-fit-computer-screen' + (activeMode ? (' mode-' + activeMode) : ' is-collapsed-preview') });
     var previewMountHost = h('div', { class: 'oep-report-preview-mount' });
 
@@ -7586,6 +7740,32 @@
       'تقرير_نوعي_تحليلي',
       "جارٍ تجهيز تقرير نوعي تحليلي (Rapport d'analyse qualitatif)..."
     );
+    var tabBaseline = (function () {
+      var titleLabelEl = h('div', {
+        class: 'oep-report-row-title',
+        style: 'cursor:pointer;',
+        onclick: function () { toggleReportMode('baseline'); }
+      }, h('strong', { text: 'تقرير الخط القاعدي (يُملأ تلقائياً من المجالات والنتائج)' }));
+      var previewBtnLabel = h('span', { text: activeMode === 'baseline' ? 'إخفاء المعاينة' : 'معاينة الخط القاعدي' });
+      var previewToggleBtn = h('button', {
+        type: 'button',
+        class: 'btn small oep-report-preview-btn ' + (activeMode === 'baseline' ? 'gold' : 'primary'),
+        onclick: function (e) { e.stopPropagation(); toggleReportMode('baseline'); }
+      }, makeSvgIcon(activeMode === 'baseline' ? 's-eye-off' : 's-eye'), previewBtnLabel);
+      var printBtn = h('button', {
+        type: 'button',
+        class: 'btn small light oep-report-dl-btn',
+        onclick: function (e) {
+          e.stopPropagation();
+          openFullDocumentPreviewModal('تقرير الخط القاعدي — ' + resolvedChildName, buildBaselineReportDom(), null);
+        }
+      }, makeSvgIcon('s-print'), h('span', { text: 'فتح / طباعة A4' }));
+      var rowEl = h('div', { class: 'oep-report-selector-row' + (activeMode === 'baseline' ? ' is-active' : '') },
+        h('div', { class: 'oep-report-row-right' }, titleLabelEl),
+        h('div', { class: 'oep-report-row-actions' }, previewToggleBtn, printBtn)
+      );
+      return { rowEl: rowEl, previewToggleBtn: previewToggleBtn, previewBtnLabel: previewBtnLabel, defaultLabel: 'معاينة الخط القاعدي' };
+    })();
     var tab2 = makeReportControlRow(
       'statistics',
       'تقرير الكمي (quantitative)',
@@ -7654,6 +7834,7 @@
         tabFull.rowEl,
         tab2.rowEl,
         tab1.rowEl,
+        tabBaseline.rowEl,
         tabDetails.rowEl
       ),
       h('div', { class: 'oep-report-selector-row', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;border:1px solid #CBD5E1;border-radius:10px;margin-top:8px;' },
@@ -7694,6 +7875,7 @@
 
       updateTabRowState(tabFull, 'full');
       updateTabRowState(tab1, 'notes');
+      updateTabRowState(tabBaseline, 'baseline');
       updateTabRowState(tab2, 'statistics');
       updateTabRowState(tabDetails, 'details');
 
@@ -7709,6 +7891,10 @@
         if (activeMode === 'notes' || activeMode === 'full') {
           writtenReportSection.hidden = false;
           previewMountHost.appendChild(writtenReportSection);
+        }
+        if (activeMode === 'baseline') {
+          baselineReportSection.hidden = false;
+          previewMountHost.appendChild(baselineReportSection);
         }
         if (activeMode === 'details' || activeMode === 'full') {
           skillsTablesSection.hidden = false;
