@@ -219,7 +219,7 @@
     main: {
       key: 'main',
       name: 'المركز النفسي البيداغوجي لذوي الإحتياجات الخاصة دار الإحسان',
-      shortName: 'المركز الرئيسي',
+      shortName: 'دار الإحسان',
       badge: 'المركز النفسي البيداغوجي',
       icon: '', svgIcon: 's-main-center',
       avatar: 'د',
@@ -769,7 +769,7 @@
     var isFull = isFullPowerAdmin();
     // الشؤون البيداغوجية دون فضاء الأولياء في المركز الرئيسي
     var allowedForEdu = { children: true, attendance: true, reports: true, evaluations: true, programs: true, msgs: true };
-    var allowedForSpec = { children: true, reports: true, evaluations: true, programs: true, docs: true, msgs: true };
+    var allowedForSpec = { children: true, attendance: true, reports: true, evaluations: true, programs: true, docs: true, msgs: true };
     var isWorkOrFarm = !isEdu && !isSpec && (S.activeCenter === 'work' || S.activeCenter === 'farm');
     var allowedForWorkOrFarm = { children: true, attendance: true, educators: true, programs: true, reports: true, evaluations: true, accounts: true, archive: true, requests: true, inquiries: true };
 
@@ -790,7 +790,7 @@
         return;
       }
       if (secKey === 'attendance') {
-        btn.hidden = isSpec ? true : false;
+        btn.hidden = false;
         setNavBtnLabel(btn, 'الغيابات والحضور');
         return;
       }
@@ -815,7 +815,7 @@
         if (secKey === 'children') setNavBtnLabel(btn, 'الأقسام والأطفال');
         if (secKey === 'reports') setNavBtnLabel(btn, 'التقارير');
         if (secKey === 'evaluations') setNavBtnLabel(btn, 'التقييم');
-        if (secKey === 'accounts') setNavBtnLabel(btn, 'حسابات المركز الرئيسي');
+        if (secKey === 'accounts') setNavBtnLabel(btn, 'إدارة المستخدمين');
         if (secKey === 'archive') setNavBtnLabel(btn, 'الأرشيف والنسخ الاحتياطية');
       }
     });
@@ -868,6 +868,17 @@
 
   function mapEmbeddedStudentsToSections(liveBranches, liveSections) {
     return [];
+  }
+
+
+  function isAutoArchivedAfterOneDay(rec) {
+    if (!rec) return false;
+    if (rec.is_archived === true) return true;
+    var st = rec.status || extractEvalStatus(rec);
+    if (st !== 'published' && st !== 'updated') return false;
+    var ts = Date.parse(rec.published_at || rec.updated_at || rec.report_date || rec.created_at || '');
+    if (isNaN(ts)) return false;
+    return (Date.now() - ts) >= 86400000; // 24 hours
   }
 
   var Q = {
@@ -989,7 +1000,7 @@
     } else if (k === 'audit') {
       S.cache[k] = await C.rest('GET', '/audit_logs?select=*&order=created_at.desc&limit=50').catch(function () { return []; });
     } else if (k === 'reports') {
-      S.cache[k] = await C.rest('GET', '/reports?select=*&order=report_date.desc&limit=50').catch(function () { return []; });
+      S.cache[k] = await C.rest('GET', '/progress_reports?select=*&order=report_date.desc&limit=50').catch(function () { return []; });
     } else if (k === 'docs') {
       S.cache[k] = await C.rest('GET', '/documents?select=*&order=created_at.desc&limit=50').catch(function () { return []; });
     } else if (k === 'msgs') {
@@ -2290,7 +2301,7 @@
             toast(archiveState ? 'تم نقل السجل إلى الأرشيف.' : 'تمت استعادة السجل من الأرشيف.', 'ok');
             go('children');
           } catch (err) {
-            toast('تعذر تحديث الأرشيف. تحقق من تطبيق ترحيل الأرشفة في Supabase: ' + (err.message || err), 'bad');
+            toast('تعذر تحديث الأرشيف. تعذّر تحديث الأرشيف حالياً: ' + (err.message || err), 'bad');
           }
         }
 
@@ -3128,7 +3139,7 @@
           get: function (e) {
             var acc = meta.account_meta && e.email ? meta.account_meta[e.email.toLowerCase()] : null;
             return h('div', { class: 'row-actions' },
-              (!acc || !acc.has_account) ? badge('حساب سحابي', 'gray') : badge('مفعّل (Supabase Auth)', 'ok')
+              (!acc || !acc.has_account) ? badge('حساب سحابي', 'gray') : badge('مفعّل', 'ok')
             );
           }
         }
@@ -3669,8 +3680,9 @@
       sections.forEach(function (sec) {
         var allSectionPrograms = findAllProgramsForSection(sec.id);
         var secProgs = allSectionPrograms.filter(function (p) {
-          return programArchiveMode === 'all' || (programArchiveMode === 'archived' ? p.is_archived === true : p.is_archived !== true);
+          var isArch = isAutoArchivedAfterOneDay(p); return programArchiveMode === 'all' || (programArchiveMode === 'archived' ? isArch : !isArch);
         });
+        var hiddenArchivedProgs = (programArchiveMode === 'active') ? allSectionPrograms.filter(isAutoArchivedAfterOneDay) : [];
         if (!secProgs.length && programArchiveMode === 'archived') return;
         var prog = secProgs.length ? secProgs[0] : null;
         var isExpanded = (expandedSecId === sec.id);
@@ -3841,6 +3853,22 @@
           secCard.appendChild(detailsSheetWrap);
         }
 
+        if (hiddenArchivedProgs.length) {
+          var archDetails = h('details', { style: 'margin-top:10px; border-top:1px dashed #CBD5E1; padding-top:8px;' },
+            h('summary', { style: 'cursor:pointer; font-size:12.5px; font-weight:800; color:#1D4ED8; list-style:none;' },
+              '▾ عرض جميع البرامج المؤرشفة لهذا القسم (' + hiddenArchivedProgs.length + ')'
+            ),
+            h('div', { style: 'display:flex; flex-direction:column; gap:6px; margin-top:8px;' },
+              hiddenArchivedProgs.map(function (ap) {
+                return h('div', { style: 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#F8FAFC; border-radius:8px; font-size:12px;' },
+                  h('span', { style: 'font-weight:700; color:#334155;', text: (ap.title || 'برنامج أسبوعي') + ' — ' + fmt(ap.published_at || ap.updated_at || ap.created_at) }),
+                  h('button', { type: 'button', class: 'btn small light', text: 'عرض', onclick: function () { programArchiveMode = 'all'; renderProgramsView(); } })
+                );
+              })
+            )
+          );
+          secCard.appendChild(archDetails);
+        }
         sectionsGrid.appendChild(secCard);
       });
 
@@ -4201,7 +4229,7 @@
           var durInp = h('input', {
             type: 'text',
             value: it.duration,
-            style: 'width:100%; border:none; background:transparent; text-align:center; font-size:10px; font-weight:700; padding:2px 0;',
+            style: 'width:100%; min-width:68px; border:none; background:transparent; text-align:center; font-size:11.5px; font-weight:700; padding:4px 2px;',
             title: 'انقر لتعديل التوقيت يدوياً',
             onchange: function (e) { it.duration = e.target.value; }
           });
@@ -4233,7 +4261,7 @@
       // 3. جدول الحصص الأسبوعي الرئيسي (خانات بيضاء نقية وكتابة سوداء مكبرة)
       var tableEl = h('table', {
         class: 'wk-sheet-table',
-        style: 'width:100%; border-collapse:collapse; border:2px solid #163B65; text-align:center; min-width:800px; table-layout:fixed;'
+        style: 'width:100%; border-collapse:collapse; border:2px solid #163B65; text-align:center; min-width:1460px; table-layout:fixed;'
       });
 
       var morningSlots = currentWeekState.time_slots.filter(function (s) { return s.period === 'morning'; });
@@ -5128,65 +5156,10 @@
     } catch (e) {}
   }
 
-  async function loadSharedEvaluationsList() {
-    var localList = readLocalSharedEvaluations();
-    var remoteList = [];
-    try {
-      var rows = await C.rest('GET', '/site_content?id=eq.draft&select=id,data');
-      var row = Array.isArray(rows) ? rows[0] : null;
-      if (row && row.data) {
-        if (Array.isArray(row.data._published_evaluations)) {
-          remoteList = row.data._published_evaluations;
-        } else if (row.data._portal_meta && Array.isArray(row.data._portal_meta.published_evaluations)) {
-          remoteList = row.data._portal_meta.published_evaluations;
-        }
-      }
-    } catch (e) {}
-    var map = {};
-    var combined = [];
-    localList.concat(remoteList).forEach(function (it) {
-      if (!it || !it.id) return;
-      var k = String(it.id);
-      if (!map[k]) {
-        map[k] = it;
-        combined.push(it);
-      } else if (it.updated_at && (!map[k].updated_at || it.updated_at > map[k].updated_at)) {
-        var idx = combined.indexOf(map[k]);
-        map[k] = it;
-        if (idx >= 0) combined[idx] = it;
-      }
-    });
-    writeLocalSharedEvaluations(combined);
-    return combined;
-  }
-
-  async function syncSharedEvaluationRecord(evalRow, removeById) {
-    var list = await loadSharedEvaluationsList();
-    if (removeById) {
-      list = list.filter(function (x) { return x && String(x.id) !== String(removeById); });
-    } else if (evalRow && evalRow.id) {
-      var copy = Object.assign({}, evalRow, { updated_at: new Date().toISOString() });
-      var idx = list.findIndex(function (x) { return x && String(x.id) === String(copy.id); });
-      if (idx >= 0) list[idx] = copy;
-      else list.unshift(copy);
-    }
-    writeLocalSharedEvaluations(list);
-    try {
-      var rows = await C.rest('GET', '/site_content?id=eq.draft&select=id,data');
-      var row = Array.isArray(rows) ? rows[0] : null;
-      var baseData = (row && row.data && typeof row.data === 'object') ? Object.assign({}, row.data) : {};
-      baseData._published_evaluations = list.slice(0, 200);
-      if (baseData._portal_meta && typeof baseData._portal_meta === 'object') {
-        baseData._portal_meta.published_evaluations = list.slice(0, 200);
-      }
-      if (row) {
-        await C.rest('PATCH', '/site_content?id=eq.draft', { data: baseData, updated_at: new Date().toISOString() });
-      } else {
-        await C.rest('POST', '/site_content', { id: 'draft', data: baseData, updated_at: new Date().toISOString() });
-      }
-    } catch (e) {}
-    return list;
-  }
+  // Security hardening (2026-11-28): Children's evaluations & medical/psychological reports
+  // are persisted strictly in RLS-protected `progress_reports`, never in `site_content` or `localStorage`.
+  async function loadSharedEvaluationsList() { return []; }
+  async function syncSharedEvaluationRecord() { return []; }
 
   function compactDomainsArrayForStorage(rawDomains, maxNoteLen) {
     if (!Array.isArray(rawDomains) || !rawDomains.length) return [];
@@ -5741,6 +5714,7 @@
           payload.id = (Array.isArray(created) && created[0] && created[0].id) ? created[0].id : ((existingRep && existingRep.id) || DE.uuid());
         }
         await syncSharedEvaluationRecord(payload, null);
+        if (status === 'published') flushPushOutboxNow();
         toast(status === 'published' ? 'تم اعتماد ونشر استبانة المعززات بنجاح!' : 'تم حفظ استبانة المعززات كمسودة بنجاح.', 'ok');
         bust();
         go('evaluations');
@@ -6593,15 +6567,15 @@
     var wrap = h('div', { class: 'oep-sheet-container reinforcers-sheet', style: 'background:#FFF; padding:28px 32px; border:2px solid #163B65; font-family:"Cairo", "IBM Plex Sans Arabic", sans-serif; direction:rtl;' });
 
     // ترويسة الوثيقة الرسمية مع الشعار الرسمي لدار الإحسان
-    wrap.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #163B65; padding-bottom:12px; margin-bottom:16px;' },
-      h('div', { style: 'text-align:right;' },
-        h('h3', { style: 'margin:0 0 4px; color:#163B65; font-size:16px; font-weight:900;', text: 'جمعية أولياء الأطفال المعاقين ذهنيًا دار الإحسان' }),
-        h('div', { style: 'font-size:13px; color:#475569; font-weight:700;', text: 'المركز النفسي البيداغوجي — العطف غرداية' })
-      ),
+    wrap.appendChild(h('div', { style: 'display:grid; grid-template-columns:64px 1fr 64px; align-items:center; border-bottom:2px solid #163B65; padding-bottom:10px; margin-bottom:14px;' },
+      h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:54px; height:54px; object-fit:contain; justify-self:start;' }),
       h('div', { style: 'text-align:center;' },
-        h('h2', { style: 'margin:0; color:#0F172A; font-size:18px; font-weight:900; text-decoration:underline;', text: 'استبيان تقييم المعززات' })
+        h('div', { style: 'font-size:13.5px; font-weight:800; color:#0F172A;', text: 'جمعية أولياء الأطفال المعاقين ذهنياً' }),
+        h('div', { style: 'font-size:14.5px; font-weight:900; color:#0F172A;', text: 'المركز النفسي البيداغوجي دار الإحسان' }),
+        h('div', { style: 'font-size:12px; font-weight:700; color:#334155;', text: '- العطف - غرداية -' }),
+        h('h2', { style: 'margin:6px 0 0; color:#1D4ED8; font-size:16px; font-weight:900;', text: 'استبيان تقييم المعززات ' + getCurrentAcademicYear() })
       ),
-      h('img', { src: 'logo-sq.png', alt: 'دار الإحسان', style: 'width:62px; height:62px; object-fit:contain;' })
+      h('div', null)
     ));
 
     // معلومات المفحوص
@@ -6867,14 +6841,14 @@
     wrap.appendChild(ratioBox);
 
     // جدول الحصص والأحجام الساعية
-    var tbl = h('table', { style: 'width:100%; border-collapse:collapse; text-align:center; border:2px solid #000; font-size:13px; margin-bottom:18px;' });
+    var tbl = h('table', { style: 'width:100%; max-width:100%; table-layout:fixed; border-collapse:collapse; text-align:center; border:1.5px solid #000; font-size:10.5px; line-height:1.35; word-break:break-word; margin-bottom:14px;' });
     tbl.appendChild(h('thead', null,
       h('tr', { style: 'font-weight:800; background:#F8FAF9;' },
-        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحصص الفردية السنوية المفروضة'),
-        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحجم الساعي السنوي المقابل'),
-        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحصص الفردية المستغلة'),
-        h('th', { style: 'border:1.5px solid #000; padding:6px;' }, 'الحجم الساعي المقابل'),
-        h('th', { style: 'border:1.5px solid #000; padding:6px; color:#DC2626;' }, 'الحجم الساعي السنوي غير المستغل')
+        h('th', { style: 'border:1px solid #000; padding:4px 3px; font-size:10px;' }, 'الحصص السنوية المفروضة'),
+        h('th', { style: 'border:1px solid #000; padding:4px 3px; font-size:10px;' }, 'الحجم الساعي المقابل'),
+        h('th', { style: 'border:1px solid #000; padding:4px 3px; font-size:10px;' }, 'الحصص المستغلة'),
+        h('th', { style: 'border:1px solid #000; padding:4px 3px; font-size:10px;' }, 'الحجم المستغل'),
+        h('th', { style: 'border:1px solid #000; padding:4px 3px; font-size:10px; color:#DC2626;' }, 'الحجم غير المستغل')
       )
     ));
     tbl.appendChild(h('tbody', null,
@@ -7834,8 +7808,7 @@
         tabFull.rowEl,
         tab2.rowEl,
         tab1.rowEl,
-        tabBaseline.rowEl,
-        tabDetails.rowEl
+        tabBaseline.rowEl
       ),
       h('div', { class: 'oep-report-selector-row', style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;border:1px solid #CBD5E1;border-radius:10px;margin-top:8px;' },
         h('label', { style: 'font-weight:800;color:#111827;', text: 'Nom de l’enfant en français :' }),
@@ -12995,9 +12968,28 @@
     );
     v.appendChild(repQuickBar);
 
+    var _autoArchList = rows.filter(isAutoArchivedAfterOneDay);
+    if (_autoArchList.length) {
+      var _archHost = h('div', { style: 'margin-top:10px;' });
+      var _archDet = h('details', { class: 'card', style: 'margin-bottom:14px; padding:10px 14px; border:1px solid #CBD5E1; border-radius:12px;' },
+        h('summary', { style: 'cursor:pointer; font-weight:800; color:#1D4ED8; font-size:13px;' }, '▾ عرض التقارير المؤرشفة (بعد 24 ساعة من النشر) (' + _autoArchList.length + ')'),
+        _archHost
+      );
+      _archDet.addEventListener('toggle', function () {
+        if (_archDet.open && !_archHost.childNodes.length) {
+          _autoArchList.forEach(function (ar) {
+            _archHost.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #E2E8F0; font-size:12.5px; gap:8px; flex-wrap:wrap;' },
+              h('span', { style: 'font-weight:700;', text: (ar.title || 'وثيقة') + ' — ' + (nameOf(kids, ar.child_id) !== '—' ? nameOf(kids, ar.child_id) : (ar.child_name || '')) + ' (' + fmt(ar.report_date) + ')' }),
+              badge('مؤرشف تلقائياً', 'gray')
+            ));
+          });
+        }
+      });
+      v.appendChild(_archDet);
+    }
     listView(v, {
       title: S.isEducator ? ('التقارير البيداغوجية والنهائية — قسم ' + (S.eduSectionName || 'فوجي')) : 'التقارير البيداغوجية والنهائية للطلبة',
-      rows: rows,
+      rows: rows.filter(function (x) { return !isAutoArchivedAfterOneDay(x); }),
       empty: 'لا توجد تقارير دورية مسجلة بعد.',
       search: function (r) { return r.title + ' ' + nameOf(kids, r.child_id); },
       details: function (r) {
@@ -13239,7 +13231,7 @@
           type: 'button',
           class: 'btn small gold',
           style: 'font-weight:800;',
-          text: '+ إضافة تقييم',
+          hidden: true, style: 'display:none;', text: '',
           onclick: function () {
             openChooseEvaluationTypeModal(function (chosenType) {
               routeEvaluationBuilderByType(chosenType, null);
@@ -13293,9 +13285,28 @@
     );
     v.appendChild(evalQuickBar);
 
+    var _autoArchList = rows.filter(isAutoArchivedAfterOneDay);
+    if (_autoArchList.length) {
+      var _archHost = h('div', { style: 'margin-top:10px;' });
+      var _archDet = h('details', { class: 'card', style: 'margin-bottom:14px; padding:10px 14px; border:1px solid #CBD5E1; border-radius:12px;' },
+        h('summary', { style: 'cursor:pointer; font-weight:800; color:#1D4ED8; font-size:13px;' }, '▾ عرض التقييمات المؤرشفة (بعد 24 ساعة من النشر) (' + _autoArchList.length + ')'),
+        _archHost
+      );
+      _archDet.addEventListener('toggle', function () {
+        if (_archDet.open && !_archHost.childNodes.length) {
+          _autoArchList.forEach(function (ar) {
+            _archHost.appendChild(h('div', { style: 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #E2E8F0; font-size:12.5px; gap:8px; flex-wrap:wrap;' },
+              h('span', { style: 'font-weight:700;', text: (ar.title || 'وثيقة') + ' — ' + (nameOf(kids, ar.child_id) !== '—' ? nameOf(kids, ar.child_id) : (ar.child_name || '')) + ' (' + fmt(ar.report_date) + ')' }),
+              badge('مؤرشف تلقائياً', 'gray')
+            ));
+          });
+        }
+      });
+      v.appendChild(_archDet);
+    }
     listView(v, {
       title: S.isEducator ? ('استمارات التقييم — قسم ' + (S.eduSectionName || 'فوجي')) : 'استمارات التقييم الرسمية للطلبة',
-      rows: rows,
+      rows: rows.filter(function (x) { return !isAutoArchivedAfterOneDay(x); }),
       empty: 'لا توجد استمارات تقييم مسجلة بعد.',
       search: function (r) { return r.title + ' ' + nameOf(kids, r.child_id); },
       details: function (r) {
@@ -13347,8 +13358,13 @@
         { label: 'الحالة', get: function (r) { var st = extractEvalStatus(r); return badge(st === 'published' ? 'مرسلة للأولياء' : 'مسودة', st === 'published' ? 'ok' : 'gray'); } }
       ],
       actions: function (r) {
+        var st = extractEvalStatus(r);
         return [
-null
+          rbtn('تعديل', function () { routeEvaluationBuilderByType(getReportSubCategory(r), r); }),
+          st === 'published'
+            ? rbtn('إلغاء النشر', function () { return toggleEvalPublish(r, 'draft'); }, 'light')
+            : rbtn('نشر', function () { return toggleEvalPublish(r, 'published'); }, 'gold'),
+          rbtn('حذف', function () { return deleteEvalRecord(r); }, 'danger')
         ];
       }
     });
@@ -13947,7 +13963,7 @@ null
           get: function (a) {
             return h('div', { class: 'row-actions' },
               a.phone && a.phone !== '—' ? h('span', { dir: 'ltr', class: 'sic-num', text: a.phone }) : null,
-              badge('مشفرة (Supabase Auth)', 'ok')
+              badge('محمية ومشفرة', 'ok')
             );
           }
         },
@@ -13962,7 +13978,7 @@ null
           h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'إذن الدخول للمراكز:' }), h('strong', { text: formatCenterAccessLabel(a.is_owner ? 'all' : a.center_access) })),
           h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'البريد الإلكتروني:' }), h('span', { dir: 'ltr', text: a.email || '—' })),
           h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'رقم هاتف الاتصال:' }), h('span', { dir: 'ltr', text: a.phone || '—' })),
-          h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'حالة كلمة المرور:' }), h('span', { text: 'مشفرة (Supabase Auth)' })),
+          h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'حالة كلمة المرور:' }), h('span', { text: 'محمية ومشفرة' })),
           h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'آخر تسجيل دخول:' }), h('span', { text: fmt(a.last_sign_in_at, true) })),
           h('div', null, h('span', { class: 'muted small', style: 'display:block;', text: 'حالة الحساب:' }), badge(a.disabled ? 'معطَّل' : 'مفعّل', a.disabled ? 'bad' : 'ok'))
         );
@@ -14128,12 +14144,7 @@ null
           await C.rest("DELETE", "/audit_logs?" + qs);
           doneRemote = true;
         } catch (e2) {
-          try {
-            await C.rest("DELETE", "/audit_log?" + qs.replace(/created_at/g, "at"));
-            doneRemote = true;
-          } catch (e3) {
-            throw new Error("تعذر حذف السجل من Supabase. يرجى تشغيل ملف SQL (20-audit-log-retention-and-daily-delete.sql) مرة واحدة في Supabase SQL Editor.");
-          }
+          throw new Error("تعذر حذف السجل. تأكد من امتلاك صلاحية المالك.");
         }
       }
       if (doneRemote) {
@@ -14163,7 +14174,7 @@ null
         try {
           await C.rest("DELETE", "/audit_logs?created_at=lt." + encodeURIComponent(cutoff));
         } catch (e2) {
-          if (!silent) toast("تعذر التنظيف التلقائي: يرجى تشغيل ملف SQL في Supabase.", "bad");
+          if (!silent) toast("تعذر التنظيف التلقائي: يرجى مراجعة المسؤول التقني.", "bad");
           return false;
         }
       }
@@ -15589,10 +15600,7 @@ null
 
   /* القسم الرئيسي: الغيابات والحضور */
   async function secAttendance(v) {
-    if (S.isSpecialist) {
-      toast('غير مخوّلة: قسم الغيابات والحضور غير متاح لحساب الأخصائية.', 'bad');
-      return go('children');
-    }
+    var isReadOnlyStaffAtt = !!(S.isEducator || S.isSpecialist);
 
     v.textContent = '';
     v.appendChild(h('div', { class: 'empty', text: 'جارٍ تحميل نظام الغيابات والحضور…' }));
@@ -15600,8 +15608,8 @@ null
     var d = await Promise.all([
       getMany('children', 'branches', 'sections'),
       C.rest('GET', '/attendance?order=date.desc&limit=2000').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=300').catch(function () { return []; }),
-      C.rest('GET', '/whatsapp_messages?direction=eq.inbound&order=created_at.desc&limit=100').catch(function () { return []; })
+      isReadOnlyStaffAtt ? Promise.resolve([]) : C.rest('GET', '/whatsapp_logs?order=created_at.desc&limit=300').catch(function () { return []; }),
+      isReadOnlyStaffAtt ? Promise.resolve([]) : C.rest('GET', '/whatsapp_messages?direction=eq.inbound&order=created_at.desc&limit=100').catch(function () { return []; })
     ]);
 
     var rawKids = d[0][0] || [];
@@ -15655,6 +15663,133 @@ null
         var dayName = new Intl.DateTimeFormat('ar-DZ', { weekday: 'long', timeZone: 'Africa/Algiers' }).format(dt);
         return dayName + ' — ' + dStr;
       } catch (e) { return dStr; }
+    }
+
+    if (isReadOnlyStaffAtt) {
+      var selectedDateRO = todayStr;
+      var selectedSecRO = S.isEducator ? (S.eduSectionId || '') : 'all';
+
+      function renderReadOnlyAttendance() {
+        v.textContent = '';
+        var dayRecs = dbAttendance.filter(function (a) {
+          return a && (a.date ? String(a.date).slice(0, 10) : '') === selectedDateRO;
+        });
+        var recByKid = {};
+        dayRecs.forEach(function (a) {
+          if (a && a.child_id) recByKid[String(a.child_id)] = a;
+        });
+
+        var filteredKids = eligibleKids.filter(function (k) {
+          if (S.isEducator && S.eduSectionId) return String(k.section_id) === String(S.eduSectionId);
+          if (S.isSpecialist && selectedSecRO && selectedSecRO !== 'all') return String(k.section_id) === String(selectedSecRO);
+          return true;
+        });
+
+        var presentCnt = 0, absentCnt = 0, unsetCnt = 0;
+        filteredKids.forEach(function (k) {
+          var st = recByKid[String(k.id)] && recByKid[String(k.id)].status;
+          if (st === 'present') presentCnt++;
+          else if (st === 'absent' || st === 'excused' || st === 'absent_excused') absentCnt++;
+          else unsetCnt++;
+        });
+
+        var wrap = h('div', { style: 'display:flex; flex-direction:column; gap:14px;' });
+
+        // ترويسة بسيطة للعرض فقط بدون أي أزرار إجراءات
+        var filtersRow = h('div', { style: 'display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;' },
+          h('label', { class: 'fld', style: 'min-width:170px; margin:0;' },
+            h('span', { text: 'التاريخ' }),
+            h('input', {
+              type: 'date',
+              value: selectedDateRO,
+              onchange: function (e) { selectedDateRO = e.target.value || todayStr; renderReadOnlyAttendance(); }
+            })
+          )
+        );
+        if (S.isSpecialist) {
+          var secSelect = h('select', {
+            value: selectedSecRO,
+            onchange: function (e) { selectedSecRO = e.target.value || 'all'; renderReadOnlyAttendance(); }
+          },
+            h('option', { value: 'all', text: 'جميع الأقسام (' + eligibleSections.length + ')' })
+          );
+          eligibleSections.forEach(function (s) {
+            secSelect.appendChild(h('option', { value: String(s.id), text: s.name || 'قسم' }));
+          });
+          secSelect.value = selectedSecRO;
+          filtersRow.appendChild(h('label', { class: 'fld', style: 'min-width:200px; margin:0;' },
+            h('span', { text: 'القسم' }),
+            secSelect
+          ));
+        }
+
+        wrap.appendChild(h('div', { class: 'card', style: 'padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;' },
+          h('div', null,
+            h('h2', { style: 'margin:0 0 4px; font-size:1.15rem; font-weight:800;', text: S.isEducator ? ('حضور وغياب طلاب القسم — ' + (S.eduSectionName || 'قسمي')) : 'حضور وغياب جميع الأقسام' }),
+            h('div', { class: 'muted small', text: formatArabicDayLabel(selectedDateRO) })
+          ),
+          filtersRow
+        ));
+
+        // ملخص عددي بسيط
+        wrap.appendChild(h('div', { style: 'display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;' },
+          h('div', { class: 'card', style: 'padding:12px 16px; text-align:center;' },
+            h('div', { style: 'font-size:1.4rem; font-weight:900; color:#1E40AF;', text: String(presentCnt) }),
+            h('div', { class: 'muted small', text: 'حاضر' })
+          ),
+          h('div', { class: 'card', style: 'padding:12px 16px; text-align:center;' },
+            h('div', { style: 'font-size:1.4rem; font-weight:900; color:#B91C1C;', text: String(absentCnt) }),
+            h('div', { class: 'muted small', text: 'غائب' })
+          ),
+          h('div', { class: 'card', style: 'padding:12px 16px; text-align:center;' },
+            h('div', { style: 'font-size:1.4rem; font-weight:900; color:#64748B;', text: String(unsetCnt) }),
+            h('div', { class: 'muted small', text: 'لم يُسجَّل بعد' })
+          )
+        ));
+
+        // جدول عرض الحالة فقط (حاضر / غائب) بدون أي أزرار
+        if (!filteredKids.length) {
+          wrap.appendChild(h('div', { class: 'card empty', style: 'padding:28px;', text: 'لا يوجد طلاب في هذا القسم.' }));
+        } else {
+          var tbody = h('tbody');
+          filteredKids.forEach(function (k, idx) {
+            var rec = recByKid[String(k.id)];
+            var st = rec && rec.status;
+            var statusEl;
+            if (st === 'present') {
+              statusEl = h('span', { style: 'display:inline-block; padding:4px 14px; border-radius:999px; font-weight:800; font-size:12.5px; background:#DBEAFE; color:#1E40AF;', text: 'حاضر' });
+            } else if (st === 'absent' || st === 'excused' || st === 'absent_excused') {
+              statusEl = h('span', { style: 'display:inline-block; padding:4px 14px; border-radius:999px; font-weight:800; font-size:12.5px; background:#FEE2E2; color:#991B1B;', text: 'غائب' });
+            } else {
+              statusEl = h('span', { style: 'display:inline-block; padding:4px 14px; border-radius:999px; font-weight:700; font-size:12px; background:#F1F5F9; color:#64748B;', text: 'لم يُسجَّل بعد' });
+            }
+            var secLabel = nameOf(sections, k.section_id, 'name') || k.section || '—';
+            var tr = h('tr', null,
+              h('td', { style: 'padding:10px 12px; font-weight:700; width:44px; text-align:center;', text: String(idx + 1) }),
+              h('td', { style: 'padding:10px 12px; font-weight:800;', text: k.full_name || '—' }),
+              S.isSpecialist ? h('td', { style: 'padding:10px 12px; color:#475569; font-weight:600;', text: secLabel }) : null,
+              h('td', { style: 'padding:10px 12px; text-align:center;' }, statusEl)
+            );
+            tbody.appendChild(tr);
+          });
+          var tbl = h('table', { style: 'width:100%; border-collapse:collapse; font-size:13.5px;' },
+            h('thead', null,
+              h('tr', { style: 'border-bottom:2px solid #E2E8F0; text-align:right;' },
+                h('th', { style: 'padding:10px 12px; text-align:center;', text: '#' }),
+                h('th', { style: 'padding:10px 12px;', text: 'اسم الطالب' }),
+                S.isSpecialist ? h('th', { style: 'padding:10px 12px;', text: 'القسم' }) : null,
+                h('th', { style: 'padding:10px 12px; text-align:center;', text: 'الحالة' })
+              )
+            ),
+            tbody
+          );
+          wrap.appendChild(h('div', { class: 'card', style: 'padding:0; overflow-x:auto;' }, tbl));
+        }
+        v.appendChild(wrap);
+      }
+
+      renderReadOnlyAttendance();
+      return;
     }
 
     function isRecordOlderThan24h(rec, dStr) {
@@ -15752,7 +15887,7 @@ null
       h('div', { style: 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;' },
         h('div', null,
           h('h2', { style: 'margin:0 0 4px; font-size:1.35rem; font-weight:800;', text: 'نظام الحضور والغيابات' }),
-          h('p', { style: 'margin:0; font-size:0.9rem; opacity:0.95;', text: 'إدارة الحضور اليومي حسب الأقسام، الإشعارات الفورية عبر WhatsApp، والسجل التاريخي والتقارير.' })
+          h('p', { style: 'margin:0; font-size:0.9rem; opacity:0.95;', text: 'إدارة الحضور اليومي حسب الأقسام ومتابعة الغيابات والتبريرات.' })
         ),
         h('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' },
           h('button', {
@@ -15796,7 +15931,7 @@ null
 
     [
       ['daily', 'تسجيل الحضور اليومي', 's-calendar-check'],
-      ['history', 'السجل التاريخي والتقارير', 's-report'],
+      
       ['whatsapp', 'سجل إشعارات WhatsApp', 's-whatsapp']
     ].forEach(function (df) {
       var b = h('button', {
@@ -15905,7 +16040,7 @@ null
             h('button', {
               type: 'button',
               class: 'btn small primary',
-              text: 'عرض في السجل التاريخي',
+              hidden: true, text: 'عرض في السجل التاريخي',
               onclick: function () { setTab('history'); }
             })
           )
@@ -16557,7 +16692,7 @@ null
           h('button', {
             type: 'button',
             class: 'btn primary',
-            text: '✉️ إنشاء رسالة WhatsApp حرة',
+            hidden: true, text: '',
             onclick: function () { openFreeWhatsappComposerModal({}); }
           })
         ));
@@ -16740,7 +16875,7 @@ null
     if (S.isEducator && (sec !== 'children' && sec !== 'attendance' && (sec !== 'reports' || isFarmSession()) && (sec !== 'evaluations' || isFarmSession()) && sec !== 'programs' && sec !== 'msgs')) {
       sec = 'children';
     }
-    if (S.isSpecialist && (sec !== 'children' && sec !== 'reports' && sec !== 'evaluations' && sec !== 'programs' && sec !== 'docs' && sec !== 'msgs')) {
+    if (S.isSpecialist && (sec !== 'children' && sec !== 'attendance' && sec !== 'reports' && sec !== 'evaluations' && sec !== 'programs' && sec !== 'docs' && sec !== 'msgs')) {
       toast('غير مخوّلة: هذه الصلاحية محصورة بإدارة المركز فقط.', 'bad');
       return go('children');
     }
@@ -17561,6 +17696,11 @@ null
     });
     var merged = Object.keys(byId).map(function (k) { return byId[k]; });
     merged.sort(function (a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
+    var dismissedIds = [];
+    try { dismissedIds = JSON.parse(localStorage.getItem('de_dismissed_notifs') || '[]'); } catch (e) {}
+    if (dismissedIds.length) {
+      merged = merged.filter(function (x) { return !x || dismissedIds.indexOf(String(x.id)) < 0; });
+    }
     NOTIF_STATE.items = merged;
     setLocalNotifications(merged);
     updateNotificationBadges();
@@ -18011,12 +18151,21 @@ null
         h('button', {
           type: 'button',
           class: 'btn light',
-          onclick: function () {
+          onclick: async function () {
+            var toDel = (NOTIF_STATE.items || []).filter(function (n) { return n.is_read; });
+            var dismissed = [];
+            try { dismissed = JSON.parse(localStorage.getItem('de_dismissed_notifs') || '[]'); } catch (e) {}
+            toDel.forEach(function (x) { if (x && x.id && dismissed.indexOf(String(x.id)) < 0) dismissed.push(String(x.id)); });
+            try { localStorage.setItem('de_dismissed_notifs', JSON.stringify(dismissed.slice(-500))); } catch (e) {}
             NOTIF_STATE.items = (NOTIF_STATE.items || []).filter(function (n) { return !n.is_read; });
             setLocalNotifications(NOTIF_STATE.items);
             updateNotificationBadges();
             renderList();
-            toast('تم حذف الإشعارات المقروءة.', 'ok');
+            var dbIds = toDel.map(function (x) { return x && x.id; }).filter(function (id) { return id && DE.isUuid(String(id)); });
+            for (var di = 0; di < dbIds.length; di++) {
+              try { await C.rest('DELETE', '/notifications?id=eq.' + uid(dbIds[di])); } catch (eDel) {}
+            }
+            toast('تم حذف الإشعارات المقروءة نهائياً.', 'ok');
           }
         }, makeSvgIcon('s-trash'), h('span', { text: 'حذف المقروءة' }))
       )
@@ -18065,10 +18214,10 @@ null
     var toolbar = h('div', { class: 'notif-filters-toolbar' }, tabsGroup, searchInput);
     root.appendChild(toolbar);
 
-    var pushDiagBar = h('div', {
+    var pushDiagBar = h('div', { hidden: true, 
       class: 'card',
       style: 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:12px;font-size:0.85rem;'
-    }, h('span', { style: 'opacity:0.75;', text: 'جارٍ فحص حالة نظام Push…' }));
+    }, h('span', { style: 'opacity:0.75;', text: '' }));
     root.appendChild(pushDiagBar);
 
     C.rpc('get_push_diagnostics', {}).then(function (d) {
@@ -18082,19 +18231,23 @@ null
         ['قيد المعالجة', String(d.processing_count || 0)]
       ];
       items.forEach(function (pair) {
-        pushDiagBar.appendChild(h('span', { style: 'background:rgba(18,62,115,0.08);padding:4px 9px;border-radius:8px;' },
+        // technical diagnostics hidden for end-users
+        void(h('span', { style: 'background:rgba(18,62,115,0.08);padding:4px 9px;border-radius:8px;' },
           h('strong', { text: pair[0] + ': ' }), h('span', { text: pair[1] })
         ));
       });
       if (d.last_success_at) {
-        pushDiagBar.appendChild(h('span', { style: 'opacity:0.8;', text: 'آخر إرسال ناجح: ' + new Date(d.last_success_at).toLocaleString('ar-DZ') }));
+        // technical diagnostics hidden for end-users
+        void(h('span', { style: 'opacity:0.8;', text: 'آخر إرسال ناجح: ' + new Date(d.last_success_at).toLocaleString('ar-DZ') }));
       }
-      pushDiagBar.appendChild(h('span', {
+      // technical diagnostics hidden for end-users
+        void(h('span', {
         class: 'dah-status-pill is-ok',
         text: 'مركز الإشعارات الداخلي: يعمل بشكل مستقل عن Push'
       }));
       if (Number(d.expired_subscriptions || 0) > 0 && !S.isEducator) {
-        pushDiagBar.appendChild(h('button', {
+        // technical diagnostics hidden for end-users
+        void(h('button', {
           type: 'button',
           class: 'btn small light',
           text: 'تنظيف الاشتراكات المنتهية (' + d.expired_subscriptions + ')',
@@ -18117,11 +18270,13 @@ null
         var friendlyErr = rawErr.indexOf('No active push subscriptions for target') >= 0
           ? 'لا يوجد اشتراك Push نشط لولي أمر المستلم المستهدف حالياً (يحتاج الولي لتفعيل إشعارات الهاتف من فضاء الأولياء؛ إشعارات المركز الداخلية تعمل بشكل طبيعي).'
           : rawErr.slice(0, 160);
-        pushDiagBar.appendChild(h('span', { style: 'color:#b45309;width:100%;font-size:0.82rem;line-height:1.5;', text: 'ملاحظة Push: ' + friendlyErr }));
+        // technical diagnostics hidden for end-users
+        void(h('span', { style: 'color:#b45309;width:100%;font-size:0.82rem;line-height:1.5;', text: 'ملاحظة Push: ' + friendlyErr }));
       }
     }).catch(function () {
       pushDiagBar.textContent = '';
-      pushDiagBar.appendChild(h('span', { class: 'dah-status-pill is-warn', text: 'تعذر جلب إحصائيات Push — إشعارات المركز الداخلية لا تزال متاحة.' }));
+      // technical diagnostics hidden for end-users
+        void(h('span', { class: 'dah-status-pill is-warn', text: 'تعذر جلب إحصائيات Push — إشعارات المركز الداخلية لا تزال متاحة.' }));
     });
 
     var listHost = h('div', { class: 'notif-items-list' });
@@ -18202,12 +18357,20 @@ null
               type: 'button',
               class: 'btn small ghost',
               title: 'حذف الإشعار',
-              onclick: function (ev) {
+              onclick: async function (ev) {
                 if (ev && ev.stopPropagation) ev.stopPropagation();
+                var dismissed = [];
+                try { dismissed = JSON.parse(localStorage.getItem('de_dismissed_notifs') || '[]'); } catch (e) {}
+                if (n && n.id && dismissed.indexOf(String(n.id)) < 0) dismissed.push(String(n.id));
+                try { localStorage.setItem('de_dismissed_notifs', JSON.stringify(dismissed.slice(-500))); } catch (e) {}
                 NOTIF_STATE.items = (NOTIF_STATE.items || []).filter(function (x) { return x.id !== n.id; });
                 setLocalNotifications(NOTIF_STATE.items);
                 updateNotificationBadges();
                 renderList();
+                if (n && n.id && DE.isUuid(String(n.id))) {
+                  try { await C.rest('DELETE', '/notifications?id=eq.' + uid(n.id)); } catch (eDel) {}
+                }
+                toast('تم حذف الإشعار نهائياً.', 'ok');
               }
             }, makeSvgIcon('s-trash'))
           )

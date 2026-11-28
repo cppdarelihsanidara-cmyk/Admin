@@ -5,13 +5,13 @@
   if (secure && 'serviceWorker' in navigator) {
     // تفريغ الكاش التلقائي عند كل إصدار جديد وإجبار المتصفح على جلب sw.js دون كاش HTTP
     try {
-      if (localStorage.getItem('de_pwa_ver') !== '20261124_pastel1') {
+      if (localStorage.getItem('de_pwa_ver') !== '20261128_secfix3') {
         if ('caches' in window) {
           caches.keys().then(function (names) {
-            names.forEach(function (n) { if (n.indexOf('de-parents-') === 0) caches.delete(n); });
+            names.forEach(function (n) { if (n.indexOf('de-admin-') === 0) caches.delete(n); });
           });
         }
-        localStorage.setItem('de_pwa_ver', '20261124_pastel1');
+        localStorage.setItem('de_pwa_ver', '20261128_secfix3');
       }
     } catch (e) {}
     var _reloadedForSw = false;
@@ -21,7 +21,7 @@
       window.location.reload();
     });
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js?v=20261124_pastel1', { updateViaCache: 'none' }).then(function (reg) {
+      navigator.serviceWorker.register('sw.js?v=20261128_secfix3', { updateViaCache: 'none' }).then(function (reg) {
         try { reg.update(); } catch (e) {}
       }).catch(function () {});
     });
